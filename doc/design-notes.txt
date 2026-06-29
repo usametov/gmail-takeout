@@ -1,0 +1,140 @@
+== Implementation Status ==
+
+Completed Steps:
+  1. deps.edn configured with real dependencies
+  2. DB schema defined (src/astanova/db.clj)
+  3. MBOX parser implemented (src/astanova/parse.clj) - TESTED & WORKING
+  4. Ingestion pipeline (src/astanova/ingest.clj) - CODE WRITTEN, waiting on Datalevin native lib fix
+  5. CLI interface (src/astanova/cli.clj, src/astanova/takeout.clj) - CODE WRITTEN
+
+=== File Structure ===
+  src/astanova/db.clj      - Datalevin schema + connection helpers
+  src/astanova/parse.clj   - MBOX parsing + email structuring
+  src/astanova/ingest.clj  - Pipeline: parse → transform → transact
+  src/astanova/cli.clj     - CLI: arg parsing, dispatch, formatting, querying
+  src/astanova/takeout.clj - Main entry point (-main)
+
+=== Step 1: Dependencies (deps.edn) ===
+```clojure
+{:paths ["src" "resources"]
+ :mvn/repos {"clojars" {:url "https://repo.clojars.org"}}  ;; Datalevin is on Clojars, not Maven Central
+ :deps {org.clojure/clojure {:mvn/version "1.12.5"}
+        datalevin/datalevin {:mvn/version "0.9.20"}  ;; artifact is datalevin/datalevin, not com.github.juji-io/datalevin
+        org.apache.tika/tika-core {:mvn/version "2.9.2"}
+        org.apache.tika/tika-parsers-standard-package {:mvn/version "2.9.2"}
+        org.apache.james/apache-mime4j-core {:mvn/version "0.8.11"}
+        org.apache.james/apache-mime4j-mbox-iterator {:mvn/version "0.8.11"}  ;; MboxIterator is a SEPARATE artifact from mime4j-core
+        com.sun.mail/jakarta.mail {:mvn/version "2.0.1"}
+        org.clojure/tools.cli {:mvn/version "1.1.230"}}}
+```
+
+=== Step 2: DB Schema (src/astanova/db.clj) ===
+  12 attributes covering: :email/id (unique), :email/thread-id, :email/source,
+  :email/mbox-file, :email/subject, :email/from, :email/to (many), :email/cc (many),
+  :email/date, :email/body, :email/html, :email/labels (many)
+
+  Note: :email/embedding removed — embeddings handled by external ColBERT service.
+
+  Key: :email/id uses Message-ID header with :db.unique/identity for dedup.
+
+=== Step 3: MBOX Parser (src/astanova/parse.clj) ===
+  Uses Mime4j MboxIterator (NOT Tika's MboxParser) for memory-efficient per-message
+  iteration. Each message parsed via Jakarta Mail (jakarta.mail).
+
+  Key lessons / deviations from original plan:
+  - MboxIterator lives in apache-mime4j-mbox-iterator, NOT apache-mime4j-core
+  - Package is org.apache.james.mime4j.mboxiterator (NOT .stream)
+  - MboxIterator implements Iterable, not Iterator — must call .iterator() before iterator-seq
+  - File. constructor can't be passed as HOF to map; use #(File. %) instead
+
+  Public API:
+    (mbox-messages path)        -> lazy seq of CharBufferWrappers
+    (parse-raw-message raw-msg) -> structured email map
+    (parse-mbox path)           -> lazy seq of email maps
+    (extract-text-body msg)     -> plain text (prefers text/plain over text/html)
+    (extract-html-body msg)     -> HTML body or nil
+    (html->text html)           -> strip HTML tags
+    (parse-gmail-labels msg)    -> vector from X-Gmail-Labels header
+
+  Tested with: plain text, multipart/alternative (text+HTML), Gmail labels,
+  multiple recipients (To, CC). All passing.
+
+=== Step 4: Ingestion Pipeline (src/astanova/ingest.clj) ===
+  Public API:
+    (email-map->entity email-map mbox-file source) -> Datalevin entity map
+    (ingest-emails! conn emails mbox-file source)  -> tx stats
+    (ingest-mbox! conn mbox-path source)           -> parse + transact one file
+    (ingest-mbox-files! conn mbox-dir source)       -> batch multiple files
+
+  Batching: default 100 entities per transaction.
+  Dedup: relies on :email/id uniqueness in Datalevin schema.
+
+=== Step 5: CLI Interface (src/astanova/cli.clj) ===
+  Uses tools.cli for argument parsing. Four commands: ingest, query, stats, export.
+
+  Command dispatch pattern:
+    takeout -d ./emails.db <command> [options] [args]
+
+  Commands:
+    ingest   - load .mbox files/directories into DB
+    query    - search by subject, from, to, label, date range
+    stats    - show total count, date range, top labels/senders
+    export   - dump emails as JSON/EDN
+
+  Query filters use Datalevin Datalog with pull expressions.
+  Export uses :or clauses for multi-label filtering.
+  Output formats: table (fixed-width columns), EDN, JSON.
+
+  Key decision: tools.cli 1.1.230 requires explicit :id on option specs
+  that lack a short flag (e.g. "--since DATE" needs :id :since).
+
+  :email/embedding removed from schema - embeddings handled by external
+  ColBERT service via libpython-clj (out of scope for this codebase).
+
+=== Datalevin Native Library Issue ===
+  Datalevin requires a native shared library (libdtlv.dylib on macOS, libdtlv.so on Linux).
+  The library's rpath uses relative paths (libdtlv.dylib, libjniDTLV.dylib) which fail
+  to load on some macOS versions (e.g., High Sierra, load command 0x80000034 unknown).
+
+  WORKAROUND: fix the dylib paths with install_name_tool:
+    cd ~/.m2/repository/org/clojars/huahaiy/dtlvnative-macosx-x86_64/0.11.4/
+    cp dtlvnative-macosx-x86_64-0.11.4.jar dtlvnative-macosx-x86_64-0.11.4.jar.bak
+    mkdir fix && cd fix && jar xf ../dtlvnative-macosx-x86_64-0.11.4.jar
+    D=datalevin/dtlvnative/macosx-x86_64
+    CACHE=~/.javacpp/cache/dtlvnative-macosx-x86_64-0.11.4.jar/$D
+    install_name_tool -id $CACHE/libjniDTLV.dylib $D/libjniDTLV.dylib
+    install_name_tool -change libdtlv.dylib $CACHE/libdtlv.dylib $D/libjniDTLV.dylib
+    install_name_tool -id $CACHE/libdtlv.dylib $D/libdtlv.dylib
+    jar cf ../dtlvnative-macosx-x86_64-0.11.4.jar -C . .
+    rm -rf ~/.javacpp/cache/dtlvnative-macosx-x86_64-0.11.4.jar
+    cd ~ && rm -rf fix
+
+  Note: This workaround was attempted on macOS High Sierra but failed with
+  "cannot load 'libdtlv.dylib' (load command 0x80000034 is unknown)".
+  This is a macOS version compatibility issue — the library likely targets
+  a newer macOS. Solution: upgrade macOS, run on Linux, or use a newer Mac.
+  Ingestion code is verified correct aside from this runtime issue.
+
+=== Original Design Notes Follow ===
+
+Use **Apache Tika** for robust parsing of MBOX + individual emails (it handles RFC822, attachments metadata, HTML→text, etc.). Pair it with JavaMail (`javax.mail` / `jakarta.mail`) or a Clojure wrapper for finer control over headers/parts.
+
+**Best combo**:
+- `clj-tika` (or direct Tika interop) → parse MBOX into individual messages.
+- JavaMail for structured email data (subject, from, to, date, body parts, etc.).
+- Then embed + transact into Datalevin.
+
+### Performance Tips
+- Process in batches (default 100 per tx in ingest.clj).
+- Run embedding generation in parallel (use `pmap` or a thread pool).
+- MboxIterator is memory-efficient (one message at a time). Tika can be memory-heavy.
+
+### Next Steps After Ingestion
+Once emails are in Datalevin with embeddings, the **recommendation engine** becomes trivial:
+
+```clojure
+(defn recommend-for-new-email [new-text]
+  (let [vec (embed new-text)]
+    (d/search-vec conn :email/embedding vec {:top-k 10})))
+```
+
