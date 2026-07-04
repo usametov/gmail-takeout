@@ -2,9 +2,10 @@
   "Database schema and connection management for email ingestion."
   (:require [datalevin.core :as d]))
 
-(def email-schema
+(defn build-email-schema
   "Schema for email entities in Datalevin.
    Uses Message-ID as the unique identity key to support deduplication."
+  []
   {:email/id          {:db/valueType   :db.type/string
                        :db/cardinality :db.cardinality/one
                        :db/unique      :db.unique/identity
@@ -43,17 +44,20 @@
                        :db/cardinality :db.cardinality/many
                        :db/doc         "Gmail labels or derived tags"}})
 
-(def email-attrs
+(defn get-email-attrs
   "Set of all email attribute keywords (for pulling entire entities)."
+  [email-schema]
   (set (keys email-schema)))
 
 (defn create-conn
   "Create or open a Datalevin connection at the given directory path.
    Returns a connection ready for transactions and queries."
   [db-path]
-  (d/get-conn db-path email-schema))
+  (d/get-conn db-path (builld-email-schema)))
 
 (defn close-conn
   "Gracefully close a Datalevin connection."
   [conn]
   (d/close conn))
+
+
