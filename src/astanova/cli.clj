@@ -9,6 +9,10 @@
   (:import [java.time Instant LocalDate ZonedDateTime ZoneId]
            [java.time.format DateTimeFormatter DateTimeParseException]))
 
+;; ─── Forward declarations ───────────────────────────────────────-
+
+(declare build-query-clauses build-query print-table to-json)
+
 ;; ─── Global options ─────────────────────────────────────────────
 
 (def ^:private global-spec
@@ -133,12 +137,13 @@
     (conj ['?e :email/subject])))
 
 (defn- build-query [clauses limit offset]
-  (vec (concat
-        [:find [(list 'pull '?e
-                      '[:email/subject :email/from :email/to :email/date
-                        :email/labels :email/body]) ...]
-         :where]
-        clauses)))
+  (let [gather-sym (symbol "...")]
+    (vec (concat
+          [:find [(list 'pull '?e
+                       '[:email/subject :email/from :email/to :email/date
+                         :email/labels :email/body]) gather-sym]
+           :where]
+          clauses))))
 
 ;; ─── Stats command ──────────────────────────────────────────────
 
@@ -203,7 +208,7 @@
                     (conj ['?e :email/date '?d]
                           [(list '>= '?d (parse-date (:since options)))]))
           query   (vec (concat
-                        [:find [(list 'pull '?e '[*]) ...]
+                        [:find [(list 'pull '?e '[*]) (symbol "...")]
                          :in '$]
                         [:where]
                         clauses))
