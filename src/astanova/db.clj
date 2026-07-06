@@ -53,7 +53,7 @@
   "Create or open a Datalevin connection at the given directory path.
    Returns a connection ready for transactions and queries."
   [db-path]
-  (d/get-conn db-path (builld-email-schema)))
+  (d/get-conn db-path (build-email-schema)))
 
 (defn close-conn
   "Gracefully close a Datalevin connection."

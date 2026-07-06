@@ -15,14 +15,14 @@
 
 ;; ─── Global options ─────────────────────────────────────────────
 
-(def ^:private global-spec
+(defn- get-global-spec []
   [["-d" "--db PATH" "Datalevin database path"
     :default "emails.db"]
    ["-h" "--help"]])
 
 ;; ─── Ingest command ─────────────────────────────────────────────
 
-(def ^:private ingest-spec
+(defn- get-ingest-spec []
   [["-s" "--source S" "Source label"
     :default "google-takeout"]
    ["-b" "--batch N" "Transaction batch size"
@@ -32,7 +32,7 @@
    ["-h" "--help"]])
 
 (defn- ingest-cmd [conn args]
-  (let [{:keys [options arguments errors summary]} (parse-opts args ingest-spec)]
+  (let [{:keys [options arguments errors summary]} (parse-opts args (get-ingest-spec))]
     (when errors
       (doseq [e errors] (println e))
       (System/exit 1))
@@ -81,7 +81,7 @@
 
 ;; ─── Query command ──────────────────────────────────────────────
 
-(def ^:private query-spec
+(defn- get-query-spec []
   [["-s" "--subject TEXT" "Filter by subject substring" :id :subject]
    ["-f" "--from ADDR"    "Filter by sender"            :id :from]
    ["-t" "--to ADDR"      "Filter by recipient"          :id :to]
@@ -104,7 +104,7 @@
    ["-h" "--help"]])
 
 (defn- query-cmd [conn args]
-  (let [{:keys [options errors summary]} (parse-opts args query-spec)]
+  (let [{:keys [options errors summary]} (parse-opts args (get-query-spec))]
     (when errors
       (doseq [e errors] (println e))
       (System/exit 1))
@@ -140,8 +140,8 @@
   (let [gather-sym (symbol "...")]
     (vec (concat
           [:find [(list 'pull '?e
-                       '[:email/subject :email/from :email/to :email/date
-                         :email/labels :email/body]) gather-sym]
+                        '[:email/subject :email/from :email/to :email/date
+                          :email/labels :email/body]) gather-sym]
            :where]
           clauses))))
 
@@ -176,7 +176,7 @@
 
 ;; ─── Export command ─────────────────────────────────────────────
 
-(def ^:private export-spec
+(defn- get-export-spec []
   [["--format FMT" "Output format: json | edn"
     :default "json"
     :validate [#(#{"json" "edn"} %) "Must be json or edn"]
@@ -188,7 +188,7 @@
    ["-h" "--help"]])
 
 (defn- export-cmd [conn args]
-  (let [{:keys [options arguments errors summary]} (parse-opts args export-spec)]
+  (let [{:keys [options arguments errors summary]} (parse-opts args (get-export-spec))]
     (when errors
       (doseq [e errors] (println e))
       (System/exit 1))
@@ -222,7 +222,7 @@
 
 ;; ─── Output formatting ──────────────────────────────────────────
 
-(def ^:private col-width 40)
+(defn- get-col-width [] 40)
 
 (defn- print-table [results]
   (when (empty? results)
@@ -230,21 +230,21 @@
     (System/exit 0))
   (let [cols   [:email/subject :email/from :email/date :email/labels]
         header (str/join " │ " (for [c cols]
-                                 (format (str "%-" col-width "s") (name c))))
+                                 (format (str "%-" (get-col-width) "s") (name c))))
         sep    (str/join "─┼─" (repeat (count cols)
-                                       (apply str (repeat col-width "─"))))]
+                                       (apply str (repeat (get-col-width) "─"))))]
     (println header)
     (println sep)
     (doseq [row results]
       (println (str/join " │ "
                          (for [c cols]
                            (let [v (get row c)]
-                             (format (str "%." col-width "s")
+                             (format (str "%." (get-col-width) "s")
                                      (cond
                                        (nil? v)   ""
                                        (coll? v)  (str/join ", " (take 3 v))
                                        (inst? v)  (str v)
-                                       :else      (subs (str v) 0 (min col-width (count (str v)))))))))))
+                                       :else      (subs (str v) 0 (min (get-col-width) (count (str v)))))))))))
     (println)))
 
 (defn- json-escape
@@ -305,7 +305,7 @@
   "Parse global options, open DB, dispatch to command handler.
    Main entry point for the CLI."
   [args]
-  (let [{:keys [options arguments errors]} (parse-opts args global-spec
+  (let [{:keys [options arguments errors]} (parse-opts args (get-global-spec)
                                                        :in-order true)]
     (when errors
       (doseq [e errors] (println e))

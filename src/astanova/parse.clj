@@ -175,7 +175,7 @@
    using Jakarta Mail for header and body extraction.
    Returns a map with keys matching the Datalevin schema."
   [raw-msg]
-  (let [raw-str   (str raw-msg)
+  (let [raw-str   (str/triml (str raw-msg))
         input     (ByteArrayInputStream. (.getBytes raw-str "UTF-8"))
         props     (doto (Properties.)
                     (.setProperty "mail.mime.address.strict" "false"))

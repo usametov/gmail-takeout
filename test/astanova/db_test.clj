@@ -56,17 +56,20 @@
 
 (deftest test-email-schema
   (testing "Schema has expected attributes"
-    (is (contains? sut/email-schema :email/id)       "Has :email/id")
-    (is (contains? sut/email-schema :email/subject)  "Has :email/subject")
-    (is (contains? sut/email-schema :email/from)     "Has :email/from")
-    (is (contains? sut/email-schema :email/date)     "Has :email/date")
-    (is (contains? sut/email-schema :email/body)     "Has :email/body")
-    (is (contains? sut/email-schema :email/labels)   "Has :email/labels")))
+    (let [schema (sut/build-email-schema)]
+      (is (contains? schema :email/id)       "Has :email/id")
+      (is (contains? schema :email/subject)  "Has :email/subject")
+      (is (contains? schema :email/from)     "Has :email/from")
+      (is (contains? schema :email/date)     "Has :email/date")
+      (is (contains? schema :email/body)     "Has :email/body")
+      (is (contains? schema :email/labels)   "Has :email/labels"))))
 
 (deftest test-email-attrs
   (testing "email-attrs covers all schema keys"
-    (is (= (set (keys sut/email-schema)) sut/email-attrs)
-        "email-attrs should contain all schema attribute keys")))
+    (let [schema (sut/build-email-schema)
+          attrs  (sut/get-email-attrs schema)]
+      (is (= (set (keys schema)) attrs)
+          "email-attrs should contain all schema attribute keys"))))
 
 (deftest test-deduplication
   (testing "Duplicate :email/id is handled gracefully"
