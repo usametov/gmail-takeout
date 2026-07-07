@@ -11,7 +11,7 @@
 
 ;; ─── Forward declarations ───────────────────────────────────────-
 
-(declare build-query-clauses build-query print-table to-json)
+(declare build-query-clauses build-query print-table to-json apply-limit-offset)
 
 ;; ─── Global options ─────────────────────────────────────────────
 
@@ -116,11 +116,12 @@
     (let [clauses (build-query-clauses options)
           query   (build-query clauses (:limit options) (:offset options))
           results (d/q query (d/db conn))
+          limited (apply-limit-offset results (:limit options) (:offset options))
           fmt     (keyword (:format options))]
       (case fmt
-        :table (print-table results)
-        :edn   (prn results)
-        :json  (println (to-json results))))))
+        :table (print-table limited)
+        :edn   (prn limited)
+        :json  (println (to-json limited))))))
 
 (defn- build-query-clauses [opts]
   (cond-> []
@@ -136,14 +137,27 @@
     (empty? (select-keys opts [:subject :from :to :label :since :before]))
     (conj ['?e :email/subject])))
 
-(defn- build-query [clauses limit offset]
-  (let [gather-sym (symbol "...")]
-    (vec (concat
-          [:find [(list 'pull '?e
-                        '[:email/subject :email/from :email/to :email/date
-                          :email/labels :email/body]) gather-sym]
-           :where]
-          clauses))))
+(defn- build-query [clauses _limit _offset]
+  ;; Build query - limit/offset applied to results, not in query
+  ;; Construct the query vector properly with pull syntax
+  (let [find-clause [:find '[(pull ?e [:email/subject :email/from :email/to 
+                                   :email/date :email/labels]) ...]]]
+    (vec (concat find-clause [:where] clauses))))
+
+(defn- apply-limit-offset [results limit offset]
+  (let [offset (or offset 0)
+        limit (or limit 0)]
+    (cond
+      (and (pos? limit) (pos? offset))
+      (take limit (drop offset results))
+      
+      (pos? limit)
+      (take limit results)
+      
+      (pos? offset)
+      (drop offset results)
+      
+      :else results)))
 
 ;; ─── Stats command ──────────────────────────────────────────────
 
