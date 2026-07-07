@@ -3,6 +3,7 @@
   (:require [astanova.db :as db]
             [astanova.parse :as parse]
             [clojure.string :as str]
+            [portal.api :as p]
             [datalevin.core :as d])
   (:import [java.io File]))
 
@@ -97,3 +98,14 @@
                 (merge-with + stats result)))
             {:tx-count 0 :email-count 0}
             files)))
+
+(comment
+  (def p (p/open))
+
+  (add-tap #'p/submit)
+
+  (def mbox-path "/Users/asel/Documents/Takeout/Mail/ai-chatbots.mbox")
+
+  (def emails (parse/parse-mbox mbox-path))
+
+  (tap> emails))
