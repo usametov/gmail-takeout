@@ -193,9 +193,9 @@ Complete guide to querying your email database after ingestion with `astanova.ta
 ;; Search in subject and body
 (d/q '[:find [(pull ?e [:email/subject :email/from]) ...]
        :in $ ?term
-       :where (or [?e :email/subject ?s]
-                  [?e :email/body ?b])
-              [(clojure.string/includes? (clojure.string/lower-case ?s) ?term)]]
+       :where (or [?e :email/subject ?text]
+                  [?e :email/body ?text])
+              [(clojure.string/includes? (clojure.string/lower-case ?text) ?term)]]
      db "project update")
 
 ;; Using helper
@@ -207,7 +207,8 @@ Complete guide to querying your email database after ingestion with `astanova.ta
 ## Working with Threads
 
 Threads group related emails together using the `:email/thread-id` attribute, 
-which is extracted from the `Thread-Topic` or `References` headers.
+which is extracted from the `Thread-Topic`, `References`, or `X-GM-THRID` 
+headers (Google Takeout uses `X-GM-THRID`).
 
 ### Understanding Thread IDs
 
@@ -230,12 +231,14 @@ which is extracted from the `Thread-Topic` or `References` headers.
 (db/get-thread-emails db "thread-id-here")
 
 ;; Manual query (customize pull pattern)
-(d/q '[:find [(pull ?e [:email/subject :email/from :email/date :email/body]) ...]
-       :in $ ?thread
-       :where [?e :email/thread-id ?thread]
-              [?e :email/date ?d]
-       :order-by [[?d :asc]]]
-     db "thread-id-here")
+;; Note: Datalevin 0.9.x doesn't support :order-by in queries.
+;; Sort results in Clojure instead:
+(->> (d/q '[:find [(pull ?e [:email/subject :email/from :email/date :email/body]) ...]
+            :in $ ?thread
+            :where [?e :email/thread-id ?thread]
+                   [?e :email/date ?d]]
+          db "thread-id-here")
+     (sort #(compare (:email/date %1) (:email/date %2))))
 ```
 
 ### Get Thread Summary
@@ -648,12 +651,12 @@ Consider adding indexes to your schema:
                      (.getTime)
                      (- (* 7 24 60 60 1000))
                      (java.util.Date.))]
-    (d/q '[:find [(pull ?e [:email/subject :email/from :email/date]) ...]
-           :in $ ?since
-           :where [?e :email/date ?d]
-                  [(>= ?d ?since)]
-           :order-by [?d :asc]]
-         db week-ago)))
+    (->> (d/q '[:find [(pull ?e [:email/subject :email/from :email/date]) ...]
+               :in $ ?since
+               :where [?e :email/date ?d]
+                      [(>= ?d ?since)]]
+             db week-ago)
+       (sort #(compare (:email/date %1) (:email/date %2)))))))
 ```
 
 ### Example 2: Find Mailing List Emails
