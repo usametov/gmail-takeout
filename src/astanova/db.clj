@@ -121,11 +121,12 @@
   (d/entity db [:email/id message-id]))
 
 (defn count-emails
-  "Count total emails in the database."
+  "Count total emails in the database. Returns 0 for empty DB."
   [db]
-  (d/q '[:find (count ?e) .
-         :where [?e :email/subject]]
-       db))
+  (or (d/q '[:find (count ?e) .
+             :where [?e :email/subject]]
+           db)
+      0))
 
 (defn get-all-labels
   "Get all unique labels in the database."
@@ -165,18 +166,19 @@
   (let [term-lc (clojure.string/lower-case term)]
     (d/q '[:find [(pull ?e [:email/subject :email/from :email/date]) ...]
            :in $ ?term
-           :where (or [?e :email/subject ?s]
-                      [?e :email/body ?b])
-                  [(clojure.string/includes? (clojure.string/lower-case ?s) ?term)]]
+           :where (or [?e :email/subject ?text]
+                      [?e :email/body ?text])
+                  [(clojure.string/includes? (clojure.string/lower-case ?text) ?term)]]
          db term-lc)))
 
 (defn recent-emails
   "Get N most recent emails."
   [db n]
-  (d/q '[:find [(pull ?e [:email/subject :email/from :email/date]) ...]
-         :where [?e :email/date ?d]
-         :order-by [[?d :desc]]]
-       db))
+  (->> (d/q '[:find [(pull ?e [:email/subject :email/from :email/date]) ...]
+              :where [?e :email/date ?d]]
+            db)
+       (sort #(compare (:email/date %2) (:email/date %1)))
+       (take n)))
 
 ;; ─── Thread Query Functions ─────────────────────────────────────
 
@@ -192,12 +194,12 @@
   "Get all emails in a thread, ordered by date (oldest first).
    Returns emails with all attributes."
   [db thread-id]
-  (d/q '[:find [(pull ?e [*]) ...]
-         :in $ ?thread
-         :where [?e :email/thread-id ?thread]
-                [?e :email/date ?d]
-         :order-by [[?d :asc]]]
-       db thread-id))
+  (->> (d/q '[:find [(pull ?e [*]) ...]
+              :in $ ?thread
+              :where [?e :email/thread-id ?thread]
+                     [?e :email/date ?d]]
+            db thread-id)
+       (sort #(compare (:email/date %1) (:email/date %2)))))
 
 (defn get-thread-participants
   "Get all unique participants (from/to) in a thread."
@@ -237,7 +239,7 @@
   [db n]
   (let [thread-ids (get-thread-ids db)
         threads (keep #(get-thread-summary db %) thread-ids)
-        sorted (sort-by :last-date > threads)]
+        sorted (sort #(compare (:last-date %2) (:last-date %1)) threads)]
     (take n sorted)))
 
 (defn search-threads-by-subject

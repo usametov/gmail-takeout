@@ -285,7 +285,8 @@
        :body        (extract-text-body msg)
        :html        (extract-html-body msg)
        :thread-id   (or (safe-header msg "Thread-Topic")
-                      (safe-header msg "References"))
+                      (safe-header msg "References")
+                      (safe-header msg "X-GM-THRID"))
        :labels      (parse-gmail-labels msg)})
     (catch Exception e
       (println "WARNING: Failed to parse email:" (.getMessage e))
