@@ -186,7 +186,31 @@
                          :where [?e :email/from ?from]]
                        db)]
       (doseq [[sender cnt] (take 10 (sort-by second > senders))]
-        (println (format "    %-30s %d" (str sender) cnt))))))
+        (println (format "    %-30s %d" (str sender) cnt))))
+
+    (println "\n  Thread statistics:")
+    (let [thread-count (d/q '[:find (count ?thread) .
+                            :where [?e :email/thread-id ?thread]] db)]
+      (println (format "    Total threads:   %d" thread-count)))
+    
+    (let [threads-with-count (d/q '[:find ?thread (count ?e)
+                                    :where [?e :email/thread-id ?thread]]
+                                  db)
+          avg-emails (if (pos? (count threads-with-count))
+                     (/ (reduce + (map second threads-with-count))
+                        (count threads-with-count))
+                     0)]
+      (println (format "    Avg emails/thread: %.1f" (double avg-emails))))
+    
+    (println "    Longest threads:")
+    (let [threads (d/q '[:find ?thread (count ?e)
+                       :where [?e :email/thread-id ?thread]]
+                     db)]
+      (doseq [[thread cnt] (take 5 (sort-by second > threads))]
+        (let [summary (db/get-thread-summary db thread)]
+          (println (format "      %-40s %d emails" 
+                           (subs (:subject summary) 0 (min 40 (count (:subject summary))))
+                           cnt)))))))
 
 ;; ─── Export command ─────────────────────────────────────────────
 
@@ -294,13 +318,73 @@
                         "}")))
        "\n]"))
 
+;; ─── Threads command ─────────────────────────────────────────
+
+(defn- get-threads-spec []
+  [["-t" "--thread-id ID" "Show specific thread" :id :thread-id]
+   ["-p" "--participant ADDR" "Find threads by participant" :id :participant]
+   ["-s" "--search TERM" "Search threads by subject" :id :search]
+   ["-n" "--limit N" "Max results"
+    :default 20
+    :parse-fn #(Integer/parseInt %)
+    :validate [#(pos? %) "Must be positive"]]
+   ["--format FMT" "Output format: table | edn | json"
+    :default "table"
+    :validate [#(#{:table :edn :json} (keyword %)) "Must be table, edn, or json"]]
+   ["-h" "--help"]])
+
+(defn- threads-cmd [conn args]
+  (let [{:keys [options errors summary]} (parse-opts args (get-threads-spec))]
+    (when errors
+      (doseq [e errors] (println e))
+      (System/exit 1))
+    (when (:help options)
+      (println "Usage: takeout threads [options]\n")
+      (println "  List and explore email threads.\n")
+      (println summary)
+      (System/exit 0))
+    (let [db (d/db conn)]
+      (cond
+        (:thread-id options)
+        (let [thread-id (:thread-id options)
+              emails (db/get-thread-emails db thread-id)]
+          (println "Thread:" thread-id)
+          (println "Emails:" (count emails))
+          (doseq [e emails]
+            (println "  From:" (:email/from e))
+            (println "  Date:" (:email/date e))
+            (println "  Subject:" (:email/subject e))
+            (println)))
+        
+        (:participant options)
+        (let [threads (db/get-threads-by-participant db (:participant options))]
+          (println "Threads involving" (:participant options) ":" (count threads))
+          (doseq [tid threads]
+            (let [summary (db/get-thread-summary db tid)]
+              (println "  -" (:subject summary) "(" (:email-count summary) "emails)"))))
+        
+        (:search options)
+        (let [threads (db/search-threads-by-subject db (:search options))]
+          (println "Found" (count threads) "threads matching" (pr-str (:search options)))
+          (doseq [tid threads]
+            (let [summary (db/get-thread-summary db tid)]
+              (println "  -" (:subject summary) "(" (:email-count summary) "emails)"))))
+        
+        :else
+        (let [threads (take (:limit options) (db/get-recent-threads db 100))]
+          (println "Recent threads:")
+          (doseq [t threads]
+            (println (format "  %-50s %3d emails  %s"
+                             (:subject t) (:email-count t) (str (:last-date t))))))))))
+
 ;; ─── Dispatch ───────────────────────────────────────────────────
 
 (def commands
   {"ingest" {:fn #'ingest-cmd :doc "Load MBOX files into the database"}
    "query"  {:fn #'query-cmd  :doc "Search emails by criteria"}
    "stats"  {:fn #'stats-cmd  :doc "Show DB summary statistics"}
-   "export" {:fn #'export-cmd :doc "Dump emails as JSON/EDN"}})
+   "export" {:fn #'export-cmd :doc "Dump emails as JSON/EDN"}
+   "threads" {:fn #'threads-cmd :doc "List and explore email threads"}})
 
 (defn print-help
   "Print top-level usage."

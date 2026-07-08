@@ -29,3 +29,4 @@
 /target
 *.db
 .clj-kondo
+takeout

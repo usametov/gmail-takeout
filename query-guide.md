@@ -7,11 +7,12 @@ Complete guide to querying your email database after ingestion with `astanova.ta
 1. [Getting Started](#getting-started)
 2. [Basic Queries](#basic-queries)
 3. [Filtering & Searching](#filtering--searching)
-4. [Aggregation & Analytics](#aggregation--analytics)
-5. [Advanced Patterns](#advanced-patterns)
-6. [Helper Functions](#helper-functions)
-7. [Performance Tips](#performance-tips)
-8. [Real-World Examples](#real-world-examples)
+4. [Working with Threads](#working-with-threads)
+5. [Aggregation & Analytics](#aggregation--analytics)
+6. [Advanced Patterns](#advanced-patterns)
+7. [Helper Functions](#helper-functions)
+8. [Performance Tips](#performance-tips)
+9. [Real-World Examples](#real-world-examples)
 
 ---
 
@@ -203,6 +204,200 @@ Complete guide to querying your email database after ingestion with `astanova.ta
 
 ---
 
+## Working with Threads
+
+Threads group related emails together using the `:email/thread-id` attribute, 
+which is extracted from the `Thread-Topic` or `References` headers.
+
+### Understanding Thread IDs
+
+```clojure
+;; Check if emails have thread IDs
+(d/q '[:find (count ?e) .
+       :where [?e :email/thread-id ?t]]
+     db)
+
+;; Get a sample thread ID
+(d/q '[:find ?t .
+       :where [?e :email/thread-id ?t]]
+     db)
+```
+
+### Get All Emails in a Thread
+
+```clojure
+;; Using helper function (returns emails ordered by date)
+(db/get-thread-emails db "thread-id-here")
+
+;; Manual query (customize pull pattern)
+(d/q '[:find [(pull ?e [:email/subject :email/from :email/date :email/body]) ...]
+       :in $ ?thread
+       :where [?e :email/thread-id ?thread]
+              [?e :email/date ?d]
+       :order-by [[?d :asc]]]
+     db "thread-id-here")
+```
+
+### Get Thread Summary
+
+```clojure
+;; Get summary with participant count, date range, etc.
+(db/get-thread-summary db "thread-id-here")
+
+;; Returns:
+;; {:thread-id "..."
+;;  :subject "Re: Meeting notes"
+;;  :email-count 5
+;;  :participants #{"alice@example.com" "bob@test.com"}
+;;  :first-date #inst "2024-01-01..."
+;;  :last-date #inst "2024-01-05..."}
+```
+
+### Get Thread Participants
+
+```clojure
+;; Get all unique participants (from and to addresses)
+(db/get-thread-participants db "thread-id-here")
+
+;; Returns set of email addresses:
+;; #{"alice@example.com" "bob@test.com" "carol@company.com"}
+```
+
+### Find Threads by Participant
+
+```clojure
+;; Find all threads involving a specific email address
+(db/get-threads-by-participant db "alice@example.com")
+
+;; Returns seq of thread IDs:
+;; ("thread-1" "thread-2" "thread-3")
+
+;; Combine with thread summary:
+(->> (db/get-threads-by-participant db "alice@example.com")
+     (map #(db/get-thread-summary db %))
+     (sort-by :last-date >))
+```
+
+### Get Recent Threads
+
+```clojure
+;; Get 10 most recent threads (based on last email date)
+(db/get-recent-threads db 10)
+
+;; Returns:
+;; ({:thread-id "..."
+;;   :subject "Project update"
+;;   :email-count 8
+;;   :participants #{"..."}
+;;   :first-date #inst "..."
+;;   :last-date #inst "..."}
+;;  ...)
+```
+
+### Search Threads by Subject
+
+```clojure
+;; Find threads with "meeting" in the subject
+(db/search-threads-by-subject db "meeting")
+
+;; Returns thread IDs, then get full thread:
+(->> (db/search-threads-by-subject db "meeting")
+     (map #(db/get-thread-emails db %)))
+```
+
+### Conversation View
+
+```clojure
+;; Get thread formatted for conversation display
+(db/get-conversation-view db "thread-id-here")
+
+;; Returns:
+;; ({:email {...}
+;;   :index 0
+;;   :date #inst "..."
+;;   :from "alice@example.com"
+;;   :subject "Re: Project"
+;;   :snippet "Hi team, I wanted to discuss..."}
+;;  ...)
+```
+
+### Manual Thread Queries
+
+#### Find Orphaned Emails (No Thread)
+
+```clojure
+(d/q '[:find [(pull ?e [:email/subject :email/from]) ...]
+       :where [?e :email/subject ?s]
+              (not [?e :email/thread-id ?t])]
+     db)
+```
+
+#### Count Emails per Thread
+
+```clojure
+(->> (d/q '[:find ?thread (count ?e)
+            :where [?e :email/thread-id ?thread]]
+          db)
+     (sort-by second >)
+     (take 20))
+```
+
+#### Find Longest Threads
+
+```clojure
+(->> (d/q '[:find ?thread (count ?e)
+            :where [?e :email/thread-id ?thread]]
+          db)
+     (sort-by second >)
+     (take 10))
+```
+
+#### Threads with Most Participants
+
+```clojure
+(->> (db/get-thread-ids db)
+     (map (fn [tid] 
+            (let [participants (db/get-thread-participants db tid)]
+              {:thread-id tid
+               :participant-count (count participants)
+               :participants participants})))
+     (sort-by :participant-count >)
+     (take 10))
+```
+
+### Complete Example: Thread Explorer
+
+```clojure
+(defn explore-thread [db thread-id]
+  (let [summary (db/get-thread-summary db thread-id)
+        participants (db/get-thread-participants db thread-id)
+        emails (db/get-thread-emails db thread-id)]
+    
+    (println "=== Thread:" (:subject summary) "===")
+    (println "Emails:" (:email-count summary))
+    (println "Participants:" (count participants))
+    (println "Date range:" (:first-date summary) "->" (:last-date summary))
+    (println "\nParticipants:")
+    (doseq [p participants]
+      (println "  " p))
+    
+    (println "\nConversation:")
+    (doseq [email emails]
+      (println "\n---")
+      (println "From:" (:email/from email))
+      (println "Date:" (:email/date email))
+      (println "Subject:" (:email/subject email))
+      (when-let [body (:email/body email)]
+        (println "Body preview:" 
+                 (subs body 0 (min 200 (count body))) 
+                 "...")))))
+
+;; Usage
+(explore-thread db "some-thread-id")
+```
+
+---
+
 ## Aggregation & Analytics
 
 ### Top Senders
@@ -336,7 +531,16 @@ The `astanova.db` namespace provides convenient helper functions:
 (db/query-by-recipient db "addr@test.com") ;; By recipient
 (db/query-by-label db "Important")      ;; By Gmail label
 (db/query-by-date-range db start end)   ;; Date range
-(db/query-by-thread db "thread-id")     ;; By thread
+
+;; Thread functions
+(db/get-thread-ids db)                  ;; Get all thread IDs
+(db/get-thread-emails db thread-id)      ;; Get all emails in thread
+(db/get-thread-participants db thread-id) ;; Get participants
+(db/get-thread-summary db thread-id)    ;; Get thread summary
+(db/get-threads-by-participant db addr) ;; Find threads by participant
+(db/get-recent-threads db n)            ;; Most recent threads
+(db/search-threads-by-subject db term)  ;; Search threads
+(db/get-conversation-view db thread-id) ;; Formatted conversation
 
 ;; Entity lookup
 (db/get-email-by-id db "<message-id>") ;; Single email by ID
@@ -468,8 +672,14 @@ Consider adding indexes to your schema:
 
 ```clojure
 (defn get-conversation [db thread-id]
-  (->> (db/query-by-thread db thread-id)
-       (sort-by :email/date)))
+  (db/get-conversation-view db thread-id))
+
+;; Or get full thread with all details
+(defn get-full-thread [db thread-id]
+  (let [emails (db/get-thread-emails db thread-id)
+        summary (db/get-thread-summary db thread-id)]
+    {:summary summary
+     :emails emails}))
 ```
 
 ### Example 4: Search with Pagination
@@ -506,6 +716,55 @@ Consider adding indexes to your schema:
                             :where [?e :email/html ?h]
                                    [(some? ?h)]]
                           db)})
+```
+
+### Example 7: Thread Analysis
+
+```clojure
+(defn analyze-threads [db]
+  (let [all-threads (db/get-thread-ids db)
+        thread-stats (for [tid all-threads]
+                      (let [summary (db/get-thread-summary db tid)]
+                        {:thread-id tid
+                         :subject (:subject summary)
+                         :email-count (:email-count summary)
+                         :participant-count (count (:participants summary))
+                         :duration-days (when (and (:first-date summary) 
+                                                   (:last-date summary))
+                                          (-> (- (.getTime (:last-date summary))
+                                                (.getTime (:first-date summary)))
+                                              (/ (* 24 60 60 1000))
+                                              Math/ceil))}))]
+    {:total-threads (count all-threads)
+     :avg-emails-per-thread (let [counts (map :email-count thread-stats)]
+                             (/ (reduce + counts) (count counts)))
+     :longest-threads (->> thread-stats
+                          (sort-by :email-count >)
+                          (take 10))
+     :most-participants (->> thread-stats
+                          (sort-by :participant-count >)
+                          (take 10))}))
+
+;; Usage
+(analyze-threads db)
+```
+
+### Example 8: Find Active Conversations
+
+```clojure
+(defn find-active-conversations [db days-threshold]
+  (let [cutoff (-> (java.util.Date.)
+                   (.getTime)
+                   (- (* days-threshold 24 60 60 1000))
+                   (java.util.Date.))
+        recent-threads (db/get-recent-threads db 50)]
+    (filter (fn [thread]
+              (and (:last-date thread)
+                   (.after (:last-date thread) cutoff)))
+            recent-threads)))
+
+;; Find conversations with activity in last 7 days
+(find-active-conversations db 7)
 ```
 
 ---

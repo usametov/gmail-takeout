@@ -131,8 +131,11 @@
     (let [query (#'sut/build-query [['?e :email/subject]] 5 0)]
       (is (re-find #"email/subject" (str query)))
       (is (re-find #"email/from" (str query)))
-      (is (re-find #"email/body" (str query)))
-      (is (re-find #"email/date" (str query))))))
+      (is (re-find #"email/to" (str query)))
+      (is (re-find #"email/date" (str query)))
+      (is (re-find #"email/labels" (str query)))
+      ;; email/body is not included by default (performance)
+      (is (not (re-find #"email/body" (str query)))))))
 
 ;; ─── json-escape ────────────────────────────────────────────────
 

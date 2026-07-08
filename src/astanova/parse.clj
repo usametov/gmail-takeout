@@ -97,112 +97,213 @@
         str/lower-case)
     (catch Exception _ "text/plain")))
 
-(defn- extract-body-from-part
-  "Recursively extract body content from a MIME part, handling multipart etc."
-  [^Part part]
+(defn- input-stream->string
+  "Read an InputStream into a string."
+  [is]
   (try
-    (cond
-      ;; Multipart: recurse into sub-parts
-      (.isMimeType part "multipart/*")
-      (let [content (.getContent part)]
-        (if (instance? MimeMultipart content)
-          (let [mp ^MimeMultipart content
-                n   (.getCount mp)]
-            (str/join "\n"
-                      (for [i (range n)]
-                        (extract-body-from-part (.getBodyPart mp i)))))
-          (str content)))
-
-      ;; Text parts: return as string
-      (or (.isMimeType part "text/plain")
-          (.isMimeType part "text/html"))
-      (try
-        (let [content (.getContent part)]
-          (if (string? content) content (str content)))
-        (catch Exception _ ""))
-
-      :else
-      (try (str (.getContent part)) (catch Exception _ "")))
+    (with-open [reader (java.io.BufferedReader.
+                      (java.io.InputStreamReader. is "UTF-8"))]
+      (let [sb (StringBuilder.)]
+        (loop [line (.readLine reader)]
+          (if (nil? line)
+            (.toString sb)
+            (do
+              (.append sb line)
+              (.append sb "\n")
+              (recur (.readLine reader)))))))
     (catch Exception _ "")))
 
+(defn- extract-body-from-part
+  "Iteratively extract body content from a MIME part, handling multipart etc.
+   Uses loop/recur with an explicit stack to avoid stack overflow
+   on deeply nested MIME structures.  Uses string-based content-type
+   checks (get-content-type) instead of Jakarta Mail's .isMimeType
+   to avoid triggering a recursive parser bug in ParameterList/HeaderTokenizer."
+  [^Part part]
+  (try
+    (loop [stack (list part)
+           texts (transient [])]
+      (if-let [p (first stack)]
+        (let [rest-stack (rest stack)
+              ct        (get-content-type p)]
+          (cond
+            ;; Multipart: push sub-parts onto the stack (in reverse order
+            ;; so they are processed left-to-right)
+            (str/starts-with? ct "multipart/")
+            (let [content (try (.getContent p) (catch Throwable _ nil))]
+              (if (instance? MimeMultipart content)
+                (let [mp    ^MimeMultipart content
+                      n     (.getCount mp)
+                      parts (mapv #(.getBodyPart mp %) (range n))]
+                  (recur (into rest-stack (rseq parts)) texts))
+                (recur rest-stack
+                       (conj! texts
+                              (cond
+                                (string? content) content
+                                (instance? java.io.InputStream content) (input-stream->string content)
+                                :else (str content))))))
+
+            ;; Text parts: collect content
+            (or (str/starts-with? ct "text/plain")
+                (str/starts-with? ct "text/html"))
+            (let [content (try (.getContent p) (catch Throwable _ nil))]
+              (recur rest-stack
+                     (conj! texts
+                            (cond
+                              (string? content) content
+                              (instance? java.io.InputStream content) (input-stream->string content)
+                              :else (str content)))))
+
+            ;; Other parts: try to get content as-is
+            :else
+            (let [content (try (.getContent p) (catch Throwable _ nil))]
+              (recur rest-stack
+                     (conj! texts
+                            (if (instance? java.io.InputStream content)
+                              (input-stream->string content)
+                              (str content)))))))
+        ;; Stack exhausted — join all collected texts
+        (str/join "\n" (persistent! texts))))
+    (catch Throwable _ "")))
+
 (defn extract-text-body
-  "Extract the plain-text body from a MimeMessage, preferring text/plain over text/html."
+  "Extract the plain-text body from a MimeMessage, preferring text/plain over text/html.
+   Uses string-based content-type checks (get-content-type) instead of Jakarta Mail's
+   .isMimeType to avoid triggering a recursive parser bug in ParameterList/HeaderTokenizer."
   [^MimeMessage msg]
   (try
-    (if (.isMimeType msg "text/plain")
-      (str (.getContent msg))
-      (if (.isMimeType msg "text/html")
-        (html->text (str (.getContent msg)))
-        (if (.isMimeType msg "multipart/*")
-          (let [content (.getContent msg)]
-            (if (instance? MimeMultipart content)
-              (let [n (.getCount ^MimeMultipart content)
-                    parts (for [i (range n)]
-                            (.getBodyPart ^MimeMultipart content i))
-                    text-parts (filter #(str/includes? (get-content-type %) "text/plain") parts)
-                    texts (map #(try (str (.getContent ^Part %)) (catch Exception _ "")) text-parts)]
-                (or (first texts) ""))
-              (extract-body-from-part msg)))
-          (extract-body-from-part msg))))
-    (catch Exception e
+    (let [ct (get-content-type msg)]
+      (cond
+        (str/starts-with? ct "text/plain")
+        (let [content (.getContent msg)]
+          (cond
+            (string? content) content
+            (instance? java.io.InputStream content) (input-stream->string content)
+            :else (str content)))
+
+        (str/starts-with? ct "text/html")
+        (let [content (.getContent msg)]
+          (html->text (cond
+                        (string? content) content
+                        (instance? java.io.InputStream content) (input-stream->string content)
+                        :else (str content))))
+
+        (str/starts-with? ct "multipart/")
+        (let [content (.getContent msg)]
+          (if (instance? MimeMultipart content)
+            (let [n (.getCount ^MimeMultipart content)
+                  parts (for [i (range n)]
+                          (.getBodyPart ^MimeMultipart content i))
+                  text-parts (filter #(str/includes? (get-content-type %) "text/plain") parts)
+                  texts (map #(try 
+                                 (let [c (.getContent ^Part %)]
+                                   (cond
+                                     (string? c) c
+                                     (instance? java.io.InputStream c) (input-stream->string c)
+                                     :else (str c)))
+                                 (catch Throwable _ "")) text-parts)]
+              (or (first texts) ""))
+            (extract-body-from-part msg)))
+
+        :else
+        (extract-body-from-part msg)))
+    (catch Throwable e
+      (println "WARNING: Failed to extract text body:" (.getMessage e))
       "")))
 
 (defn extract-html-body
   "Extract the HTML body from a MimeMessage. Returns nil if no HTML part found."
   [^MimeMessage msg]
   (try
-    (cond
-      (.isMimeType msg "text/html")
-      (str (.getContent msg))
+    (let [ct (get-content-type msg)]
+      (cond
+        (str/starts-with? ct "text/html")
+        (let [content (.getContent msg)]
+          (cond
+            (string? content) content
+            (instance? java.io.InputStream content) (input-stream->string content)
+            :else (str content)))
 
-      (.isMimeType msg "multipart/*")
-      (let [content (.getContent msg)]
-        (if (instance? MimeMultipart content)
-          (->> (range (.getCount ^MimeMultipart content))
-               (map #(.getBodyPart ^MimeMultipart content %))
-               (filter #(let [ct (get-content-type %)]
-                          (str/includes? ct "text/html")))
-               (map #(try (str (.getContent ^Part %)) (catch Exception _ "")))
-               (first))
-          nil))
-      :else nil)
-    (catch Exception _ nil)))
+        (str/starts-with? ct "multipart/")
+        (let [content (.getContent msg)]
+          (if (instance? MimeMultipart content)
+            (->> (range (.getCount ^MimeMultipart content))
+                 (map #(.getBodyPart ^MimeMultipart content %))
+                 (filter #(str/includes? (get-content-type %) "text/html"))
+                 (map #(try 
+                        (let [c (.getContent ^Part %)]
+                          (cond
+                            (string? c) c
+                            (instance? java.io.InputStream c) (input-stream->string c)
+                            :else (str c)))
+                        (catch Throwable _ "")))
+                 (first))
+            nil))
+        :else nil))
+    (catch Throwable _ nil)))
 
 ;; ─── Raw message -> structured email map ────────────────────────
+
+(defn- generate-fallback-id
+  "Generate a deterministic fallback ID when Message-ID is missing.
+   Uses content hash to ensure same email gets same ID (for dedup)."
+  [subject from date body]
+  (let [safe-body (if (string? body) (subs body 0 (min 200 (count body))) "")
+        content (str (or subject "") "|" (or from "") "|" (or date "") "|" safe-body)
+        hash-bytes (-> (java.security.MessageDigest/getInstance "SHA-256")
+                       (.digest (.getBytes content "UTF-8")))]
+    (format "fallback-%064x" (BigInteger. 1 hash-bytes))))
 
 (defn parse-raw-message
   "Parse a raw mime4j CharBufferWrapper into a structured email map
    using Jakarta Mail for header and body extraction.
    Returns a map with keys matching the Datalevin schema."
   [raw-msg]
-  (let [raw-str   (str/triml (str raw-msg))
-        input     (ByteArrayInputStream. (.getBytes raw-str "UTF-8"))
-        props     (doto (Properties.)
-                    (.setProperty "mail.mime.address.strict" "false"))
-        session   (Session/getDefaultInstance props)
-        msg       (MimeMessage. session input)]
-    {:message-id  (safe-header msg "Message-ID")
-     :subject     (try (.getSubject msg) (catch Exception _ nil))
-     :from        (let [from (.getFrom msg)]
-                    (when (seq from) (address->str (first from))))
-     :to          (addresses->seq (.getRecipients msg jakarta.mail.Message$RecipientType/TO))
-     :cc          (addresses->seq (.getRecipients msg jakarta.mail.Message$RecipientType/CC))
-     :date        (try (.getSentDate msg) (catch Exception _ nil))
-     :body        (extract-text-body msg)
-     :html        (extract-html-body msg)
-     :thread-id   (or (safe-header msg "Thread-Topic")
+  (try
+    (let [raw-str   (str/triml (str raw-msg))
+          input     (ByteArrayInputStream. (.getBytes raw-str "UTF-8"))
+          props     (doto (Properties.)
+                      (.setProperty "mail.mime.address.strict" "false"))
+          session   (Session/getDefaultInstance props)
+          msg       (MimeMessage. session input)
+          msg-id    (or (safe-header msg "Message-ID")
+                         (generate-fallback-id 
+                           (.getSubject msg)
+                           (let [from (.getFrom msg)]
+                             (when (seq from) (.getAddress (first from))))
+                           (.getSentDate msg)
+                           (extract-text-body msg)))]
+      {:message-id  msg-id
+       :subject     (try (.getSubject msg) (catch Exception _ nil))
+       :from        (try 
+                      (let [from (.getFrom msg)]
+                        (when (seq from) (address->str (first from))))
+                      (catch Exception _ nil))
+       :to          (try (addresses->seq (.getRecipients msg jakarta.mail.Message$RecipientType/TO)) (catch Exception _ nil))
+       :cc          (try (addresses->seq (.getRecipients msg jakarta.mail.Message$RecipientType/CC)) (catch Exception _ nil))
+       :date        (try (.getSentDate msg) (catch Exception _ nil))
+       :body        (extract-text-body msg)
+       :html        (extract-html-body msg)
+       :thread-id   (or (safe-header msg "Thread-Topic")
                       (safe-header msg "References"))
-     :labels      (parse-gmail-labels msg)}))
+       :labels      (parse-gmail-labels msg)})
+    (catch Exception e
+      (println "WARNING: Failed to parse email:" (.getMessage e))
+      nil)))
 
 ;; ─── Batch ingestion ─────────────────────────────────────────────
 
 (defn parse-mbox
   "Parse an entire MBOX file, returning a lazy seq of structured email maps.
    Each map has keys: :message-id, :subject, :from, :to, :cc, :date,
-   :body, :html, :thread-id, :labels"
+   :body, :html, :thread-id, :labels
+   
+   Skips emails that fail to parse."
   [mbox-path]
   (->> (mbox-messages mbox-path)
-       (map parse-raw-message)))
+       (map parse-raw-message)
+       (filter some?)  ;; Remove nil results from parse errors
+       (filter :message-id)))  ;; Ensure all emails have an ID
 
 
 

@@ -12,18 +12,23 @@
 (defn email-map->entity
   "Convert a parsed email map (from astanova.parse/parse-raw-message)
    into a Datalevin transaction map matching db/email-schema.
-   Uses :email/id (Message-ID) as the unique identity key."
+   Uses :email/id (Message-ID) as the unique identity key.
+   Only includes attributes that have non-nil values to avoid
+   Datalevin rejecting nil for single-valued schema attributes."
   [email-map mbox-file source]
   (cond-> {:db/id          (d/tempid :db.part/user)
            :email/id       (:message-id email-map)
            :email/source   source
            :email/mbox-file mbox-file
-           :email/subject  (:subject email-map)
-           :email/from     (:from email-map)
-           :email/date     (:date email-map)
-           :email/body     (:body email-map)
-           :email/labels   (:labels email-map)}
-    ;; Optional fields
+           :email/body     (:body email-map)}
+    (:subject email-map)
+    (assoc :email/subject (:subject email-map))
+    (:from email-map)
+    (assoc :email/from (:from email-map))
+    (:date email-map)
+    (assoc :email/date (:date email-map))
+    (seq (:labels email-map))
+    (assoc :email/labels (:labels email-map))
     (:html email-map)
     (assoc :email/html (:html email-map))
     (:to email-map)

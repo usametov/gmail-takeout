@@ -1,6 +1,7 @@
 (ns astanova.db
   "Database schema and connection management for email ingestion."
-  (:require [datalevin.core :as d]))
+  (:require [datalevin.core :as d]
+            [clojure.set :as set]))
 
 (defn build-email-schema
   "Schema for email entities in Datalevin.
@@ -176,3 +177,92 @@
          :where [?e :email/date ?d]
          :order-by [[?d :desc]]]
        db))
+
+;; ─── Thread Query Functions ─────────────────────────────────────
+
+(defn get-thread-ids
+  "Get all unique thread IDs in the database."
+  [db]
+  (d/q '[:find [?thread ...]
+         :where [?e :email/thread-id ?thread]
+                [(some? ?thread)]]
+       db))
+
+(defn get-thread-emails
+  "Get all emails in a thread, ordered by date (oldest first).
+   Returns emails with all attributes."
+  [db thread-id]
+  (d/q '[:find [(pull ?e [*]) ...]
+         :in $ ?thread
+         :where [?e :email/thread-id ?thread]
+                [?e :email/date ?d]
+         :order-by [[?d :asc]]]
+       db thread-id))
+
+(defn get-thread-participants
+  "Get all unique participants (from/to) in a thread."
+  [db thread-id]
+  (let [emails (get-thread-emails db thread-id)
+        froms (set (keep :email/from emails))
+        tos (set (mapcat :email/to emails))]
+    (set/union froms tos)))
+
+(defn get-threads-by-participant
+  "Find all threads that involve a specific email address 
+   (either as sender or recipient)."
+  [db email-addr]
+  (d/q '[:find [?thread ...]
+         :in $ ?addr
+         :where (or [?e :email/from ?addr]
+                    [?e :email/to ?addr])
+                [?e :email/thread-id ?thread]
+                [(some? ?thread)]]
+       db email-addr))
+
+(defn get-thread-summary
+  "Get a summary of a thread: subject, participant count, 
+   email count, date range."
+  [db thread-id]
+  (let [emails (get-thread-emails db thread-id)]
+    (when (seq emails)
+      {:thread-id thread-id
+       :subject (:email/subject (first emails))
+       :email-count (count emails)
+       :participants (get-thread-participants db thread-id)
+       :first-date (:email/date (first emails))
+       :last-date (:email/date (last emails))})))
+
+(defn get-recent-threads
+  "Get N most recent threads based on the last email in each thread."
+  [db n]
+  (let [thread-ids (get-thread-ids db)
+        threads (keep #(get-thread-summary db %) thread-ids)
+        sorted (sort-by :last-date > threads)]
+    (take n sorted)))
+
+(defn search-threads-by-subject
+  "Find threads whose subject contains the given pattern."
+  [db pattern]
+  (let [pattern-lc (clojure.string/lower-case pattern)]
+    (d/q '[:find [?thread ...]
+           :in $ ?pattern
+           :where [?e :email/thread-id ?thread]
+                  [?e :email/subject ?s]
+                  [(clojure.string/includes? (clojure.string/lower-case ?s) ?pattern)]
+                  [(some? ?thread)]]
+         db pattern-lc)))
+
+(defn get-conversation-view
+  "Get emails in a thread formatted for conversation view.
+   Returns seq of maps with :email and :indentation-level."
+  [db thread-id]
+  (let [emails (get-thread-emails db thread-id)]
+    (map-indexed (fn [idx email]
+                   {:email email
+                    :index idx
+                    :date (:email/date email)
+                    :from (:email/from email)
+                    :subject (:email/subject email)
+                    :snippet (when-let [body (:email/body email)]
+                               (subs body 0 (min 100 (count body))))})
+                 emails)))

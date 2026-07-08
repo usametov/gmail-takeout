@@ -44,8 +44,19 @@ The ingestion process:
 git clone <repo-url>
 cd takeout
 
-# Build the project (if needed)
-clojure -T:build uber
+# Option 1: Build standalone JAR (for production use)
+clojure -T:build ci
+
+# The JAR will be created at target/net.clojars.astanova/takeout-0.1.0-SNAPSHOT.jar
+# You can run it directly:
+java -jar target/net.clojars.astanova/takeout-0.1.0-SNAPSHOT.jar --help
+
+# Option 2: Use the convenience script (recommended)
+# After building, use the ./takeout script:
+./takeout --help
+
+# Option 3: Run directly during development (no build needed)
+clojure -M -m astanova.takeout --help
 ```
 
 ### Prepare Your MBOX Files
