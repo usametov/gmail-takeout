@@ -1,10 +1,11 @@
 (ns astanova.takeout
   "Main entry point for the takeout CLI tool.
-   Delegates to astanova.cli/dispatch for argument parsing and command execution."
+   Delegates to babashka/cli dispatch."
   (:gen-class)
-  (:require [astanova.cli :as cli]))
+  (:require [babashka.cli :as bbcli]
+            [astanova.cli :as cli]))
 
 (defn -main
   "CLI entry point. Delegates to babashka/cli dispatch."
   [& args]
-  (cli/dispatch cli/cli-tree args {:prog "takeout" :help true}))
+  (bbcli/dispatch cli/cli-tree args {:prog "takeout" :help true}))
