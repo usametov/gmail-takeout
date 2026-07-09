@@ -5,6 +5,6 @@
   (:require [astanova.cli :as cli]))
 
 (defn -main
-  "CLI entry point. Passes all args to the dispatcher."
+  "CLI entry point. Delegates to babashka/cli dispatch."
   [& args]
-  (cli/dispatch args))
+  (cli/dispatch cli/cli-tree args {:prog "takeout" :help true}))

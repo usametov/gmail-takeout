@@ -8,7 +8,7 @@
         org.apache.james/apache-mime4j-mbox-iterator {:mvn/version "0.8.11"}
         com.sun.mail/jakarta.mail {:mvn/version "2.0.1"}
         djblue/portal {:mvn/version "0.66.0"}
-        org.clojure/tools.cli {:mvn/version "1.1.230"}}
+        org.babashka/cli {:mvn/version "0.8.67"}}
  :aliases
  {:repl/conjure
   {:extra-deps {nrepl/nrepl       {:mvn/version "1.0.0"}

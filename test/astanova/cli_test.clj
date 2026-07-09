@@ -2,7 +2,7 @@
   "Unit tests for astanova.cli — argument parsing, query building, formatting."
   (:require [clojure.test :refer [deftest is testing are]]
             [clojure.string :as str]
-            [clojure.tools.cli :refer [parse-opts]]
+            [babashka.cli :as cli]
             [astanova.cli :as sut])
   (:import [java.util Date]
            [java.time Instant]))
@@ -17,15 +17,13 @@
 ;; ─── Commands map ───────────────────────────────────────────────
 
 (deftest test-commands-map
-  (testing "commands map has expected entries"
-    (is (contains? sut/commands "ingest"))
-    (is (contains? sut/commands "query"))
-    (is (contains? sut/commands "stats"))
-    (is (contains? sut/commands "export")))
-  (testing "each command has :fn (as a Var) and :doc keys"
-    (doseq [[name info] sut/commands]
-      (is (instance? clojure.lang.Var (:fn info)) (str name " :fn is a Var"))
-      (is (string? (:doc info)) (str name " :doc is a string")))))
+  (testing "cli-tree has expected commands"
+    (let [cmds (get-in sut/cli-tree [:cmd])]
+      (is (contains? cmds "ingest"))
+      (is (contains? cmds "query"))
+      (is (contains? cmds "stats"))
+      (is (contains? cmds "export"))
+      (is (contains? cmds "threads")))))
 
 ;; ─── parse-date ─────────────────────────────────────────────────
 
@@ -79,7 +77,7 @@
 
 (deftest test-build-query-clauses-label
   (testing ":labels filter adds or clause with parsed labels (default mode: any)"
-    (let [clauses (#'sut/build-query-clauses {:labels ["inbox"]})]
+    (let [clauses (#'sut/build-query-clauses {:labels "inbox"})]
       (is (= 1 (count clauses)))
       (let [first-clause (first clauses)]
         ;; labels-any wraps in [:or ...]
@@ -89,14 +87,14 @@
 
 (deftest test-build-query-clauses-labels-all-mode
   (testing ":labels with --labels-mode all generates separate clauses"
-    (let [clauses (#'sut/build-query-clauses {:labels ["a" "b"] :labels-mode "all"})]
+    (let [clauses (#'sut/build-query-clauses {:labels "a,b" :labels-mode "all"})]
       (is (= 2 (count clauses)))
       (is (= ['?e :email/labels "a"] (first clauses)))
       (is (= ['?e :email/labels "b"] (second clauses))))))
 
 (deftest test-build-query-clauses-labels-any-mode
   (testing ":labels with --labels-mode any wraps in :or"
-    (let [clauses (#'sut/build-query-clauses {:labels ["a" "b"] :labels-mode "any"})]
+    (let [clauses (#'sut/build-query-clauses {:labels "a,b" :labels-mode "any"})]
       (is (= 1 (count clauses)))
       (let [or-clause (first clauses)]
         (is (= :or (first or-clause)))
@@ -105,7 +103,7 @@
 
 (deftest test-build-query-clauses-labels-default-mode
   (testing ":labels defaults to any mode"
-    (let [clauses (#'sut/build-query-clauses {:labels ["a" "b"]})]
+    (let [clauses (#'sut/build-query-clauses {:labels "a,b"})]
       (is (= 1 (count clauses)))
       (is (= :or (ffirst clauses))))))
 
@@ -136,7 +134,7 @@
 (deftest test-build-query-clauses-multiple-filters
   (testing "multiple filters are combined"
     (let [clauses (#'sut/build-query-clauses
-                   {:subject "hello" :from "alice@example.com" :labels ["inbox"]})]
+                   {:subject "hello" :from "alice@example.com" :labels "inbox"})]
       ;; subject adds 2 clauses (pattern + predicate), from 1, labels 1 (or with 1 branch)
       (is (= 4 (count clauses)) "subject(2) + from(1) + labels(1) = 4"))))
 
@@ -157,32 +155,26 @@
 
 (deftest test-query-parse-opts
   (testing "query args are parsed into opts with labels and labels-mode"
-    (let [result (parse-opts
-                   ["-l" "a,b" "--labels-mode" "all" "-s" "hello"]
-                   (#'sut/get-query-spec))
-          opts   (:options result)]
-      (is (nil? (:errors result)) (str "no parse errors: " (:errors result)))
-      (is (= ["a" "b"] (:labels opts)))
+    (let [opts (cli/parse-opts
+                 ["-l" "a,b" "--labels-mode" "all" "-s" "hello"]
+                 {:spec sut/query-spec})]
+      (is (= "a,b" (:labels opts)))
       (is (= "all" (:labels-mode opts)))
       (is (= "hello" (:subject opts))))))
 
 (deftest test-query-parse-opts-default-labels-mode
   (testing "labels-mode defaults to any when not specified"
-    (let [result (parse-opts
-                   ["-l" "x,y,z"]
-                   (#'sut/get-query-spec))
-          opts   (:options result)]
-      (is (nil? (:errors result)))
-      (is (= ["x" "y" "z"] (:labels opts)))
+    (let [opts (cli/parse-opts
+                 ["-l" "x,y,z"]
+                 {:spec sut/query-spec})]
+      (is (= "x,y,z" (:labels opts)))
       (is (= "any" (:labels-mode opts))))))
 
 (deftest test-query-parse-opts-text
   (testing "--text is parsed correctly"
-    (let [result (parse-opts
-                   ["--text" "machine learning"]
-                   (#'sut/get-query-spec))
-          opts   (:options result)]
-      (is (nil? (:errors result)) (str "no parse errors: " (:errors result)))
+    (let [opts (cli/parse-opts
+                 ["--text" "machine learning"]
+                 {:spec sut/query-spec})]
       (is (= "machine learning" (:text opts))))))
 
 ;; ─── build-query ────────────────────────────────────────────────
@@ -190,7 +182,7 @@
 (deftest test-build-query-structure
   (testing "returns a vector with :find, :where, and clauses"
     (let [clauses (#'sut/build-query-clauses {:from "a@b.com"})
-          query   (#'sut/build-query clauses 10 0)]
+          query   (#'sut/build-query clauses)]
       (is (vector? query))
       (is (some #(= :find %) query))
       (is (some #(= :where %) query))
@@ -200,7 +192,7 @@
 
 (deftest test-build-query-pull-pattern
   (testing "pull pattern includes expected attributes"
-    (let [query (#'sut/build-query [['?e :email/subject]] 5 0)]
+    (let [query (#'sut/build-query [['?e :email/subject]])]
       (is (re-find #"email/subject" (str query)))
       (is (re-find #"email/from" (str query)))
       (is (re-find #"email/to" (str query)))
@@ -309,15 +301,13 @@
       (is (re-find #"Test Subject" output))
       (is (re-find #"alice@example.com" output)))))
 
-;; ─── print-help ─────────────────────────────────────────────────
+;; ─── print-help (removed - replaced by babashka/cli auto-help) ───
 
 (deftest test-print-help-contents
-  (testing "help mentions key sections"
-    (let [output (capture-out #(#'sut/print-help))]
-      (is (re-find #"takeout" output))
-      (is (re-find #"ingest" output))
-      (is (re-find #"query" output))
-      (is (re-find #"stats" output))
-      (is (re-find #"export" output))
-      (is (re-find #"global-options" output))
-      (is (re-find #"--db" output)))))
+  (testing "help mentions key commands"
+    (let [cmds (get-in sut/cli-tree [:cmd])]
+      (is (contains? cmds "ingest"))
+      (is (contains? cmds "query"))
+      (is (contains? cmds "stats"))
+      (is (contains? cmds "export"))
+      (is (contains? cmds "threads")))))
