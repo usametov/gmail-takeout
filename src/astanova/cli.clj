@@ -89,11 +89,11 @@
     :id :labels
     :parse-fn #(str/split % #",")
     :validate [#(not-empty %) "Labels must not be empty"]]
-   ["--labels-mode" "MODE" "How to combine labels: any | all"
+   [nil "--labels-mode MODE" "How to combine labels: any | all"
     :default "any"
     :id :labels-mode
-    :validate [#{"any" "all"} "Must be 'any' or 'all'"]]
-   ["--text TEXT" "Search text in subject and body (combines with labels)"
+    :validate [#(#{"any" "all"} %) "Must be 'any' or 'all'"]]
+   [nil "--text TEXT" "Search text in subject and body (combines with labels)"
     :id :text]
    ["--since DATE"  "Emails on or after date (e.g. 2024-01-01)" :id :since]
    ["--before DATE" "Emails before date"                        :id :before]

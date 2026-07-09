@@ -2,6 +2,7 @@
   "Unit tests for astanova.cli — argument parsing, query building, formatting."
   (:require [clojure.test :refer [deftest is testing are]]
             [clojure.string :as str]
+            [clojure.tools.cli :refer [parse-opts]]
             [astanova.cli :as sut])
   (:import [java.util Date]
            [java.time Instant]))
@@ -77,7 +78,7 @@
       (is (= ['?e :email/to "bob@example.com"] (first clauses))))))
 
 (deftest test-build-query-clauses-label
-  (testing ":labels filter adds or clause with parsed labels"
+  (testing ":labels filter adds or clause with parsed labels (default mode: any)"
     (let [clauses (#'sut/build-query-clauses {:labels ["inbox"]})]
       (is (= 1 (count clauses)))
       (let [first-clause (first clauses)]
@@ -85,6 +86,28 @@
         (is (or (= 'or (first first-clause))
                 (= :or (first first-clause))))
         (is (some #(= ['?e :email/labels "inbox"] %) first-clause))))))
+
+(deftest test-build-query-clauses-labels-all-mode
+  (testing ":labels with --labels-mode all generates separate clauses"
+    (let [clauses (#'sut/build-query-clauses {:labels ["a" "b"] :labels-mode "all"})]
+      (is (= 2 (count clauses)))
+      (is (= ['?e :email/labels "a"] (first clauses)))
+      (is (= ['?e :email/labels "b"] (second clauses))))))
+
+(deftest test-build-query-clauses-labels-any-mode
+  (testing ":labels with --labels-mode any wraps in :or"
+    (let [clauses (#'sut/build-query-clauses {:labels ["a" "b"] :labels-mode "any"})]
+      (is (= 1 (count clauses)))
+      (let [or-clause (first clauses)]
+        (is (= :or (first or-clause)))
+        (is (some #(= ['?e :email/labels "a"] %) or-clause))
+        (is (some #(= ['?e :email/labels "b"] %) or-clause))))))
+
+(deftest test-build-query-clauses-labels-default-mode
+  (testing ":labels defaults to any mode"
+    (let [clauses (#'sut/build-query-clauses {:labels ["a" "b"]})]
+      (is (= 1 (count clauses)))
+      (is (= :or (ffirst clauses))))))
 
 (deftest test-build-query-clauses-since
   (testing ":since filter adds date >= predicate"
@@ -116,6 +139,51 @@
                    {:subject "hello" :from "alice@example.com" :labels ["inbox"]})]
       ;; subject adds 2 clauses (pattern + predicate), from 1, labels 1 (or with 1 branch)
       (is (= 4 (count clauses)) "subject(2) + from(1) + labels(1) = 4"))))
+
+(deftest test-build-query-clauses-text
+  (testing "--text adds or clause and includes? predicate"
+    (let [clauses (#'sut/build-query-clauses {:text "machine learning"})]
+      (is (= 2 (count clauses)))
+      (let [or-clause (first clauses)
+            pred-vec  (second clauses)]
+        (is (or (= :or (first or-clause))
+                (= 'or (first or-clause))))
+        (is (some #(= ['?e :email/subject '?txt] %) or-clause))
+        (is (some #(= ['?e :email/body '?txt] %) or-clause))
+        (is (list? (first pred-vec)))
+        (is (= 'clojure.string/includes? (ffirst pred-vec)))))))
+
+;; ─── Arg parsing integration ────────────────────────────────────
+
+(deftest test-query-parse-opts
+  (testing "query args are parsed into opts with labels and labels-mode"
+    (let [result (parse-opts
+                   ["-l" "a,b" "--labels-mode" "all" "-s" "hello"]
+                   (#'sut/get-query-spec))
+          opts   (:options result)]
+      (is (nil? (:errors result)) (str "no parse errors: " (:errors result)))
+      (is (= ["a" "b"] (:labels opts)))
+      (is (= "all" (:labels-mode opts)))
+      (is (= "hello" (:subject opts))))))
+
+(deftest test-query-parse-opts-default-labels-mode
+  (testing "labels-mode defaults to any when not specified"
+    (let [result (parse-opts
+                   ["-l" "x,y,z"]
+                   (#'sut/get-query-spec))
+          opts   (:options result)]
+      (is (nil? (:errors result)))
+      (is (= ["x" "y" "z"] (:labels opts)))
+      (is (= "any" (:labels-mode opts))))))
+
+(deftest test-query-parse-opts-text
+  (testing "--text is parsed correctly"
+    (let [result (parse-opts
+                   ["--text" "machine learning"]
+                   (#'sut/get-query-spec))
+          opts   (:options result)]
+      (is (nil? (:errors result)) (str "no parse errors: " (:errors result)))
+      (is (= "machine learning" (:text opts))))))
 
 ;; ─── build-query ────────────────────────────────────────────────
 
