@@ -323,10 +323,10 @@
 ;; ─── Dispatch ───────────────────────────────────────────────────
 
 (def cli-tree
-  "Command dispatch tree for babashka/cli."
-  {:spec global-spec
-   :cmd {"ingest"  {:fn ingest-cmd  :spec ingest-spec  :doc "Load MBOX files into the database"}
-         "query"   {:fn query-cmd   :spec query-spec   :doc "Search emails by criteria"}
-         "stats"   {:fn stats-cmd                      :doc "Show DB summary statistics"}
-         "export"  {:fn export-cmd  :spec export-spec  :doc "Dump emails as JSON/EDN"}
-         "threads" {:fn threads-cmd :spec threads-spec :doc "List and explore email threads"}}})
+  "Command dispatch table for babashka/cli."
+  [{:cmds [] :spec global-spec}
+   {:cmds ["ingest"]  :fn ingest-cmd  :spec ingest-spec  :doc "Load MBOX files into the database"}
+   {:cmds ["query"]   :fn query-cmd   :spec query-spec   :doc "Search emails by criteria"}
+   {:cmds ["stats"]   :fn stats-cmd                      :doc "Show DB summary statistics"}
+   {:cmds ["export"]  :fn export-cmd  :spec export-spec  :doc "Dump emails as JSON/EDN"}
+   {:cmds ["threads"] :fn threads-cmd :spec threads-spec :doc "List and explore email threads"}])

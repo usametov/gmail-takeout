@@ -18,7 +18,7 @@
 
 (deftest test-commands-map
   (testing "cli-tree has expected commands"
-    (let [cmds (get-in sut/cli-tree [:cmd])]
+    (let [cmds (set (keep (comp first :cmds) sut/cli-tree))]
       (is (contains? cmds "ingest"))
       (is (contains? cmds "query"))
       (is (contains? cmds "stats"))
@@ -305,7 +305,7 @@
 
 (deftest test-print-help-contents
   (testing "help mentions key commands"
-    (let [cmds (get-in sut/cli-tree [:cmd])]
+    (let [cmds (set (keep (comp first :cmds) sut/cli-tree))]
       (is (contains? cmds "ingest"))
       (is (contains? cmds "query"))
       (is (contains? cmds "stats"))
