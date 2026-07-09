@@ -798,61 +798,12 @@ Consider adding indexes to your schema:
 
 ## CLI Usage
 
-Don't forget you can also query from the command line:
-
-```bash
-# Search by subject
-./takeout -d emails.db query -s "meeting"
-
-# Filter by sender
-./takeout -d emails.db query -f "alice@example.com"
-
-# Filter by one or more comma-separated labels (OR by default)
-./takeout -d emails.db query -l "Important,AI"
-
-# Labels with ALL mode
-./takeout -d emails.db query -l "education/coursera,IBM" --labels-mode all
-
-# Combined labels + text search
-./takeout -d emails.db query -l "ai/chatbots/watson" --text "machine learning"
-
-# Filter by date
-./takeout -d emails.db query --since 2024-01-01 --before 2024-12-31
-
-# Limit and paginate
-./takeout -d emails.db query -s "invoice" -n 50 --offset 100
-
-# Export results as JSON
-./takeout -d emails.db query -s "meeting" --format json
-
-# Get statistics
-./takeout -d emails.db stats
-
-# List threads
-./takeout -d emails.db threads
-
-# Threads by participant
-./takeout -d emails.db threads -p "alice@example.com"
-```
-
-### CLI query options
-
-| Option | Description |
-|--------|-------------|
-| `-s` / `--subject` | Substring search in subject |
-| `-f` / `--from` | Exact sender match |
-| `-t` / `--to` | Exact recipient match |
-| `-l` / `--labels` | Comma-separated labels (default: any match) |
-| `--labels-mode` | `any` or `all` — how to combine labels |
-| `--text` | Text search in subject and body (combines with labels) |
-| `--since` / `--before` | Date range filtering |
-| `-n` / `--limit` | Max results (default: 20) |
-| `--offset` | Pagination offset |
-| `--format` | Output: `table`, `edn`, or `json` |
+See the [CLI Query Guide](cli-query-guide.md) for command-line querying,
+pagination, output formats, and all CLI options.
 
 ### CLI vs REPL
 
-The CLI supports multi-label and label+text queries. For **more complex
+The CLI supports the most common query patterns. For **more complex
 queries** (analytics, thread analysis, custom Datalog), use the REPL:
 
 ```clojure
@@ -868,8 +819,6 @@ To start a REPL:
 ```bash
 clojure -M:repl/conjure
 ```
-
----
 
 ---
 

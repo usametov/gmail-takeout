@@ -10,7 +10,7 @@
   (:import [java.time Instant LocalDate ZonedDateTime ZoneId]
            [java.time.format DateTimeFormatter DateTimeParseException]))
 
-(declare build-query-clauses build-query print-table to-json apply-limit-offset)
+(declare build-query-clauses build-query print-table to-json apply-limit-offset paginated-results)
 
 ;; ─── Date parsing ───────────────────────────────────────────────
 
@@ -50,7 +50,9 @@
    :before      {:desc "Emails before date"}
    :limit       {:alias :n :coerce :long :default 20 :desc "Max results"}
    :offset      {:coerce :long :default 0 :desc "Pagination offset"}
-   :format      {:desc "table | edn | json" :default "table"}})
+   :format      {:desc "table | edn | json" :default "edn"}
+   :page        {:coerce :long :desc "Page number (1-indexed, overrides offset)"}
+   :page-size   {:coerce :long :desc "Results per page (overrides --limit)"}})
 
 (def export-spec
   {:format {:desc "json | edn" :default "json"}
@@ -98,12 +100,16 @@
       (let [clauses (build-query-clauses opts)
             query   (build-query clauses)
             results (d/q query db-snap)
-            limited (apply-limit-offset results (:limit opts) (:offset opts))
+            total   (count results)
+            {:keys [results page-results offset limit] :as p} (paginated-results results opts)
             fmt     (keyword (:format opts))]
         (case fmt
-          :table (print-table limited)
-          :edn   (prn limited)
-          :json  (println (to-json limited))))
+          :table (print-table page-results)
+          :edn   (prn {:total total
+                       :offset offset
+                       :limit limit
+                       :results page-results})
+          :json  (println (to-json page-results))))
       (finally
         (db/close-conn conn)))))
 
@@ -263,6 +269,17 @@
       (pos? offset)
       (drop offset results)
       :else results)))
+
+(defn- paginated-results [results opts]
+  (let [page-size (or (:page-size opts) (:limit opts) 20)
+        page      (:page opts)
+        offset    (if page
+                    (* (dec page) page-size)
+                    (or (:offset opts) 0))]
+    {:results     results
+     :page-results (apply-limit-offset results page-size offset)
+     :offset      offset
+     :limit       page-size}))
 
 ;; ─── Output formatting ─────────────────────────────────────────
 
