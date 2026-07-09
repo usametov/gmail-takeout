@@ -96,6 +96,50 @@
          :where [?e :email/labels ?label]]
        db label))
 
+(defn query-by-labels-any
+  "Find emails that have ANY of the given labels."
+  [db labels]
+  (let [label-set (set labels)]
+    (d/q '[:find [(pull ?e [:email/subject :email/from :email/date :email/labels]) ...]
+           :in $ ?label-set
+           :where [?e :email/labels ?l]
+                  [(contains? ?label-set ?l)]]
+         db label-set)))
+
+(defn query-by-labels-all
+  "Find emails that have ALL of the given labels.
+   Returns distinct results (an email matching multiple labels appears once)."
+  [db labels]
+  (let [label-set (set labels)]
+    (->> (d/q '[:find [(pull ?e [:email/subject :email/from :email/date :email/labels]) ...]
+                :in $ ?label-set
+                :where [?e :email/labels ?l]
+                       [(contains? ?label-set ?l)]]
+              db label-set)
+         (filter #(clojure.set/subset? label-set (set (:email/labels %))))
+         (distinct)
+         (into []))))
+
+(defn query-by-labels-and-text
+  "Find emails matching a set of labels (ALL of them) AND a text term.
+   Labels AND semantics: the email must have every label in the set.
+   Text is matched case-insensitively against subject and body.
+   Returns distinct results."
+  [db labels text]
+  (let [label-set (set labels)
+        term-lc   (clojure.string/lower-case text)]
+    (->> (d/q '[:find [(pull ?e [:email/subject :email/from :email/date :email/body :email/labels]) ...]
+                :in $ ?label-set ?term
+                :where [?e :email/labels ?l]
+                       [(contains? ?label-set ?l)]
+                       (or [?e :email/subject ?txt]
+                           [?e :email/body ?txt])
+                       [(clojure.string/includes? (clojure.string/lower-case ?txt) ?term)]]
+              db label-set term-lc)
+         (filter #(clojure.set/subset? label-set (set (:email/labels %))))
+         (distinct)
+         (into []))))
+
 (defn query-by-date-range
   "Find emails within a date range (inclusive).
    Dates should be java.util.Date or java.time.Instant."

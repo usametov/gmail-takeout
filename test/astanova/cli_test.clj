@@ -77,10 +77,14 @@
       (is (= ['?e :email/to "bob@example.com"] (first clauses))))))
 
 (deftest test-build-query-clauses-label
-  (testing ":label filter adds labels clause"
-    (let [clauses (#'sut/build-query-clauses {:label "inbox"})]
+  (testing ":labels filter adds or clause with parsed labels"
+    (let [clauses (#'sut/build-query-clauses {:labels ["inbox"]})]
       (is (= 1 (count clauses)))
-      (is (= ['?e :email/labels "inbox"] (first clauses))))))
+      (let [first-clause (first clauses)]
+        ;; labels-any wraps in [:or ...]
+        (is (or (= 'or (first first-clause))
+                (= :or (first first-clause))))
+        (is (some #(= ['?e :email/labels "inbox"] %) first-clause))))))
 
 (deftest test-build-query-clauses-since
   (testing ":since filter adds date >= predicate"
@@ -109,9 +113,9 @@
 (deftest test-build-query-clauses-multiple-filters
   (testing "multiple filters are combined"
     (let [clauses (#'sut/build-query-clauses
-                   {:subject "hello" :from "alice@example.com" :label "inbox"})]
-      ;; no default catch-all since filters are present
-      (is (= 4 (count clauses)) "subject + from + label = 4 clauses (3 pattern + 1 predicate)"))))
+                   {:subject "hello" :from "alice@example.com" :labels ["inbox"]})]
+      ;; subject adds 2 clauses (pattern + predicate), from 1, labels 1 (or with 1 branch)
+      (is (= 4 (count clauses)) "subject(2) + from(1) + labels(1) = 4"))))
 
 ;; ─── build-query ────────────────────────────────────────────────
 
@@ -134,8 +138,8 @@
       (is (re-find #"email/to" (str query)))
       (is (re-find #"email/date" (str query)))
       (is (re-find #"email/labels" (str query)))
-      ;; email/body is not included by default (performance)
-      (is (not (re-find #"email/body" (str query)))))))
+      ;; email/body is now included for --text support
+      (is (re-find #"email/body" (str query))))))
 
 ;; ─── json-escape ────────────────────────────────────────────────
 

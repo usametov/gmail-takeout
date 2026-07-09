@@ -43,6 +43,6 @@ src/astanova/
 
 ## License
 
-Copyright © 2026 Asel
+Copyright © 2026 Asta Nova Enterprise Solutions Inc.
 
 Distributed under the Eclipse Public License 2.0.

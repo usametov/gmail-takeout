@@ -100,6 +100,27 @@ Complete guide to querying your email database after ingestion with `astanova.ta
 
 ## Filtering & Searching
 
+### Multi-Label & Combined Queries
+
+```clojure
+;; ANY of the given labels (OR semantics)
+(db/query-by-labels-any db ["Important" "Starred"])
+
+;; ALL of the given labels (AND semantics)
+(db/query-by-labels-all db ["Important" "ai/chatbots/watson"])
+
+;; Labels AND text search combined
+(db/query-by-labels-and-text db ["education/coursera"] "machine learning")
+```
+
+These use a hybrid approach: Datalevin's `contains?` predicate narrows by label
+membership in the query, then Clojure-side `clojure.set/subset?` enforces ALL
+semantics.  The text search uses case-insensitive `clojure.string/includes?`
+over both subject and body.
+
+**Note:** Multi-label and combined queries are only available as Clojure
+library functions (via REPL), not from the CLI directly.
+
 ### By Sender
 
 ```clojure
@@ -529,11 +550,14 @@ The `astanova.db` namespace provides convenient helper functions:
 
 ```clojure
 ;; Query functions
-(db/query-by-subject db "keyword")     ;; Search by subject
-(db/query-by-sender db "addr@test.com") ;; By sender
-(db/query-by-recipient db "addr@test.com") ;; By recipient
-(db/query-by-label db "Important")      ;; By Gmail label
-(db/query-by-date-range db start end)   ;; Date range
+(db/query-by-subject db "keyword")           ;; Search by subject
+(db/query-by-sender db "addr@test.com")       ;; By sender
+(db/query-by-recipient db "addr@test.com")    ;; By recipient
+(db/query-by-label db "Important")            ;; Single Gmail label
+(db/query-by-labels-any db ["a" "b"])        ;; ANY of these labels
+(db/query-by-labels-all db ["a" "b"])        ;; ALL of these labels
+(db/query-by-labels-and-text db ["a"] "txt")  ;; Labels AND text
+(db/query-by-date-range db start end)          ;; Date range
 
 ;; Thread functions
 (db/get-thread-ids db)                  ;; Get all thread IDs
@@ -783,18 +807,69 @@ Don't forget you can also query from the command line:
 # Filter by sender
 ./takeout -d emails.db query -f "alice@example.com"
 
+# Filter by one or more comma-separated labels (OR by default)
+./takeout -d emails.db query -l "Important,AI"
+
+# Labels with ALL mode
+./takeout -d emails.db query -l "education/coursera,IBM" --labels-mode all
+
+# Combined labels + text search
+./takeout -d emails.db query -l "ai/chatbots/watson" --text "machine learning"
+
 # Filter by date
 ./takeout -d emails.db query --since 2024-01-01 --before 2024-12-31
 
-# Limit results
-./takeout -d emails.db query -s "invoice" -n 50
+# Limit and paginate
+./takeout -d emails.db query -s "invoice" -n 50 --offset 100
 
 # Export results as JSON
 ./takeout -d emails.db query -s "meeting" --format json
 
 # Get statistics
 ./takeout -d emails.db stats
+
+# List threads
+./takeout -d emails.db threads
+
+# Threads by participant
+./takeout -d emails.db threads -p "alice@example.com"
 ```
+
+### CLI query options
+
+| Option | Description |
+|--------|-------------|
+| `-s` / `--subject` | Substring search in subject |
+| `-f` / `--from` | Exact sender match |
+| `-t` / `--to` | Exact recipient match |
+| `-l` / `--labels` | Comma-separated labels (default: any match) |
+| `--labels-mode` | `any` or `all` — how to combine labels |
+| `--text` | Text search in subject and body (combines with labels) |
+| `--since` / `--before` | Date range filtering |
+| `-n` / `--limit` | Max results (default: 20) |
+| `--offset` | Pagination offset |
+| `--format` | Output: `table`, `edn`, or `json` |
+
+### CLI vs REPL
+
+The CLI supports multi-label and label+text queries. For **more complex
+queries** (analytics, thread analysis, custom Datalog), use the REPL:
+
+```clojure
+(require '[astanova.db :as db])
+
+;; Full programmatic access
+(db/top-senders db 20)
+(db/query-by-labels-all db ["ai/chatbots/watson" "education/coursera"])
+(db/query-by-labels-and-text db ["education/coursera"] "IBM")
+```
+
+To start a REPL:
+```bash
+clojure -M:repl/conjure
+```
+
+---
 
 ---
 

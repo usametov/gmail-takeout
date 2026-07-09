@@ -658,3 +658,89 @@
         (let [thread-ids (db/get-thread-ids db)
               total-in-threads (reduce + 0 (map #(count (db/get-thread-emails db %)) thread-ids))]
           (is (= (db/count-emails db) total-in-threads)))))))
+
+;; ─── Multi-Label and Combined Queries ─────────────────────────
+;; Known label counts from the 5-email MBOX:
+;;   ai/chatbots/watson → 5 emails
+;;   Archived           → 4 emails
+;;   education/coursera → 3 emails
+;;   IBM                → 3 emails
+
+(deftest test-query-by-labels-any
+  (testing "query-by-labels-any finds emails with ANY of the labels"
+    (with-db
+      (fn [_conn db]
+        (let [results (db/query-by-labels-any db ["ai/chatbots/watson"])]
+          (is (= 5 (count results)) "all 5 have watson label"))))))
+
+(deftest test-query-by-labels-any-multiple
+  (testing "query-by-labels-any matches any of the given labels"
+    (with-db
+      (fn [_conn db]
+        (let [results (db/query-by-labels-any db ["education/coursera" "IBM"])]
+          (is (= 4 (count results)) "4 emails have either coursera or IBM")
+          (doseq [e results]
+            (is (some #(or (= % "education/coursera")
+                           (= % "IBM"))
+                      (:email/labels e)))))))))
+
+(deftest test-query-by-labels-any-no-match
+  (testing "query-by-labels-any returns empty for non-existent labels"
+    (with-db
+      (fn [_conn db]
+        (is (empty? (db/query-by-labels-any db ["FakeLabelXYZ"])))))))
+
+(deftest test-query-by-labels-all
+  (testing "query-by-labels-all finds emails with ALL specified labels"
+    (with-db
+      (fn [_conn db]
+        (let [results (db/query-by-labels-all db ["ai/chatbots/watson" "education/coursera"])]
+          (is (= 3 (count results)) "3 emails have both watson and coursera")
+          (doseq [e results]
+            (is (some #(= "ai/chatbots/watson" %) (:email/labels e)))
+            (is (some #(= "education/coursera" %) (:email/labels e)))))))))
+
+(deftest test-query-by-labels-all-no-match
+  (testing "query-by-labels-all returns empty when no email has all labels"
+    (with-db
+      (fn [_conn db]
+        (is (empty? (db/query-by-labels-all db ["ai/chatbots/watson" "FakeLabel"])) "no email has both")))))
+
+(deftest test-query-by-labels-and-text
+  (testing "query-by-labels-and-text combines label AND text search"
+    (with-db
+      (fn [_conn db]
+        (let [results (db/query-by-labels-and-text db ["education/coursera"] "IBM")]
+          (is (pos? (count results)))
+          (doseq [e results]
+            (is (some #(= "education/coursera" %) (:email/labels e)))
+            (is (or (clojure.string/includes? (or (:email/subject e) "") "IBM")
+                    (clojure.string/includes? (or (:email/body e) "") "IBM")))))))))
+
+(deftest test-query-by-labels-and-text-multi-label
+  (testing "query-by-labels-and-text with multiple labels AND text"
+    (with-db
+      (fn [_conn db]
+        (let [results (db/query-by-labels-and-text db
+                        ["ai/chatbots/watson" "education/coursera"] "AI")]
+          (is (pos? (count results)))
+          (doseq [e results]
+            (is (some #(= "ai/chatbots/watson" %) (:email/labels e)))
+            (is (some #(= "education/coursera" %) (:email/labels e)))
+            (is (or (clojure.string/includes? (or (:email/subject e) "") "AI")
+                    (clojure.string/includes? (or (:email/body e) "") "AI")))))))))
+
+(deftest test-query-by-labels-and-text-no-match
+  (testing "query-by-labels-and-text returns empty when no match"
+    (with-db
+      (fn [_conn db]
+        (is (empty? (db/query-by-labels-and-text db ["education/coursera"] "XYZZZZ")))))))
+
+(deftest test-query-by-labels-empty-db
+  (testing "multi-label queries handle empty database"
+    (let [conn (db/create-conn test-db-path)
+          db   (d/db conn)]
+      (is (empty? (db/query-by-labels-any db ["test"])))
+      (is (empty? (db/query-by-labels-all db ["test"])))
+      (is (empty? (db/query-by-labels-and-text db ["test"] "text")))
+      (db/close-conn conn))))

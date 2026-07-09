@@ -85,7 +85,16 @@
   [["-s" "--subject TEXT" "Filter by subject substring" :id :subject]
    ["-f" "--from ADDR"    "Filter by sender"            :id :from]
    ["-t" "--to ADDR"      "Filter by recipient"          :id :to]
-   ["-l" "--label LABEL"  "Filter by Gmail label"        :id :label]
+   ["-l" "--labels LABELS" "Comma-separated Gmail labels"
+    :id :labels
+    :parse-fn #(str/split % #",")
+    :validate [#(not-empty %) "Labels must not be empty"]]
+   ["--labels-mode" "MODE" "How to combine labels: any | all"
+    :default "any"
+    :id :labels-mode
+    :validate [#{"any" "all"} "Must be 'any' or 'all'"]]
+   ["--text TEXT" "Search text in subject and body (combines with labels)"
+    :id :text]
    ["--since DATE"  "Emails on or after date (e.g. 2024-01-01)" :id :since]
    ["--before DATE" "Emails before date"                        :id :before]
    ["-n" "--limit N" "Max results"
@@ -124,25 +133,41 @@
         :json  (println (to-json limited))))))
 
 (defn- build-query-clauses [opts]
-  (cond-> []
-    (:subject opts) (conj ['?e :email/subject '?s]
-                          [(list 'clojure.string/includes? '?s (:subject opts))])
-    (:from opts)    (conj ['?e :email/from (:from opts)])
-    (:to opts)      (conj ['?e :email/to (:to opts)])
-    (:label opts)   (conj ['?e :email/labels (:label opts)])
-    (:since opts)   (conj ['?e :email/date '?d]
-                          [(list '>= '?d (parse-date (:since opts)))])
-    (:before opts)  (conj ['?e :email/date '?d]
-                          [(list '< '?d (parse-date (:before opts)))])
-    (empty? (select-keys opts [:subject :from :to :label :since :before]))
-    (conj ['?e :email/subject])))
+  (let [labels         (seq (:labels opts))
+        labels-mode    (keyword (:labels-mode opts "any"))
+        text           (:text opts)]
+    (cond-> []
+      labels
+      (into (case labels-mode
+              :any  (list (into [:or]
+                                (for [l labels]
+                                  ['?e :email/labels l])))
+              :all  (for [l labels]
+                      ['?e :email/labels l])))
+      (:subject opts) (conj ['?e :email/subject '?s]
+                            [(list 'clojure.string/includes? '?s (:subject opts))])
+      (:from opts)    (conj ['?e :email/from (:from opts)])
+      (:to opts)      (conj ['?e :email/to (:to opts)])
+      text            (conj (list 'or ['?e :email/subject '?txt]
+                                      ['?e :email/body '?txt])
+                            [(list 'clojure.string/includes?
+                                   (list 'clojure.string/lower-case '?txt)
+                                   (clojure.string/lower-case text))])
+      (:since opts)   (conj ['?e :email/date '?d]
+                            [(list '>= '?d (parse-date (:since opts)))])
+      (:before opts)  (conj ['?e :email/date '?d]
+                            [(list '< '?d (parse-date (:before opts)))])
+      (empty? (select-keys opts [:subject :from :to :labels :text :since :before]))
+      (conj ['?e :email/subject]))))
 
 (defn- build-query [clauses _limit _offset]
   ;; Build query - limit/offset applied to results, not in query
-  ;; Construct the query vector properly with pull syntax
-  (let [find-clause [:find '[(pull ?e [:email/subject :email/from :email/to 
-                                   :email/date :email/labels]) ...]]]
-    (vec (concat find-clause [:where] clauses))))
+  (let [pull-pattern [:email/subject :email/from :email/to
+                      :email/date :email/labels :email/body]]
+    (vec (concat
+           [:find [(list 'pull '?e (vec pull-pattern)) (symbol "...")]]
+           [:where]
+           clauses))))
 
 (defn- apply-limit-offset [results limit offset]
   (let [offset (or offset 0)
