@@ -66,6 +66,10 @@
    :limit        {:alias :n :coerce :long :default 20 :desc "Max results"}
    :format       {:desc "table | edn | json" :default "table"}})
 
+(def split-spec
+  {:size   {:alias :s :coerce :long :default 500 :desc "Approximate chunk size in MB"}
+   :output {:alias :o :desc "Output directory (default: same dir as input)"}})
+
 ;; ─── Command handlers ──────────────────────────────────────────
 
 (defn- ingest-cmd [{:keys [opts args]}]
@@ -83,6 +87,16 @@
       (when (empty? paths)
         (println "No .mbox files found.")
         (System/exit 1))
+      ;; Check for large files (> 500 MB) that may exceed MboxIterator limits
+      (let [max-size (* 500 1024 1024)
+            large-files (filter #(> (.length %) max-size) paths)]
+        (when (seq large-files)
+          (println "Warning: Some files are larger than 500 MB and may not be ingestible directly:")
+          (doseq [f large-files]
+            (println (format "  %s (%.1f GB)" (.getName f) (/ (.length f) 1024.0 1024.0 1024.0))))
+          (println "Consider splitting them first:")
+          (println "  takeout split <file> -s 500")
+          (println)))
       (println (format "Ingesting %d file(s) (source: %s, batch: %d)..."
                        (count paths) source bsize))
       (doseq [f paths]
@@ -337,6 +351,114 @@
                         "}")))
        "\n]"))
 
+;; ─── Split command (byte-level splitter) ─────────────────────────
+
+(def ^:private from-pattern
+  "ASCII bytes for 'From ' — the mbox message delimiter."
+  (byte-array (map byte "From ")))
+
+(def ^:private from-pattern-len (int (alength from-pattern)))
+
+(defn- find-next-from-boundary
+  "Find the next 'From ' at the start of a line (preceded by \\n or \\r or at
+   position 0), scanning forward from `start-pos`. Returns byte position of
+   the 'F', or nil if not found within `search-limit` bytes.
+
+   Works at the byte level — reads chunks of up to 64 KB at a time, scanning
+   for the literal 'From ' bytes, then verifying the preceding character."
+  [^java.io.RandomAccessFile raf start-pos search-limit]
+  (let [file-len   (.length raf)
+        end-pos    (min (+ start-pos search-limit) file-len)
+        buf-size   65536]
+    (loop [pos start-pos]
+      (when (< pos end-pos)
+        (let [to-read (int (min buf-size (- end-pos pos)))
+              buf     (byte-array to-read)]
+          (.seek raf pos)
+          (.readFully raf buf 0 to-read)
+          (loop [i 0]
+            (if (< i to-read)
+              ;; Check for 'F' followed by 'rom '
+              (if (and (= (aget buf i) (byte \F))
+                       (< (+ i 4) to-read)
+                       (= (aget buf (inc i)) (byte \r))
+                       (= (aget buf (+ i 2)) (byte \o))
+                       (= (aget buf (+ i 3)) (byte \m))
+                       (= (aget buf (+ i 4)) (byte \space)))
+                (let [abs-pos (+ pos i)]
+                  ;; Verify it's at start of a line or position 0
+                  (if (or (zero? abs-pos)
+                          (let [prev (if (> i 0)
+                                      (aget buf (dec i))
+                                      ;; newline might be in previous buffer
+                                      (do (.seek raf (dec abs-pos))
+                                          (.read raf)))]
+                            (or (= prev (byte \newline))
+                                (= prev (byte \return)))))
+                    abs-pos
+                    (recur (+ i 5))))  ;; false positive (e.g. >From body)
+                (recur (inc i)))
+              (recur (+ pos to-read)))))))))
+
+(defn split-mbox!
+  "Split an mbox file into chunks of approximately `chunk-size-mb` MB each.
+   Uses byte-level seeking with RandomAccessFile — no line-by-line parsing,
+   no encoding/decoding. Each chunk is aligned to a 'From ' message boundary
+   (the only reliable mbox delimiter per RFC 4155)."
+  [^String mbox-path ^long chunk-size-mb ^String out-dir]
+  (let [chunk-size-bytes (* chunk-size-mb 1024 1024)
+        search-limit     (* 4 1024 1024)   ;; 4 MB lookahead for boundary
+        stem             (str/replace (.getName (java.io.File. mbox-path)) #"\.mbox$" "")
+        out-dir-f        (java.io.File. out-dir)]
+    (.mkdirs out-dir-f)
+    (with-open [raf (java.io.RandomAccessFile. mbox-path "r")]
+      (let [file-len (.length raf)]
+        (loop [chunk-idx 0
+               start-pos 0]
+          (when (< start-pos file-len)
+            (let [approx-end  (+ start-pos chunk-size-bytes)
+                  ;; Find the next message boundary after approx-end
+                  boundary-pos (when (< approx-end file-len)
+                                 (find-next-from-boundary raf approx-end search-limit))
+                  end-pos     (or boundary-pos file-len)
+                  out-path    (str out-dir "/" (format "%s.part-%04d.mbox" stem (inc chunk-idx)))]
+              ;; Stream raw bytes from start-pos to end-pos
+              (println (format "  Writing chunk %d (%d MB target):"
+                               (inc chunk-idx) chunk-size-mb))
+              (println (format "    %s" out-path))
+              (with-open [out (java.io.FileOutputStream. (java.io.File. out-path))]
+                (let [buf-size 65536
+                      buf      (byte-array buf-size)]
+                  (.seek raf start-pos)
+                  (loop [remaining (- end-pos start-pos)]
+                    (when (pos? remaining)
+                      (let [to-read (int (min buf-size remaining))
+                            n (.read raf buf 0 to-read)]
+                        (when (pos? n)
+                          (.write out buf 0 n)
+                          (recur (- remaining n))))))))
+              (println (format "    %d bytes" (- end-pos start-pos)))
+              (recur (inc chunk-idx) end-pos))))))))
+
+(defn split-cmd [{:keys [opts args]}]
+  (let [chunk-size-mb (:size opts)
+        out-dir       (:output opts)
+        paths         (mapcat (fn [p]
+                                (let [f (java.io.File. p)]
+                                  (if (.isDirectory f)
+                                    (filter #(str/ends-with? (.getName %) ".mbox")
+                                            (.listFiles f))
+                                    [f])))
+                              args)]
+    (when (empty? paths)
+      (println "No .mbox files specified.")
+      (println "Usage: takeout split [options] <mbox-file>...")
+      (System/exit 1))
+    (doseq [mbox paths]
+      (let [dir (or out-dir (.getParent mbox))]
+        (println (format "Splitting %s (%d MB/chunk)..." (.getName mbox) chunk-size-mb))
+        (split-mbox! (.getAbsolutePath mbox) chunk-size-mb dir)))))
+
 ;; ─── Dispatch ───────────────────────────────────────────────────
 
 (def cli-tree
@@ -346,4 +468,5 @@
    {:cmds ["query"]   :fn query-cmd   :spec query-spec   :doc "Search emails by criteria"}
    {:cmds ["stats"]   :fn stats-cmd                      :doc "Show DB summary statistics"}
    {:cmds ["export"]  :fn export-cmd  :spec export-spec  :doc "Dump emails as JSON/EDN"}
-   {:cmds ["threads"] :fn threads-cmd :spec threads-spec :doc "List and explore email threads"}])
+   {:cmds ["threads"] :fn threads-cmd :spec threads-spec :doc "List and explore email threads"}
+   {:cmds ["split"]   :fn split-cmd   :spec split-spec   :doc "Split large MBOX files into smaller chunks"}])

@@ -9,9 +9,10 @@ Query your email database from the command line using `./takeout query`.
 3. [Pagination](#pagination)
 4. [Output Formats](#output-formats)
 5. [Threads CLI](#threads-cli)
-6. [Statistics](#statistics)
-7. [CLI vs REPL](#cli-vs-repl)
-8. [All Options Reference](#all-options-reference)
+6. [Split Command](#split-command)
+7. [Statistics](#statistics)
+8. [CLI vs REPL](#cli-vs-repl)
+9. [All Options Reference](#all-options-reference)
 
 ---
 
@@ -233,6 +234,91 @@ JSON array of results. Note: JSON output does not include pagination metadata.
 
 ---
 
+## Split Command
+
+Split large MBOX files into smaller chunks before ingesting them.
+
+Google Takeout exports can produce MBOX files exceeding 2 GB, which is the
+practical limit for Mime4j's `MboxIterator` (uses memory-mapped file I/O).
+The `split` command breaks large files into chunks of roughly the same byte
+size, aligned to message boundaries (`From ` delimiters), so each chunk is
+independently valid and ingestible.
+
+### Basic usage
+
+```bash
+# Split a single file (default: 500 MB chunks)
+./takeout split ~/Takeout/Mail/Inbox.mbox
+
+# Specify chunk size (200 MB)
+./takeout split ~/Takeout/Mail/Inbox.mbox -s 200
+
+# Specify output directory
+./takeout split ~/Takeout/Mail/Inbox.mbox -o /tmp/chunks
+```
+
+💡 The splitter works at the byte level using `RandomAccessFile` — it does
+not decode or re-encode the file, preserving the original mboxrd format
+exactly. Each chunk is a valid mbox file that can be ingested directly.
+
+### Split multiple files or directories
+
+```bash
+# Split all .mbox files in a directory
+./takeout split ~/Takeout/Mail/
+
+# Split specific files
+./takeout split file1.mbox file2.mbox
+
+# Split a directory into 200 MB chunks in a custom output dir
+./takeout split ~/Takeout/Mail/ -s 200 -o /tmp/chunks
+```
+
+### How it works
+
+1. The splitter reads the file using `RandomAccessFile` (no memory-mapping).
+2. Starting from position 0, it copies raw bytes to the first chunk file.
+3. After ~500 MB (or the size you specify), it scans forward for the next
+   `From ` that starts at the beginning of a line — this is the message
+   boundary per RFC 4155.
+4. The chunk ends right before that boundary, and the next chunk starts
+   there. This guarantees every message is intact in one chunk.
+5. The last chunk extends to EOF.
+
+Output files are named `<stem>.part-0001.mbox`, `<stem>.part-0002.mbox`, etc.
+
+### Chunk size guidance
+
+| Chunk size | Use case |
+|------------|----------|
+| **500 MB** | Default — safe for MboxIterator's ~2 GB limit with headroom |
+| **200 MB** | Conservative — faster per-chunk ingestion, more chunks |
+| **1000 MB** | Aggressive — fewer chunks, but may approach MboxIterator limits |
+
+The default of 500 MB works well for most Takeout exports. Each chunk is well
+under Mime4j's 2 GB limit and ingests quickly.
+
+### Verifying chunks
+
+```bash
+# Count messages in each chunk (each 'From ' at line start = one message)
+grep -c '^From ' output.part-0001.mbox
+grep -c '^From ' output.part-0002.mbox
+
+# Ingest one chunk to test
+./takeout -d test.db ingest output.part-0001.mbox
+```
+
+### Split options reference
+
+| Option | Description |
+|--------|-------------|
+| `-s` / `--size` | Approximate chunk size in MB (default: `500`) |
+| `-o` / `--output` | Output directory (default: same directory as input) |
+| `<file>...` | One or more MBOX files or directories to split |
+
+---
+
 ## Statistics
 
 ```bash
@@ -284,6 +370,13 @@ See the [query-guide.md](query-guide.md) for the complete REPL query reference.
 | Option | Description |
 |--------|-------------|
 | `-d` / `--db` | Datalevin database path (default: `emails.db`) |
+
+### Split options
+
+| Option | Description |
+|--------|-------------|
+| `-s` / `--size` | Approximate chunk size in MB (default: `500`) |
+| `-o` / `--output` | Output directory (default: same dir as input) |
 
 ### Query options
 

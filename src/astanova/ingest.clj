@@ -57,13 +57,15 @@
                                    :or   {batch-size default-batch-size}}]
   (let [entities  (map #(email-map->entity % mbox-file source) emails)
         batches   (partition-batches entities batch-size)
-        total     (count entities)
-        tx-count  (atom 0)]
+        tx-count  (atom 0)
+        total     (atom 0)]
     (doseq [batch batches]
-      (let [result (d/transact! conn batch)]
-        (swap! tx-count inc)))
+      (let [n (count batch)]
+        (d/transact! conn batch)
+        (swap! tx-count inc)
+        (swap! total + n)))
     {:tx-count    @tx-count
-     :email-count total}))
+     :email-count @total}))
 
 (defn ingest-mbox!
   "Parse an MBOX file and ingest all emails into Datalevin.

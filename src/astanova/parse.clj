@@ -14,7 +14,11 @@
 
 (defn mbox-messages
   "Given a path to an MBOX file, return a lazy seq of CharBufferWrappers
-   using Mime4j's MboxIterator (memory-efficient, one-at-a-time)."
+   using Mime4j's MboxIterator (memory-efficient, one-at-a-time).
+
+   NOTE: MboxIterator uses FileChannel.map internally, which limits it to
+   files smaller than ~2 GB.  For larger files, use the `split` command
+   first (see `takeout split --help`)."
   [mbox-path]
   (let [f (io/file mbox-path)]
     (-> (MboxIterator/fromFile f)
