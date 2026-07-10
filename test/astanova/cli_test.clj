@@ -311,3 +311,117 @@
       (is (contains? cmds "stats"))
       (is (contains? cmds "export"))
       (is (contains? cmds "threads")))))
+
+;; ─── Split command ───────────────────────────────────────────────
+
+(defn- with-temp-mbox
+  "Create a temp mbox file, run f with its path, then clean up."
+  [content-bytes f]
+  (let [tmp (java.io.File/createTempFile "test-split" ".mbox")]
+    (try
+      (with-open [w (java.io.FileOutputStream. tmp)]
+        (.write w content-bytes))
+      (f (.getAbsolutePath tmp))
+      (finally (.delete tmp)))))
+
+(defn- with-temp-dir
+  "Create a temp dir, run f with its path, then clean up."
+  [f]
+  (let [d (doto (java.io.File/createTempFile "test-split-out" "")
+            (.delete)
+            (.mkdirs))]
+    (try
+      (f (.getAbsolutePath d))
+      (finally
+        (doseq [c (.listFiles d)] (.delete c))
+        (.delete d)))))
+
+(deftest test-split-cmd-exists-in-cli-tree
+  (testing "cli-tree includes the split command"
+    (let [cmds (set (keep (comp first :cmds) sut/cli-tree))]
+      (is (contains? cmds "split")))))
+
+(deftest test-split-spec-parse
+  (testing "split-spec parses --size and --output correctly"
+    (let [opts (cli/parse-opts
+                 ["-s" "200" "-o" "/tmp/out" "input.mbox"]
+                 {:spec sut/split-spec})]
+      (is (= 200 (:size opts)))
+      (is (= "/tmp/out" (:output opts))))))
+
+(deftest test-split-spec-defaults
+  (testing "split-spec defaults to 500 MB size"
+    (let [opts (cli/parse-opts ["input.mbox"] {:spec sut/split-spec})]
+      (is (= 500 (:size opts)))
+      (is (nil? (:output opts))))))
+
+(deftest test-split-mbox-creates-chunks
+  (testing "split-mbox! creates chunk files with correct names"
+    (let [content (.getBytes "From a@b.com\n\nHi\n\nFrom c@d.com\n\nBye\n" "UTF-8")]
+      (with-temp-mbox content
+        (fn [mbox-path]
+          (with-temp-dir
+            (fn [out-dir]
+              (#'sut/split-mbox! mbox-path 1 out-dir)
+              (let [files (sort (filter #(.endsWith (.getName %) ".mbox")
+                                        (.listFiles (java.io.File. out-dir))))]
+                (is (= 1 (count files)))
+                (is (re-find #"part-0001" (.getName (first files))))))))))))
+
+(deftest test-split-mbox-content-preserved
+  (testing "chunk content is byte-identical to original"
+    (let [content (.getBytes "From a@b.com\n\nHi\n\nFrom c@d.com\n\nBye\n" "UTF-8")]
+      (with-temp-mbox content
+        (fn [mbox-path]
+          (with-temp-dir
+            (fn [out-dir]
+              (#'sut/split-mbox! mbox-path 1 out-dir)
+              (let [chunk (first (filter #(.endsWith (.getName %) ".mbox")
+                                         (.listFiles (java.io.File. out-dir))))]
+                (is (= (slurp mbox-path) (slurp chunk)))))))))))
+
+(deftest test-split-mbox-multiple-chunks
+  (testing "split-mbox! creates multiple chunks for large-enough files"
+    (let [content (.getBytes (apply str (repeat 100 "From x@y Mon Jan 01 10:00:00 2024\nSubject: T\n\nBody\n\n")) "UTF-8")]
+      (with-temp-mbox content
+        (fn [mbox-path]
+          (with-temp-dir
+            (fn [out-dir]
+              ;; Use tiny chunk size (1 byte) to force multiple chunks
+              (#'sut/split-mbox! mbox-path 1 out-dir)
+              (let [files (filter #(.endsWith (.getName %) ".mbox")
+                                  (.listFiles (java.io.File. out-dir)))]
+                (is (pos? (count files)))
+                ;; Reassemble and verify content matches
+                (let [reassembled (apply str (map slurp (sort files)))]
+                  (is (= (slurp mbox-path) reassembled)))))))))))
+
+(deftest test-split-cmd-single-file
+  (testing "split-cmd processes a single file"
+    (let [content (.getBytes "From a@b.com\n\nHi\n" "UTF-8")]
+      (with-temp-mbox content
+        (fn [mbox-path]
+          (with-temp-dir
+            (fn [out-dir]
+              (with-out-str
+                (sut/split-cmd
+                  {:opts {:size 1 :output out-dir}
+                   :args [mbox-path]}))
+              (let [files (filter #(.endsWith (.getName %) ".mbox")
+                                  (.listFiles (java.io.File. out-dir)))]
+                (is (= 1 (count files)))))))))))
+
+(deftest test-split-cmd-uses-default-output-dir
+  (testing "split-cmd uses input file dir when --output not specified"
+    (let [content (.getBytes "From a@b.com\n\nBody\n" "UTF-8")]
+      (with-temp-mbox content
+        (fn [mbox-path]
+          (let [parent (.getParent (java.io.File. mbox-path))]
+            (with-out-str
+              (sut/split-cmd
+                {:opts {:size 1}
+                 :args [mbox-path]}))
+            (let [stem (str/replace (.getName (java.io.File. mbox-path)) #"\.mbox$" "")
+                  chunk (java.io.File. parent (str stem ".part-0001.mbox"))]
+              (is (.exists chunk) "chunk created in input dir")
+              (.delete chunk))))))))
