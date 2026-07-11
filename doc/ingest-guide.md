@@ -593,6 +593,31 @@ cp -r emails.db emails.db.backup
 ./takeout -d emails.db query -n 5 --format edn
 ```
 
+### 5. Split Large MBOX Files First
+
+Google Takeout exports can produce MBOX files exceeding 2 GB. Mime4j's `MboxIterator` uses memory-mapped file I/O which has a ~2 GB limit. Use the `split` command to break large files into smaller chunks aligned to message boundaries:
+
+```bash
+# Split a single file into 500 MB chunks (default)
+./takeout split ~/Takeout/Mail/All\ Mail.mbox
+
+# Split with custom chunk size
+./takeout split ~/Takeout/Mail/Inbox.mbox -s 1024
+
+# Split into a specific output directory
+./takeout split ~/Takeout/Mail/Inbox.mbox -o ~/Mail/split/
+
+# Split all .mbox files in a directory
+./takeout split ~/Takeout/Mail/
+```
+
+Output files are named `<stem>.part-0001.mbox`, `<stem>.part-0002.mbox`, etc. Each chunk is a valid standalone mbox file that can be ingested independently:
+
+```bash
+./takeout -d emails.db ingest ~/Mail/split/Inbox.part-0001.mbox
+./takeout -d emails.db ingest ~/Mail/split/Inbox.part-0002.mbox
+```
+
 ### 6. Handle Large Archives
 
 ```bash

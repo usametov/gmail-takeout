@@ -10,7 +10,7 @@
             [astanova.parse :as parse]))
 
 (def ^:private mbox-path
-  "/Users/asel/Documents/Takeout/Mail/ai-chatbots-watson.mbox")
+  "/Users/asel/Documents/Takeout/Mail/ai/ai-chatbots-watson.mbox")
 
 (def ^:private test-db-path
   "/tmp/takeout-integration-test")

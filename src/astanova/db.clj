@@ -38,8 +38,11 @@
                        :db/doc         "Date the email was sent"}
    :email/body        {:db/valueType   :db.type/string
                        :db/cardinality :db.cardinality/one
-                       :db/fulltext    true
                        :db/doc         "Plain text body content"}
+   :email/body-truncated {:db/valueType :db.type/string
+                           :db/cardinality :db.cardinality/one
+                           :db/fulltext    true
+                           :db/doc         "Truncated body (first 10K chars) for FTS indexing"}
    :email/html        {:db/valueType   :db.type/string
                        :db/cardinality :db.cardinality/one
                        :db/doc         "HTML body content (if available)"}
@@ -252,13 +255,14 @@
        (take n)))
 
 (defn search-emails
-  "Full-text search across subject and body."
+  "Full-text search across subject, body, and truncated body."
   [db term]
   (let [term-lc (clojure.string/lower-case term)]
     (d/q '[:find [(pull ?e [:email/subject :email/from :email/date]) ...]
            :in $ ?term
            :where (or [?e :email/subject ?text]
-                      [?e :email/body ?text])
+                      [?e :email/body ?text]
+                      [?e :email/body-truncated ?text])
                   [(clojure.string/includes? (clojure.string/lower-case ?text) ?term)]]
          db term-lc)))
 

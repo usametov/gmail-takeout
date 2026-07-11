@@ -30,3 +30,4 @@
 *.db
 .clj-kondo
 takeout
+.DS_Store

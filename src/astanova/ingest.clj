@@ -38,7 +38,9 @@
     (:thread-id email-map)
     (assoc :email/thread-id (:thread-id email-map))
     (seq (:attachments email-map))
-    (assoc :email/attachments (:attachments email-map))))
+    (assoc :email/attachments (:attachments email-map))
+    (:body email-map)
+    (assoc :email/body-truncated (subs (:body email-map) 0 (min 10000 (count (:body email-map)))))))
 
 ;; ─── Batch helpers ───────────────────────────────────────────────
 

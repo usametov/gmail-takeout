@@ -487,7 +487,7 @@
    ensuring every chunk is a valid mbox file that MboxIterator can read."
   [^String mbox-path ^long chunk-size-mb ^String out-dir]
   (let [chunk-size     (* chunk-size-mb 1024 1024)
-        lookahead-bytes (* 8 1024 1024)
+        lookahead-bytes (quot chunk-size 2)
         stem (-> (java.io.File. mbox-path) .getName (str/replace #"\.mbox$" ""))]
     (.mkdirs (java.io.File. out-dir))
     (with-open [raf (java.io.RandomAccessFile. mbox-path "r")
