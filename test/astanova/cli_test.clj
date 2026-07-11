@@ -23,7 +23,9 @@
       (is (contains? cmds "query"))
       (is (contains? cmds "stats"))
       (is (contains? cmds "export"))
-      (is (contains? cmds "threads")))))
+      (is (contains? cmds "threads"))
+      (is (contains? cmds "split"))
+      (is (contains? cmds "labels")))))
 
 ;; ─── parse-date ─────────────────────────────────────────────────
 

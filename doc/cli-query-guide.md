@@ -371,6 +371,13 @@ See the [query-guide.md](query-guide.md) for the complete REPL query reference.
 |--------|-------------|
 | `-d` / `--db` | Datalevin database path (default: `emails.db`) |
 
+### Labels options
+
+| Option | Description |
+|--------|-------------|
+| `-s` / `--search` | Filter labels by substring (case-insensitive) |
+| `--format` | Output: `table`, `edn`, or `json` (default: `table`) |
+
 ### Split options
 
 | Option | Description |

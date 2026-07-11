@@ -233,6 +233,37 @@
       (finally
         (db/close-conn conn)))))
 
+;; ─── Labels command ────────────────────────────────────────────
+
+(def labels-spec
+  {:format {:desc "table | edn | json" :default "table"}
+   :search {:alias :s :desc "Filter labels by substring"}})
+
+(defn- labels-cmd [{:keys [opts]}]
+  (let [conn   (db/create-conn (:db opts))
+        db     (d/db conn)
+        fmt    (keyword (:format opts))
+        search (:search opts)]
+    (try
+      (let [all-labels (db/get-all-labels db)
+            filtered   (if search
+                         (filter #(str/includes? (str/lower-case %) (str/lower-case search))
+                                 all-labels)
+                         all-labels)
+            sorted     (sort (map str filtered))]
+        (case fmt
+          :table
+          (do (println (str "\n" (count sorted) " labels"
+                            (when search (str " matching \"" search "\""))
+                            ":"))
+              (println "  -----")
+              (doseq [l sorted]
+                (println (str "  " l))))
+          :edn (prn {:count (count sorted) :labels sorted})
+          :json (println (to-json {:labels sorted :count (count sorted)}))))
+      (finally
+        (db/close-conn conn)))))
+
 ;; ─── Query building ────────────────────────────────────────────
 
 (defn- build-query-clauses [opts]
@@ -482,4 +513,5 @@
    {:cmds ["stats"]   :fn stats-cmd                      :doc "Show DB summary statistics"}
    {:cmds ["export"]  :fn export-cmd  :spec export-spec  :doc "Dump emails as JSON/EDN"}
    {:cmds ["threads"] :fn threads-cmd :spec threads-spec :doc "List and explore email threads"}
-   {:cmds ["split"]   :fn split-cmd   :spec split-spec   :doc "Split large MBOX files into smaller chunks"}])
+   {:cmds ["split"]   :fn split-cmd   :spec split-spec   :doc "Split large MBOX files into smaller chunks"}
+   {:cmds ["labels"]  :fn labels-cmd  :spec labels-spec  :doc "List all email labels"}])
