@@ -164,6 +164,38 @@
   [db message-id]
   (d/entity db [:email/id message-id]))
 
+(defn get-all-addresses
+  "Get all unique email addresses (from, to, cc) in the database, sorted."
+  [db]
+  (let [froms (d/q '[:find [?from ...] :where [?e :email/from ?from]] db)
+        tos   (d/q '[:find [?to ...] :where [?e :email/to ?to]] db)
+        ccs   (d/q '[:find [?cc ...] :where [?e :email/cc ?cc]] db)]
+    (sort (into (into (set froms) tos) ccs))))
+
+(defn get-addresses-by-labels
+  "Get all unique email addresses from emails matching the given labels.
+   labels-mode can be :any (default, email matching any label) or :all."
+  [db labels & {:keys [labels-mode] :or {labels-mode :any}}]
+  (let [label-set (set labels)
+        emails    (d/q '[:find [(pull ?e [:email/from :email/to :email/cc :email/labels]) ...]
+                         :in $ ?label-set
+                         :where [?e :email/labels ?l]
+                                [(contains? ?label-set ?l)]]
+                       db label-set)
+        matching  (if (= :all labels-mode)
+                    (->> emails
+                         (filter #(clojure.set/subset? label-set (set (:email/labels %))))
+                         (distinct))
+                    (distinct emails))]
+    (->> matching
+         (mapcat (fn [e]
+                   (cond-> []
+                     (:email/from e) (conj (:email/from e))
+                     (:email/to e)   (into (:email/to e))
+                     (:email/cc e)   (into (:email/cc e)))))
+         set
+         sort)))
+
 (defn count-emails
   "Count total emails in the database. Returns 0 for empty DB."
   [db]

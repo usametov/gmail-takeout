@@ -9,10 +9,11 @@ Query your email database from the command line using `./takeout query`.
 3. [Pagination](#pagination)
 4. [Output Formats](#output-formats)
 5. [Threads CLI](#threads-cli)
-6. [Split Command](#split-command)
-7. [Statistics](#statistics)
-8. [CLI vs REPL](#cli-vs-repl)
-9. [All Options Reference](#all-options-reference)
+6. [Addresses Command](#addresses-command)
+7. [Split Command](#split-command)
+8. [Statistics](#statistics)
+9. [CLI vs REPL](#cli-vs-repl)
+10. [All Options Reference](#all-options-reference)
 
 ---
 
@@ -234,6 +235,63 @@ JSON array of results. Note: JSON output does not include pagination metadata.
 
 ---
 
+## Addresses Command
+
+List all unique email addresses (from, to, cc) in the database, optionally
+filtered by labels.
+
+### List all addresses
+
+```bash
+./takeout -d emails.db addresses
+```
+
+### Filter by labels (any match)
+
+```bash
+# Addresses from emails matching ANY of these labels
+./takeout -d emails.db addresses -l "Important,Starred"
+./takeout -d emails.db addresses -l "ai/chatbots/watson"
+```
+
+### Filter by labels (all must match)
+
+```bash
+./takeout -d emails.db addresses -l "education/coursera,IBM" --labels-mode all
+```
+
+### Filter by substring
+
+```bash
+# Only show addresses containing a string (case-insensitive)
+./takeout -d emails.db addresses -s "@gmail.com"
+./takeout -d emails.db addresses -l "Important" -s "@company.com"
+```
+
+### Output formats
+
+```bash
+# Table (default) — sorted columns, one per line
+./takeout -d emails.db addresses
+
+# EDN — map with :count and :addresses keys
+./takeout -d emails.db addresses --format edn
+
+# JSON — object with count and addresses keys
+./takeout -d emails.db addresses --format json
+```
+
+### Addresses options reference
+
+| Option | Description |
+|--------|-------------|
+| `-l` / `--labels` | Comma-separated Gmail labels to filter by |
+| `--labels-mode` | `any` or `all` — how to combine labels (default: `any`) |
+| `-s` / `--search` | Filter addresses by substring (case-insensitive) |
+| `--format` | Output: `table`, `edn`, or `json` (default: `table`) |
+
+---
+
 ## Split Command
 
 Split large MBOX files into smaller chunks before ingesting them.
@@ -376,6 +434,15 @@ See the [query-guide.md](query-guide.md) for the complete REPL query reference.
 | Option | Description |
 |--------|-------------|
 | `-s` / `--search` | Filter labels by substring (case-insensitive) |
+| `--format` | Output: `table`, `edn`, or `json` (default: `table`) |
+
+### Addresses options
+
+| Option | Description |
+|--------|-------------|
+| `-l` / `--labels` | Comma-separated Gmail labels to filter by |
+| `--labels-mode` | `any` or `all` — how to combine labels (default: `any`) |
+| `-s` / `--search` | Filter addresses by substring (case-insensitive) |
 | `--format` | Output: `table`, `edn`, or `json` (default: `table`) |
 
 ### Split options

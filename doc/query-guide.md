@@ -7,12 +7,13 @@ Complete guide to querying your email database after ingestion with `astanova.ta
 1. [Getting Started](#getting-started)
 2. [Basic Queries](#basic-queries)
 3. [Filtering & Searching](#filtering--searching)
-4. [Working with Threads](#working-with-threads)
-5. [Aggregation & Analytics](#aggregation--analytics)
-6. [Advanced Patterns](#advanced-patterns)
-7. [Helper Functions](#helper-functions)
-8. [Performance Tips](#performance-tips)
-9. [Real-World Examples](#real-world-examples)
+4. [Email Addresses](#email-addresses)
+5. [Working with Threads](#working-with-threads)
+6. [Aggregation & Analytics](#aggregation--analytics)
+7. [Advanced Patterns](#advanced-patterns)
+8. [Helper Functions](#helper-functions)
+9. [Performance Tips](#performance-tips)
+10. [Real-World Examples](#real-world-examples)
 
 ---
 
@@ -95,6 +96,58 @@ Complete guide to querying your email database after ingestion with `astanova.ta
 ;; Using helper
 (db/get-all-senders db)
 ```
+
+---
+
+## Email Addresses
+
+Query addresses (from, to, cc) across the entire database or filtered by labels.
+
+### All Addresses
+
+```clojure
+;; Get every email address across from, to, and cc fields (sorted, deduped)
+(db/get-all-addresses db)
+;; => ("alice@example.com" "bob@test.com" "carol@company.com" ...)
+```
+
+### Addresses by Labels
+
+```clojure
+;; Addresses from emails matching ANY of the given labels (default)
+(db/get-addresses-by-labels db ["Important" "Starred"])
+
+;; Addresses from emails matching ALL of the given labels
+(db/get-addresses-by-labels db ["education/coursera" "IBM"]
+  :labels-mode :all)
+```
+
+### CLI: `takeout addresses`
+
+The CLI provides an `addresses` command with label filtering and substring search:
+
+```bash
+# List all addresses
+./takeout -d emails.db addresses
+
+# Filter by labels (any match)
+./takeout -d emails.db addresses -l "Important,Starred"
+
+# Filter by labels (all must match)
+./takeout -d emails.db addresses -l "education/coursera,IBM" --labels-mode all
+
+# Combined with substring search
+./takeout -d emails.db addresses -l "Important" -s "@gmail.com"
+
+# Different output formats
+./takeout -d emails.db addresses --format edn
+./takeout -d emails.db addresses --format json
+```
+
+Output formats:
+- `table` (default) — human-readable sorted columns
+- `edn` — map with `:count` and `:addresses` keys
+- `json` — object with `count` and `addresses` keys
 
 ---
 
@@ -568,6 +621,11 @@ The `astanova.db` namespace provides convenient helper functions:
 (db/get-recent-threads db n)            ;; Most recent threads
 (db/search-threads-by-subject db term)  ;; Search threads
 (db/get-conversation-view db thread-id) ;; Formatted conversation
+
+;; Address lookup
+(db/get-all-addresses db)                        ;; All unique addresses (from, to, cc)
+(db/get-addresses-by-labels db ["a" "b"])       ;; Addresses filtered by labels
+(db/get-addresses-by-labels db ["a" "b"] :labels-mode :all)  ;; Addresses matching ALL labels
 
 ;; Entity lookup
 (db/get-email-by-id db "<message-id>") ;; Single email by ID

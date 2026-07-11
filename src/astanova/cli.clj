@@ -264,6 +264,46 @@
       (finally
         (db/close-conn conn)))))
 
+;; ─── Addresses command ────────────────────────────────────────
+
+(def addresses-spec
+  {:format      {:desc "table | edn | json" :default "table"}
+   :search      {:alias :s :desc "Filter addresses by substring"}
+   :labels      {:alias :l :desc "Comma-separated labels to filter by"}
+   :labels-mode {:desc "How to combine labels: any | all" :default "any"
+                 :validate {:pred #{"any" "all"}
+                            :ex-msg (fn [_] "Must be 'any' or 'all'")}}})
+
+(defn- addresses-cmd [{:keys [opts]}]
+  (let [conn   (db/create-conn (:db opts))
+        db     (d/db conn)
+        fmt    (keyword (:format opts))
+        search (:search opts)
+        labels (:labels opts)]
+    (try
+      (let [labels-list (when labels (str/split labels #","))
+            all-addrs   (if labels-list
+                          (db/get-addresses-by-labels db labels-list
+                            :labels-mode (keyword (:labels-mode opts "any")))
+                          (db/get-all-addresses db))
+            filtered    (if search
+                          (filter #(str/includes? (str/lower-case %) (str/lower-case search))
+                                  all-addrs)
+                          all-addrs)
+            sorted      (sort filtered)]
+        (case fmt
+          :table
+          (do (println (str "\n" (count sorted) " addresses"
+                            (when search (str " matching \"" search "\""))
+                            ":"))
+              (println "  -----")
+              (doseq [a sorted]
+                (println (str "  " a))))
+          :edn (prn {:count (count sorted) :addresses sorted})
+          :json (println (to-json {:addresses sorted :count (count sorted)}))))
+      (finally
+        (db/close-conn conn)))))
+
 ;; ─── Query building ────────────────────────────────────────────
 
 (defn- build-query-clauses [opts]
@@ -514,4 +554,5 @@
    {:cmds ["export"]  :fn export-cmd  :spec export-spec  :doc "Dump emails as JSON/EDN"}
    {:cmds ["threads"] :fn threads-cmd :spec threads-spec :doc "List and explore email threads"}
    {:cmds ["split"]   :fn split-cmd   :spec split-spec   :doc "Split large MBOX files into smaller chunks"}
-   {:cmds ["labels"]  :fn labels-cmd  :spec labels-spec  :doc "List all email labels"}])
+   {:cmds ["labels"]  :fn labels-cmd  :spec labels-spec  :doc "List all email labels"}
+   {:cmds ["addresses"] :fn addresses-cmd :spec addresses-spec :doc "List all email addresses"}])
