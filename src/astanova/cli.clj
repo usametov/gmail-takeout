@@ -41,6 +41,7 @@
   {:subject     {:alias :s :desc "Filter by subject substring"}
    :from        {:alias :f :desc "Filter by sender"}
    :to          {:alias :t :desc "Filter by recipient"}
+   :address     {:alias :a :desc "Filter by email address (from, to, or cc)"}
    :labels      {:alias :l :desc "Comma-separated Gmail labels"}
    :labels-mode {:desc "How to combine labels: any | all" :default "any"
                  :validate {:pred #{"any" "all"}
@@ -323,6 +324,9 @@
                             [(list 'clojure.string/includes? '?s (:subject opts))])
       (:from opts)    (conj ['?e :email/from (:from opts)])
       (:to opts)      (conj ['?e :email/to (:to opts)])
+      (:address opts) (conj (list 'or ['?e :email/from (:address opts)]
+                                    ['?e :email/to (:address opts)]
+                                    ['?e :email/cc (:address opts)]))
       text            (conj (list 'or ['?e :email/subject '?txt]
                                   ['?e :email/body '?txt])
                             [(list 'clojure.string/includes?
@@ -332,7 +336,7 @@
                             [(list '>= '?d (parse-date (:since opts)))])
       (:before opts)  (conj ['?e :email/date '?d]
                             [(list '< '?d (parse-date (:before opts)))])
-      (empty? (select-keys opts [:subject :from :to :labels :text :since :before]))
+      (empty? (select-keys opts [:subject :from :to :address :labels :text :since :before]))
       (conj ['?e :email/subject]))))
 
 (defn- build-query [clauses]

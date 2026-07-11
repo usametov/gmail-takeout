@@ -88,6 +88,16 @@
          :where [?e :email/to ?recipient]]
        db recipient))
 
+(defn query-by-address
+  "Find emails where the given address appears in from, to, or cc."
+  [db address]
+  (d/q '[:find [(pull ?e [:email/subject :email/from :email/to :email/cc :email/date]) ...]
+         :in $ ?addr
+         :where (or [?e :email/from ?addr]
+                    [?e :email/to ?addr]
+                    [?e :email/cc ?addr])]
+       db address))
+
 (defn query-by-label
   "Find emails with a specific Gmail label."
   [db label]

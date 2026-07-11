@@ -38,7 +38,7 @@ Query your email database from the command line using `./takeout query`.
 ./takeout -d emails.db query -s "machine learning"
 ```
 
-### Filter by sender / recipient
+### Filter by sender / recipient / address
 
 ```bash
 # Exact sender match
@@ -46,6 +46,9 @@ Query your email database from the command line using `./takeout query`.
 
 # Exact recipient match
 ./takeout -d emails.db query -t "bob@example.com"
+
+# Match across from, to, or cc
+./takeout -d emails.db query -a "alice@example.com"
 ```
 
 ### Filter by date
@@ -459,6 +462,7 @@ See the [query-guide.md](query-guide.md) for the complete REPL query reference.
 | `-s` / `--subject` | Substring search in subject (case-insensitive) |
 | `-f` / `--from` | Exact sender match |
 | `-t` / `--to` | Exact recipient match |
+| `-a` / `--address` | Match in from, to, or cc |
 | `-l` / `--labels` | Comma-separated Gmail labels |
 | `--labels-mode` | `any` or `all` — how to combine labels (default: `any`) |
 | `--text` | Search text in subject and body (combines with labels) |

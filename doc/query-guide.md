@@ -207,6 +207,21 @@ library functions (via REPL), not from the CLI directly.
 (db/query-by-recipient db "me@example.com")
 ```
 
+### By Address
+
+```clojure
+;; Find emails where the address appears in from, to, or cc
+(d/q '[:find [(pull ?e [:email/subject :email/from :email/date]) ...]
+       :in $ ?addr
+       :where (or [?e :email/from ?addr]
+                  [?e :email/to ?addr]
+                  [?e :email/cc ?addr])]
+     db "alice@example.com")
+
+;; Using helper
+(db/query-by-address db "alice@example.com")
+```
+
 ### By Subject
 
 ```clojure
@@ -606,6 +621,7 @@ The `astanova.db` namespace provides convenient helper functions:
 (db/query-by-subject db "keyword")           ;; Search by subject
 (db/query-by-sender db "addr@test.com")       ;; By sender
 (db/query-by-recipient db "addr@test.com")    ;; By recipient
+(db/query-by-address db "addr@test.com")      ;; By address (from, to, or cc)
 (db/query-by-label db "Important")            ;; Single Gmail label
 (db/query-by-labels-any db ["a" "b"])        ;; ANY of these labels
 (db/query-by-labels-all db ["a" "b"])        ;; ALL of these labels
