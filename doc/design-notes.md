@@ -30,9 +30,10 @@ Completed Steps:
 ```
 
 === Step 2: DB Schema (src/astanova/db.clj) ===
-  12 attributes covering: :email/id (unique), :email/thread-id, :email/source,
+  13 attributes covering: :email/id (unique), :email/thread-id, :email/source,
   :email/mbox-file, :email/subject, :email/from, :email/to (many), :email/cc (many),
-  :email/date, :email/body, :email/html, :email/labels (many)
+  :email/date, :email/body, :email/html, :email/labels (many),
+  :email/attachments (many)
 
   Note: :email/embedding removed — embeddings handled by external ColBERT service.
 

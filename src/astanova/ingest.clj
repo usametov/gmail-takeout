@@ -36,7 +36,9 @@
     (:cc email-map)
     (assoc :email/cc (:cc email-map))
     (:thread-id email-map)
-    (assoc :email/thread-id (:thread-id email-map))))
+    (assoc :email/thread-id (:thread-id email-map))
+    (seq (:attachments email-map))
+    (assoc :email/attachments (:attachments email-map))))
 
 ;; ─── Batch helpers ───────────────────────────────────────────────
 

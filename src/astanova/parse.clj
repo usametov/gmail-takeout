@@ -246,6 +246,37 @@
         :else nil))
     (catch Throwable _ nil)))
 
+;; ─── Attachment metadata ────────────────────────────────────────
+
+(defn extract-attachments
+  "Walk the MIME tree and collect attachment metadata.
+   Returns a vector of EDN strings, each describing one attachment:
+     {:filename \"report.pdf\" :content-type \"application/pdf\" :size 12345}
+   Returns empty vector if no attachments found."
+  [^MimeMessage msg]
+  (try
+    (let [ct (get-content-type msg)]
+      (when (str/starts-with? ct "multipart/")
+        (let [content (.getContent msg)]
+          (if (instance? MimeMultipart content)
+            (let [mp    ^MimeMultipart content
+                  n     (.getCount mp)
+                  parts (for [i (range n)]
+                          (.getBodyPart mp i))]
+              (->> parts
+                   (filter (fn [^Part p]
+                             (let [disp (try (.getDisposition p) (catch Throwable _ nil))]
+                               (or (= Part/ATTACHMENT disp)
+                                   (and (not (str/includes? (get-content-type p) "text/"))
+                                        (not (str/includes? (get-content-type p) "multipart/"))
+                                        (some? (try (.getFileName p) (catch Throwable _ nil))))))))
+                   (mapv (fn [^Part p]
+                           (pr-str {:filename      (try (.getFileName p) (catch Throwable _ nil))
+                                    :content-type  (get-content-type p)
+                                    :size          (try (.getSize p) (catch Throwable _ -1))})))))
+            []))))
+    (catch Throwable _ [])))
+
 ;; ─── Raw message -> structured email map ────────────────────────
 
 (defn- generate-fallback-id
@@ -261,7 +292,8 @@
 (defn parse-raw-message
   "Parse a raw mime4j CharBufferWrapper into a structured email map
    using Jakarta Mail for header and body extraction.
-   Returns a map with keys matching the Datalevin schema."
+   Returns a map with keys: :message-id, :subject, :from, :to, :cc, :date,
+   :body, :html, :thread-id, :labels, :attachments"
   [raw-msg]
   (try
     (let [raw-str   (str/triml (str raw-msg))
@@ -291,7 +323,8 @@
        :thread-id   (or (safe-header msg "Thread-Topic")
                       (safe-header msg "References")
                       (safe-header msg "X-GM-THRID"))
-       :labels      (parse-gmail-labels msg)})
+       :labels      (parse-gmail-labels msg)
+       :attachments (extract-attachments msg)})
     (catch Exception e
       (println "WARNING: Failed to parse email:" (.getMessage e))
       nil)))
@@ -301,9 +334,7 @@
 (defn parse-mbox
   "Parse an entire MBOX file, returning a lazy seq of structured email maps.
    Each map has keys: :message-id, :subject, :from, :to, :cc, :date,
-   :body, :html, :thread-id, :labels
-   
-   Skips emails that fail to parse."
+   :body, :html, :thread-id, :labels, :attachments"
   [mbox-path]
   (->> (mbox-messages mbox-path)
        (map parse-raw-message)

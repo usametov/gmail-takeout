@@ -31,6 +31,7 @@ The ingestion process:
 - ✅ Gmail label extraction
 - ✅ HTML to plain text conversion
 - ✅ Multipart MIME handling
+- ✅ Attachment metadata capture (filename, content-type, size)
 - ✅ Resume-safe (unique identities)
 
 ---
@@ -326,6 +327,22 @@ The default batch size is **100 emails per transaction**.
 ---
 
 ## Advanced Configuration
+
+### Attachment Metadata
+
+Google Takeout MBOX exports typically strip attachments from the email files. However, the parser **does capture attachment metadata** (filename, content-type, size) for any attachments present in the MBOX data. This metadata is stored as EDN strings in the `:email/attachments` multi-valued attribute, one per attachment.
+
+This can be useful for correlating with external tools (e.g., `gws-cli`) that can fetch the actual attachment data from the server.
+
+```clojure
+;; Check if an email has attachments
+(:email/attachments email)
+;; => ("{:filename \"report.pdf\" :content-type \"application/pdf\" :size 12345}")
+
+;; Parse attachment metadata back from EDN
+(read-string (first (:email/attachments email)))
+;; => {:filename "report.pdf" :content-type "application/pdf" :size 12345}
+```
 
 ### Custom Schema
 

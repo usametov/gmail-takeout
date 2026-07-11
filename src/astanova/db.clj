@@ -22,6 +22,7 @@
                        :db/doc         "Name of the MBOX file this email came from"}
    :email/subject     {:db/valueType   :db.type/string
                        :db/cardinality :db.cardinality/one
+                       :db/fulltext    true
                        :db/doc         "Email subject line"}
    :email/from        {:db/valueType   :db.type/string
                        :db/cardinality :db.cardinality/one
@@ -37,13 +38,17 @@
                        :db/doc         "Date the email was sent"}
    :email/body        {:db/valueType   :db.type/string
                        :db/cardinality :db.cardinality/one
+                       :db/fulltext    true
                        :db/doc         "Plain text body content"}
    :email/html        {:db/valueType   :db.type/string
                        :db/cardinality :db.cardinality/one
                        :db/doc         "HTML body content (if available)"}
    :email/labels      {:db/valueType   :db.type/string
                        :db/cardinality :db.cardinality/many
-                       :db/doc         "Gmail labels or derived tags"}})
+                       :db/doc         "Gmail labels or derived tags"}
+   :email/attachments {:db/valueType   :db.type/string
+                        :db/cardinality :db.cardinality/many
+                        :db/doc         "Attachment metadata as EDN: {:filename .. :content-type .. :size ..}"}})
 
 (defn get-email-attrs
   "Set of all email attribute keywords (for pulling entire entities)."
