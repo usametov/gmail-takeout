@@ -2,7 +2,7 @@
 
 ;; Ingest all Sent-001 part files into ~/Documents/Takeout/sent-emails-latest.db
 ;;
-;; Usage: bb scripts/ingest-sent-emailsdb.bb
+;; Usage: ./scripts/ingest-sent-emailsdb.clj
 
 (require '[babashka.fs :as fs]
          '[babashka.process :as p])
