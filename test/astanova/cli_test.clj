@@ -81,11 +81,7 @@
   (testing ":labels filter adds or clause with parsed labels (default mode: any)"
     (let [clauses (#'sut/build-query-clauses {:labels "inbox"})]
       (is (= 1 (count clauses)))
-      (let [first-clause (first clauses)]
-        ;; labels-any wraps in [:or ...]
-        (is (or (= 'or (first first-clause))
-                (= :or (first first-clause))))
-        (is (some #(= ['?e :email/labels "inbox"] %) first-clause))))))
+      (is (= ['?e :email/labels "inbox"] (first clauses))))))
 
 (deftest test-build-query-clauses-labels-all-mode
   (testing ":labels with --labels-mode all generates separate clauses"

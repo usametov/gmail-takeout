@@ -285,7 +285,7 @@
       (let [labels-list (when labels (str/split labels #","))
             all-addrs   (if labels-list
                           (db/get-addresses-by-labels db labels-list
-                            :labels-mode (keyword (:labels-mode opts "any")))
+                                                      :labels-mode (keyword (:labels-mode opts "any")))
                           (db/get-all-addresses db))
             filtered    (if search
                           (filter #(str/includes? (str/lower-case %) (str/lower-case search))
@@ -315,9 +315,11 @@
     (cond-> []
       labels
       (into (case labels-mode
-              :any  (list (into [:or]
-                                (for [l labels]
-                                  ['?e :email/labels l])))
+              :any  (let [patterns (for [l labels]
+                                     ['?e :email/labels l])]
+                      (if (= 1 (count patterns))
+                        patterns
+                        (list (into [:or] patterns))))
               :all  (for [l labels]
                       ['?e :email/labels l])))
       (:subject opts) (conj ['?e :email/subject '?s]
@@ -325,8 +327,8 @@
       (:from opts)    (conj ['?e :email/from (:from opts)])
       (:to opts)      (conj ['?e :email/to (:to opts)])
       (:address opts) (conj (list 'or ['?e :email/from (:address opts)]
-                                    ['?e :email/to (:address opts)]
-                                    ['?e :email/cc (:address opts)]))
+                                  ['?e :email/to (:address opts)]
+                                  ['?e :email/cc (:address opts)]))
       text            (conj (list 'or ['?e :email/subject '?txt]
                                   ['?e :email/body '?txt])
                             [(list 'clojure.string/includes?
@@ -511,7 +513,6 @@
                 (println (format "    %d bytes" (- end-pos start-pos))))
               (recur (inc chunk-idx) end-pos))))))))
 
-
 (defn split-cmd [{:keys [opts args]}]
   (let [chunk-size-mb (or (:size opts) 500)
         out-dir (:output opts)
@@ -545,7 +546,6 @@
             (println (format "Splitting %s (%d MB/chunk) into %s/"
                              (.getName f) chunk-size-mb target-dir))
             (split-mbox! (.getAbsolutePath f) chunk-size-mb target-dir)))))))
-
 
 ;; ─── Dispatch ───────────────────────────────────────────────────
 

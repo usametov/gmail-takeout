@@ -158,14 +158,10 @@
                               (instance? java.io.InputStream content) (input-stream->string content)
                               :else (str content)))))
 
-            ;; Other parts: try to get content as-is
+            ;; Other parts: skip non-text content (attachments, inline images, etc.)
             :else
-            (let [content (try (.getContent p) (catch Throwable _ nil))]
-              (recur rest-stack
-                     (conj! texts
-                            (if (instance? java.io.InputStream content)
-                              (input-stream->string content)
-                              (str content)))))))
+            (recur rest-stack texts)
+            ))
         ;; Stack exhausted — join all collected texts
         (str/join "\n" (persistent! texts))))
     (catch Throwable _ "")))

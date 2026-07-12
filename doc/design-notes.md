@@ -125,6 +125,7 @@ Completed Steps:
 === Datalevin Native Library Issue ===
   Datalevin uses JavaCPP to load native shared libraries (libdtlv.dylib on macOS).
   Version used: datalevin 0.9.20 (bundles dtlvnative-macosx-x86_64 via javacpp).
+  Note: 0.10.x only ships ARM64 native libs, so 0.9.20 is the latest x86_64-compatible version.
 
   The native library may fail to load on older macOS versions (e.g., High Sierra)
   due to rpath linking issues. Workaround involves fixing dylib install names
