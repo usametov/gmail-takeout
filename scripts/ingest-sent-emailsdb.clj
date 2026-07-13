@@ -7,6 +7,12 @@
 (require '[babashka.fs :as fs]
          '[babashka.process :as p])
 
+(defn now []
+  (java.time.LocalDateTime/now))
+
+(defn timestamp []
+  (str "[" (.format (now) java.time.format.DateTimeFormatter/ISO_LOCAL_TIME) "]"))
+
 (def db-path  (fs/expand-home "~/Documents/Takeout/sent-emails-latest.db"))
 (def mbox-dir (fs/expand-home "~/Documents/Takeout/Mail"))
 (def takeout  (fs/expand-home "~/code/takeout/takeout"))
@@ -18,17 +24,20 @@
     f))
 
 (when (empty? files)
-  (println "No MBOX files found in" mbox-dir)
+  (println (timestamp) "No MBOX files found in" mbox-dir)
   (System/exit 1))
 
-(println "Ingesting" (count files) "files into" db-path)
+(println (timestamp) "Ingesting" (count files) "files into" db-path)
 (println)
 
-(let [{:keys [exit out err]}
+(let [start-time (now)
+      {:keys [exit out err]}
       (apply p/sh (str takeout) "-d" (str db-path) "ingest" files)]
-  (print out)
+  (println out)
+  (let [elapsed (java.time.Duration/between start-time (now))]
+    (println (timestamp) (str "Elapsed: " (.toMinutes elapsed) "m " (.toSecondsPart elapsed) "s")))
   (when (pos? exit)
-    (println "ERROR:" err)
+    (println (timestamp) "ERROR:" err)
     (System/exit exit)))
 
-(println "Done.")
+(println (timestamp) "Done.")

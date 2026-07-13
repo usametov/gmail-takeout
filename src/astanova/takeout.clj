@@ -8,4 +8,6 @@
 (defn -main
   "CLI entry point. Delegates to babashka/cli dispatch."
   [& args]
-  (bbcli/dispatch cli/cli-tree args {:prog "takeout" :help true}))
+  (bbcli/dispatch cli/cli-tree args {:prog "takeout" :help true})
+  (shutdown-agents)
+  (System/exit 0))
