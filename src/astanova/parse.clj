@@ -23,6 +23,7 @@
   (let [f (io/file mbox-path)]
     (-> (MboxIterator/fromFile f)
         (.charset (Charset/forName "UTF-8"))
+        (.maxMessageSize (* 50 1024 1024))   ; 50 MB max per message
         (.build)
         (.iterator)
         iterator-seq)))
@@ -331,7 +332,13 @@
        :labels      (parse-gmail-labels msg)
        :attachments (extract-attachments msg)})
     (catch Exception e
-      (println "WARNING: Failed to parse email:" (.getMessage e))
+      (let [raw-str   (str/triml (str raw-msg))
+            from-line (first (str/split-lines (str raw-msg)))
+            preview   (subs raw-str 0 (min 200 (count raw-str)))]
+        (binding [*out* *err*]
+          (println "WARNING: Failed to parse email:" (.getMessage e))
+          (println "  From line:" from-line)
+          (println "  Preview:" preview)))
       nil)))
 
 ;; ─── Batch ingestion ─────────────────────────────────────────────
@@ -342,7 +349,13 @@
    :body, :html, :thread-id, :labels, :attachments"
   [mbox-path]
   (->> (mbox-messages mbox-path)
-       (map parse-raw-message)
+       (map (fn [raw]
+              (try
+                (parse-raw-message raw)
+                (catch Throwable t
+                  (binding [*out* *err*]
+                    (println "CRITICAL: Iterator error:" (.getMessage t)))
+                  nil))))
        (filter some?)  ;; Remove nil results from parse errors
        (filter :message-id)))  ;; Ensure all emails have an ID
 

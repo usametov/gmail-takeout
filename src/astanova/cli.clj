@@ -9,7 +9,7 @@
   (:import [java.time Instant LocalDate ZonedDateTime ZoneId]
            [java.time.format DateTimeFormatter DateTimeParseException]))
 
-(declare build-query-clauses build-query print-table to-json apply-limit-offset paginated-results)
+(declare build-query-clauses build-query print-table to-json apply-limit-offset paginated-results count-mbox-messages)
 
 ;; ─── Date parsing ───────────────────────────────────────────────
 
@@ -101,10 +101,11 @@
                        (count paths) source bsize))
       (let [log-file (str (:db opts) "-ingest.log")]
         (doseq [f paths]
-          (let [r (ingest/ingest-mbox! conn (.getAbsolutePath f) source
+          (let [from-count (count-mbox-messages (.getAbsolutePath f))
+                r (ingest/ingest-mbox! conn (.getAbsolutePath f) source
                                        :batch-size bsize :log-file log-file)]
-            (println (format "  %-40s  %6d emails  %3d txs  (%d raw, %d errors)"
-                             (.getName f) (:email-count r) (:tx-count r) (:total-raw r) (:parse-errors r))))))
+            (println (format "  %-40s  %6d emails  %3d txs  (MboxIterator: %d, From_ lines: %d, errors: %d)"
+                             (.getName f) (:email-count r) (:tx-count r) (:total-raw r) from-count (:parse-errors r))))))
       (println "Done.")
       (finally
         (db/close-conn conn)))))
@@ -623,7 +624,7 @@
                 lines (str/split-lines chunk)
                 processed-lines (butlast lines)
                 new-leftover (last lines)
-                from-count (count (filter #(.startsWith % "From ") processed-lines))]
+                from-count (count (filter #(re-find #"^From [^@]+@" %) processed-lines))]
             (recur (+ pos n) (+ msg-count from-count) new-leftover))))
       (finally
         (.close raf)))))
