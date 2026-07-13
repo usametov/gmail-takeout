@@ -197,6 +197,45 @@ thread siblings carry. Propagation fills in the gaps:
 ./takeout -d emails.db propagate -l "trading"
 ```
 
+### Audit label coverage in a thread
+
+Before propagating, inspect a specific thread to see which labels are missing
+from which emails. Find a thread-id first:
+
+```bash
+# Find a thread-id from a query result
+./takeout -d emails.db query -l "tools/research" -n 1 --format edn
+# => {:results ({:email/thread-id "abc123" ...} ...)}
+
+# Inspect that thread
+./takeout -d emails.db inspect-thread -t "abc123"
+```
+
+Output:
+```
+Thread: abc123
+Emails: 5
+All labels: Inbox, Sent, tools/research
+Common labels: Inbox
+Sparse labels: Sent, tools/research
+
+  2024-01-01 | alice@example.com
+  Subject: Research update
+  labels: Inbox
+
+  2024-01-02 | bob@test.com
+  Subject: Re: Research update
+  labels: Inbox, Sent, tools/research
+  ...
+```
+
+Check coverage for a specific label:
+
+```bash
+./takeout -d emails.db inspect-thread -t "abc123" -l "tools/research"
+# => Label "tools/research" coverage: 1/5 emails
+```
+
 ### Prepare for full-text search
 
 Labels are indexed by Datalevin's FTS (if configured). After propagation,

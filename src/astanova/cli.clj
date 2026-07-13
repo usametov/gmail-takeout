@@ -355,6 +355,45 @@
       (finally
         (db/close-conn conn)))))
 
+;; ─── Inspect thread command ────────────────────────────────────
+
+(def inspect-thread-spec
+  {:thread-id {:alias :t :desc "Thread ID to inspect" :required true}
+   :label     {:alias :l :desc "Check coverage for a specific label"}
+   :format    {:desc "table | edn | json" :default "table"}})
+
+(defn- inspect-thread-cmd [{:keys [opts]}]
+  (let [conn   (db/create-conn (:db opts))
+        db     (d/db conn)
+        tid    (str (:thread-id opts))
+        fmt    (keyword (:format opts))]
+    (try
+      (let [result (if (:label opts)
+                     (label/inspect-thread-labels db tid :label (:label opts))
+                     (label/inspect-thread-labels db tid))]
+        (case fmt
+          :table
+          (do (println (str "\nThread: " tid))
+              (println (str "Emails: " (:email-count result)))
+              (println (str "All labels: " (clojure.string/join ", " (:all-labels result))))
+              (println (str "Common labels: " (clojure.string/join ", " (:common-labels result))))
+              (when (seq (:sparse-labels result))
+                (println (str "Sparse labels: " (clojure.string/join ", " (:sparse-labels result)))))
+              (when (:label-coverage result)
+                (let [cov (:label-coverage result)]
+                  (println (str "\nLabel \"" (:label cov) "\" coverage: "
+                               (:present cov) "/" (:total cov) " emails"))))
+              (println)
+              (doseq [e (:emails result)]
+                (println (str "  " (:date e) " | " (:from e)))
+                (println (str "  " (:subject e)))
+                (println (str "  labels: " (clojure.string/join ", " (:labels e))))
+                (println)))
+          :edn (clojure.pprint/pprint result)
+          :json (println (to-json result))))
+      (finally
+        (db/close-conn conn)))))
+
 ;; ─── Frequencies command ───────────────────────────────────────
 
 (def frequencies-spec
@@ -429,7 +468,8 @@
 
 (defn- build-query [clauses]
   (let [pull-pattern [:email/subject :email/from :email/to
-                      :email/date :email/labels :email/body-truncated]]
+                      :email/date :email/labels :email/body-truncated
+                      :email/thread-id]]
     (vec (concat
           [:find [(list 'pull '?e (vec pull-pattern)) (symbol "...")]]
           [:where]
@@ -696,4 +736,5 @@
    {:cmds ["addresses"] :fn addresses-cmd :spec addresses-spec :doc "List all email addresses"}
    {:cmds ["frequencies"] :fn frequencies-cmd :spec frequencies-spec :doc "Show label frequency distribution"}
    {:cmds ["mbox-info"] :fn mbox-info-cmd :spec mbox-info-spec :doc "Show MBOX file message count and size"}
-   {:cmds ["propagate"] :fn propagate-cmd :spec propagate-spec :doc "Propagate a label to all emails in threads containing it"}])
+   {:cmds ["propagate"] :fn propagate-cmd :spec propagate-spec :doc "Propagate a label to all emails in threads containing it"}
+   {:cmds ["inspect-thread"] :fn inspect-thread-cmd :spec inspect-thread-spec :doc "Inspect label distribution within a thread"}])

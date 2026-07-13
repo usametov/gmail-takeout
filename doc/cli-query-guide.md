@@ -10,10 +10,15 @@ Query your email database from the command line using `./takeout query`.
 4. [Output Formats](#output-formats)
 5. [Threads CLI](#threads-cli)
 6. [Addresses Command](#addresses-command)
-7. [Split Command](#split-command)
-8. [Statistics](#statistics)
-9. [CLI vs REPL](#cli-vs-repl)
-10. [All Options Reference](#all-options-reference)
+7. [Frequencies Command](#frequencies-command)
+8. [Propagate Command](#propagate-command)
+9. [Inspect Thread Command](#inspect-thread-command)
+10. [MBOX Info Command](#mbox-info-command)
+11. [Split Command](#split-command)
+12. [Statistics](#statistics)
+13. [Labels Command](#labels-command)
+14. [CLI vs REPL](#cli-vs-repl)
+15. [All Options Reference](#all-options-reference)
 
 ---
 
@@ -291,6 +296,153 @@ filtered by labels.
 | `-l` / `--labels` | Comma-separated Gmail labels to filter by |
 | `--labels-mode` | `any` or `all` — how to combine labels (default: `any`) |
 | `-s` / `--search` | Filter addresses by substring (case-insensitive) |
+| `--format` | Output: `table`, `edn`, or `json` (default: `table`) |
+
+---
+
+## Frequencies Command
+
+Show label frequency distribution — every label with its email count, sorted
+descending.
+
+```bash
+# All labels with counts
+./takeout -d emails.db frequencies
+
+# Search for specific labels
+./takeout -d emails.db frequencies -s trading
+
+# Limit to top N
+./takeout -d emails.db frequencies -n 20
+
+# Output formats
+./takeout -d emails.db frequencies --format edn
+./takeout -d emails.db frequencies --format json
+```
+
+Output:
+```
+45 labels:
+  Label                              Count
+  ---------------------------------------------
+  Inbox                              18345
+  Sent                               12304
+  Important                          5623
+  trading                            459
+  ...
+```
+
+### Frequencies options
+
+| Option | Description |
+|--------|-------------|
+| `-s` / `--search` | Filter labels by substring (case-insensitive) |
+| `-n` / `--limit` | Max results (0 = all, default) |
+| `--format` | Output: `table`, `edn`, or `json` (default: `table`) |
+
+---
+
+## Propagate Command
+
+Propagate a label to all emails in threads that already contain it. If any
+email in a thread has the label, all other emails in that thread receive it.
+
+```bash
+# Preview before applying
+./takeout -d emails.db propagate -l "trading" --dry-run
+
+# Apply
+./takeout -d emails.db propagate -l "trading"
+```
+
+Output:
+```
+Propagated label "trading" to threads:
+  247 threads affected
+  1835 total emails in those threads
+  412 emails updated
+```
+
+### Propagate options
+
+| Option | Description |
+|--------|-------------|
+| `-l` / `--label` | Label to propagate (required) |
+| `--dry-run` | Preview only, don't transact |
+| `--format` | Output: `table`, `edn`, or `json` (default: `table`) |
+
+---
+
+## Inspect Thread Command
+
+Inspect label distribution within a specific thread. Shows every email with
+its labels, and highlights which labels are common vs sparse.
+
+```bash
+# Find a thread-id first
+./takeout -d emails.db query -l "trading" -n 1 --format edn
+# => {:results ({:email/thread-id "abc123" ...})}
+
+# Full thread view
+./takeout -d emails.db inspect-thread -t "abc123"
+
+# Check coverage for a specific label
+./takeout -d emails.db inspect-thread -t "abc123" -l "trading"
+```
+
+Output:
+```
+Thread: abc123
+Emails: 5
+All labels: Inbox, Sent, trading
+Common labels: Inbox
+Sparse labels: Sent, trading
+
+  2024-01-01 | alice@example.com
+  Subject: Research update
+  labels: Inbox
+
+  2024-01-02 | bob@test.com
+  Subject: Re: Research update
+  labels: Inbox, Sent, trading
+```
+
+### Inspect Thread options
+
+| Option | Description |
+|--------|-------------|
+| `-t` / `--thread-id` | Thread ID to inspect (required) |
+| `-l` / `--label` | Check coverage for a specific label |
+| `--format` | Output: `table`, `edn`, or `json` (default: `table`) |
+
+---
+
+## MBOX Info Command
+
+Show diagnostic information about an MBOX file: message count and size.
+
+```bash
+# Single file
+./takeout mbox-info ~/Takeout/Mail/Inbox.mbox
+
+# Multiple files
+./takeout mbox-info ~/Takeout/Mail/*.mbox
+
+# EDN output for scripting
+./takeout mbox-info ~/Takeout/Mail/Inbox.mbox --format edn
+```
+
+Output:
+```
+Inbox.mbox: 3823 messages (504 MB)
+```
+
+Useful for comparing expected message counts against actual ingested counts.
+
+### MBOX Info options
+
+| Option | Description |
+|--------|-------------|
 | `--format` | Output: `table`, `edn`, or `json` (default: `table`) |
 
 ---

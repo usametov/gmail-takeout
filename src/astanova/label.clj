@@ -84,3 +84,47 @@
                         :subject (:email/subject e)
                         :existing-labels (:email/labels e)})
                      (take 10 to-update))}))
+
+
+;; ─── Thread label diagnostic ────────────────────────────────────
+
+(defn inspect-thread-labels
+  "Show all emails in a thread with their labels, highlighting label gaps.
+
+   Returns a map with:
+     :thread-id        — the thread under inspection
+     :email-count      — number of emails in the thread
+     :emails           — list of emails with subject, from, date, labels
+     :all-labels       — union of all labels across the thread
+     :common-labels    — labels present on EVERY email in the thread
+     :sparse-labels    — labels present on SOME but not all emails
+
+   If `label` is provided, only checks coverage for that specific label."
+  [db thread-id & {:keys [label]}]
+  (let [emails (d/q '[:find [(pull ?e [:db/id :email/subject :email/from :email/date :email/labels]) ...]
+                       :in $ ?thread
+                       :where [?e :email/thread-id ?thread]
+                              [?e :email/date ?d]]
+                     db thread-id)
+        sorted (sort-by :email/date emails)
+        all-labels (apply set/union (map (comp set :email/labels) sorted))
+        label-sets (map (comp set :email/labels) sorted)
+        common-labels (apply set/intersection label-sets)
+        sparse-labels (clojure.set/difference all-labels common-labels)]
+    (cond-> {:thread-id thread-id
+             :email-count (count sorted)
+             :emails (mapv (fn [e]
+                             {:subject (:email/subject e)
+                              :from (:email/from e)
+                              :date (:email/date e)
+                              :labels (:email/labels e)})
+                           sorted)
+             :all-labels (vec (sort all-labels))
+             :common-labels (vec (sort common-labels))
+             :sparse-labels (vec (sort sparse-labels))}
+      label (assoc :label-coverage
+                   (let [covered (count (filter #(contains? % label) label-sets))]
+                     {:label label
+                      :present covered
+                      :total (count label-sets)
+                      :missing (- (count label-sets) covered)})))))
