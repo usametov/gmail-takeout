@@ -3,6 +3,7 @@
    Uses babashka/cli for option parsing and command dispatch."
   (:require [astanova.db :as db]
             [astanova.ingest :as ingest]
+            [astanova.label :as label]
             [clojure.string :as str]
             [clojure.pprint :as pprint]
             [datalevin.core :as d])
@@ -320,6 +321,37 @@
                 (println (str "  " a))))
           :edn (clojure.pprint/pprint {:count (count sorted) :addresses sorted})
           :json (println (to-json {:addresses sorted :count (count sorted)}))))
+      (finally
+        (db/close-conn conn)))))
+
+;; ─── Propagate command ─────────────────────────────────────────
+
+(def propagate-spec
+  {:label   {:alias :l :desc "Label to propagate to threads" :required true}
+   :dry-run {:desc "Preview only, don't transact"}
+   :format  {:desc "table | edn | json" :default "table"}})
+
+(defn- propagate-cmd [{:keys [opts]}]
+  (let [conn   (db/create-conn (:db opts))
+        db     (d/db conn)
+        label  (:label opts)
+        fmt    (keyword (:format opts))]
+    (try
+      (if (:dry-run opts)
+        (let [result (label/preview-propagation db label)]
+          (println (str "\nDry-run for label \"" label "\":"))
+          (println (str "  " (:threads result) " threads affected"))
+          (println (str "  " (:total-emails result) " total emails in those threads"))
+          (println (str "  " (:updated result) " emails would receive the label"))
+          (when (seq (:previews result))
+            (println "\n  Sample of emails to update:")
+            (doseq [p (:previews result)]
+              (println (str "    " (:subject p) " — labels: " (:existing-labels p))))))
+        (let [result (label/propagate-label-to-threads conn label)]
+          (println (str "\nPropagated label \"" label "\" to threads:"))
+          (println (str "  " (:threads result) " threads affected"))
+          (println (str "  " (:total-emails result) " total emails in those threads"))
+          (println (str "  " (:updated result) " emails updated"))))
       (finally
         (db/close-conn conn)))))
 
@@ -663,4 +695,5 @@
    {:cmds ["labels"]  :fn labels-cmd  :spec labels-spec  :doc "List all email labels"}
    {:cmds ["addresses"] :fn addresses-cmd :spec addresses-spec :doc "List all email addresses"}
    {:cmds ["frequencies"] :fn frequencies-cmd :spec frequencies-spec :doc "Show label frequency distribution"}
-   {:cmds ["mbox-info"] :fn mbox-info-cmd :spec mbox-info-spec :doc "Show MBOX file message count and size"}])
+   {:cmds ["mbox-info"] :fn mbox-info-cmd :spec mbox-info-spec :doc "Show MBOX file message count and size"}
+   {:cmds ["propagate"] :fn propagate-cmd :spec propagate-spec :doc "Propagate a label to all emails in threads containing it"}])
