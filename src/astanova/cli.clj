@@ -467,7 +467,7 @@
       (conj ['?e :email/subject]))))
 
 (defn- build-query [clauses]
-  (let [pull-pattern [:email/subject :email/from :email/to
+  (let [pull-pattern [:email/id :email/subject :email/from :email/to
                       :email/date :email/labels :email/body-truncated
                       :email/thread-id]]
     (vec (concat
