@@ -158,7 +158,7 @@
         (is (string? (:email/subject e)) "has :email/subject")
         (is (string? (:email/from e)) "has :email/from")
         (is (instance? java.util.Date (:email/date e)) "has :email/date")
-        (is (string? (:email/body e)) "has :email/body")
+        (is (string? (:email/body-truncated e)) "has :email/body-truncated")
         (is (string? (:email/source e)) "has :email/source")
         (is (string? (:email/mbox-file e)) "has :email/mbox-file"))
       (db/close-conn conn))))
@@ -266,7 +266,7 @@
           (is (= (:email/id email) msg-id) "ids match")
           (is (string? (:email/subject email)))
           (is (string? (:email/from email)))
-          (is (string? (:email/body email)))
+          (is (string? (:email/body-truncated email)))
           (is (instance? java.util.Date (:email/date email)))
           (is (= "query-test" (:email/source email)))
           (is (= "ai-chatbots-watson.mbox" (:email/mbox-file email))))))))
@@ -715,7 +715,7 @@
           (doseq [e results]
             (is (some #(= "education/coursera" %) (:email/labels e)))
             (is (or (clojure.string/includes? (or (:email/subject e) "") "IBM")
-                    (clojure.string/includes? (or (:email/body e) "") "IBM")))))))))
+                    (clojure.string/includes? (or (:email/body-truncated e) "") "IBM")))))))))
 
 (deftest test-query-by-labels-and-text-multi-label
   (testing "query-by-labels-and-text with multiple labels AND text"
@@ -728,7 +728,7 @@
             (is (some #(= "ai/chatbots/watson" %) (:email/labels e)))
             (is (some #(= "education/coursera" %) (:email/labels e)))
             (is (or (clojure.string/includes? (or (:email/subject e) "") "AI")
-                    (clojure.string/includes? (or (:email/body e) "") "AI")))))))))
+                    (clojure.string/includes? (or (:email/body-truncated e) "") "AI")))))))))
 
 (deftest test-query-by-labels-and-text-no-match
   (testing "query-by-labels-and-text returns empty when no match"

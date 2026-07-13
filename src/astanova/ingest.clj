@@ -20,7 +20,8 @@
            :email/id       (:message-id email-map)
            :email/source   source
            :email/mbox-file mbox-file
-           :email/body     (:body email-map)}
+           :email/body-truncated (subs (:body email-map) 0 (min 10000 (count (:body email-map))))
+           :email/body-length (count (:body email-map))}
     (:subject email-map)
     (assoc :email/subject (:subject email-map))
     (:from email-map)
@@ -38,9 +39,7 @@
     (:thread-id email-map)
     (assoc :email/thread-id (:thread-id email-map))
     (seq (:attachments email-map))
-    (assoc :email/attachments (:attachments email-map))
-    (:body email-map)
-    (assoc :email/body-truncated (subs (:body email-map) 0 (min 10000 (count (:body email-map)))))))
+    (assoc :email/attachments (:attachments email-map))))
 
 ;; ─── Batch helpers ───────────────────────────────────────────────
 
@@ -79,11 +78,44 @@
      conn       - Datalevin connection (from db/create-conn)
      mbox-path  - path to the MBOX file
      source     - origin label, e.g. \"google-takeout\""
-  [conn mbox-path source & {:keys [batch-size]
+  [conn mbox-path source & {:keys [batch-size log-file]
                             :or   {batch-size default-batch-size}}]
   (let [mbox-file (.getName (File. mbox-path))
-        emails    (parse/parse-mbox mbox-path)]
-    (ingest-emails! conn emails mbox-file source :batch-size batch-size)))
+        raw-count (atom 0)
+        err-count (atom 0)
+        log-writer (when log-file
+                     (java.io.FileWriter. (java.io.File. log-file) true))
+        parsed    (->> (parse/mbox-messages mbox-path)
+                       (map (fn [raw]
+                              (swap! raw-count inc)
+                              (let [raw-str (str raw)
+                                    from-line (first (str/split-lines raw-str))
+                                    result (try
+                                             (parse/parse-raw-message raw)
+                                             (catch Throwable t
+                                               (when log-writer
+                                                 (.write log-writer (str "--- Parse error #" @err-count " at raw #" @raw-count " ---\n"
+                                                                        "From line: " from-line "\n"
+                                                                        (.getMessage t) "\n")))
+                                               nil))]
+                                (when (nil? result)
+                                  (swap! err-count inc)
+                                  (when log-writer
+                                    (try
+                                      (.write log-writer (str "From line: " from-line "\n"))
+                                      (catch Throwable _))))
+                                result)))
+                       (filter some?)
+                       (filter :message-id)
+                       (doall))]
+    (when log-writer
+      (.write log-writer (str "\n--- Summary for " mbox-file " ---\n"
+                              "Total raw: " @raw-count "\n"
+                              "Parse errors: " @err-count "\n"
+                              "Ingested: " (count parsed) "\n\n"))
+      (.close log-writer))
+    (let [stats (ingest-emails! conn parsed mbox-file source :batch-size batch-size)]
+      (assoc stats :total-raw @raw-count :parse-errors @err-count))))
 
 (defn ingest-mbox-files!
   "Ingest multiple MBOX files from a directory or list of paths.

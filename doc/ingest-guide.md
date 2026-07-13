@@ -171,11 +171,11 @@ Takeout/
 $ ./takeout -d emails.db ingest ~/Takeout/Mail/
 
 Ingesting 5 file(s) (source: google-takeout, batch: 100)...
-  All mail Including Spam and Trash.mbox:  15420 emails  155 txs
-  Inbox.mbox:                               3245 emails   33 txs
-  Sent.mbox:                               2876 emails   29 txs
-  Starred.mbox:                             432 emails    5 txs
-  Label1.mbox:                             1234 emails   13 txs
+  All mail Including Spam and Trash.mbox:  15420 emails  155 txs  (15420 raw, 0 errors)
+  Inbox.mbox:                               3245 emails   33 txs  (3245 raw, 0 errors)
+  Sent.mbox:                               2876 emails   29 txs  (2876 raw, 0 errors)
+  Starred.mbox:                             432 emails    5 txs  (432 raw, 0 errors)
+  Label1.mbox:                             1234 emails   13 txs  (1234 raw, 0 errors)
 Done.
 ```
 
@@ -583,7 +583,44 @@ cp -r emails.db emails.db.backup
         (ingest/ingest-emails! conn batch "file.mbox" "source")))))
 ```
 
-### 5. Validate After Ingestion
+### 5. Parse Error Logging
+
+When ingesting via the CLI, a **log file is automatically created** alongside the
+database file. It records every email that failed to parse, along with the error
+message and the `From ` line of the raw message.
+
+```bash
+# Ingest auto-creates a log file next to the DB
+./takeout -d emails.db ingest ~/Takeout/Mail/Inbox.mbox
+
+# The log file will be at: emails.db-ingest.log
+```
+
+**CLI output** shows the breakdown:
+```
+Ingesting 1 file(s) (source: google-takeout, batch: 100)...
+  Inbox.mbox               3823 emails   39 txs  (3823 raw, 0 errors)
+```
+
+Columns: `emails` ingested | `txs` transactions | `raw` total messages in file
+| `errors` parse failures.
+
+**Log file** contents:
+```
+--- Parse error #1 at raw #2 ---
+From line: From sender@example.com Wed Jul 11 14:50:15 2026
+java.lang.IllegalArgumentException: Missing final line ending
+
+--- Summary for Inbox.mbox ---
+Total raw: 3823
+Parse errors: 0
+Ingested: 3823
+```
+
+The log is appended on each run, so you can track errors across multiple
+ingestion sessions.
+
+### 6. Validate After Ingestion
 
 ```bash
 # Always check stats after ingestion

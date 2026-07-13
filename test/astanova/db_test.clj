@@ -61,7 +61,7 @@
       (is (contains? schema :email/subject)  "Has :email/subject")
       (is (contains? schema :email/from)     "Has :email/from")
       (is (contains? schema :email/date)     "Has :email/date")
-      (is (contains? schema :email/body)     "Has :email/body")
+      (is (contains? schema :email/body-truncated)  "Has :email/body-truncated")
       (is (contains? schema :email/labels)   "Has :email/labels"))))
 
 (deftest test-email-attrs

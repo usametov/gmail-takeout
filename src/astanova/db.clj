@@ -36,13 +36,13 @@
    :email/date        {:db/valueType   :db.type/instant
                        :db/cardinality :db.cardinality/one
                        :db/doc         "Date the email was sent"}
-   :email/body        {:db/valueType   :db.type/string
-                       :db/cardinality :db.cardinality/one
-                       :db/doc         "Plain text body content"}
    :email/body-truncated {:db/valueType :db.type/string
                            :db/cardinality :db.cardinality/one
                            :db/fulltext    true
                            :db/doc         "Truncated body (first 10K chars) for FTS indexing"}
+   :email/body-length {:db/valueType  :db.type/long
+                        :db/cardinality :db.cardinality/one
+                        :db/doc         "Character count of the plain text body"}
    :email/html        {:db/valueType   :db.type/string
                        :db/cardinality :db.cardinality/one
                        :db/doc         "HTML body content (if available)"}
@@ -146,12 +146,12 @@
   [db labels text]
   (let [label-set (set labels)
         term-lc   (clojure.string/lower-case text)]
-    (->> (d/q '[:find [(pull ?e [:email/subject :email/from :email/date :email/body :email/labels]) ...]
+    (->> (d/q '[:find [(pull ?e [:email/subject :email/from :email/date :email/body-truncated :email/labels]) ...]
                 :in $ ?label-set ?term
                 :where [?e :email/labels ?l]
                        [(contains? ?label-set ?l)]
                        (or [?e :email/subject ?txt]
-                           [?e :email/body ?txt])
+                           [?e :email/body-truncated ?txt])
                        [(clojure.string/includes? (clojure.string/lower-case ?txt) ?term)]]
               db label-set term-lc)
          (filter #(clojure.set/subset? label-set (set (:email/labels %))))
@@ -172,7 +172,7 @@
 (defn query-by-thread
   "Find all emails in a thread by thread-id."
   [db thread-id]
-  (d/q '[:find [(pull ?e [:email/subject :email/from :email/date :email/body]) ...]
+  (d/q '[:find [(pull ?e [:email/subject :email/from :email/date]) ...]
          :in $ ?thread
          :where [?e :email/thread-id ?thread]]
        db thread-id))
@@ -229,6 +229,15 @@
          :where [?e :email/labels ?label]]
        db))
 
+(defn get-label-frequencies
+  "Get all labels with their email counts, sorted descending.
+   Returns [[label count] ...] like top-labels but without limit."
+  [db]
+  (->> (d/q '[:find ?label (count ?e)
+              :where [?e :email/labels ?label]]
+            db)
+       (sort-by second >)))
+
 (defn get-all-senders
   "Get all unique senders in the database."
   [db]
@@ -261,7 +270,6 @@
     (d/q '[:find [(pull ?e [:email/subject :email/from :email/date]) ...]
            :in $ ?term
            :where (or [?e :email/subject ?text]
-                      [?e :email/body ?text]
                       [?e :email/body-truncated ?text])
                   [(clojure.string/includes? (clojure.string/lower-case ?text) ?term)]]
          db term-lc)))
@@ -360,6 +368,6 @@
                     :date (:email/date email)
                     :from (:email/from email)
                     :subject (:email/subject email)
-                    :snippet (when-let [body (:email/body email)]
+                    :snippet (when-let [body (:email/body-truncated email)]
                                (subs body 0 (min 100 (count body))))})
                  emails)))

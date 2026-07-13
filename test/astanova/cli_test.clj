@@ -145,7 +145,7 @@
         (is (or (= :or (first or-clause))
                 (= 'or (first or-clause))))
         (is (some #(= ['?e :email/subject '?txt] %) or-clause))
-        (is (some #(= ['?e :email/body '?txt] %) or-clause))
+        (is (some #(= ['?e :email/body-truncated '?txt] %) or-clause))
         (is (list? (first pred-vec)))
         (is (= 'clojure.string/includes? (ffirst pred-vec)))))))
 

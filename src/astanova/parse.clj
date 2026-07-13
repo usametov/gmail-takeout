@@ -71,15 +71,23 @@
 ;; ─── HTML cleaning ──────────────────────────────────────────────
 
 (defn html->text
-  "Strip HTML tags, returning plain text. Uses a simple regex approach;
-   for production use, consider Tika's HTML parsing via AutoDetectParser."
+  "Strip HTML tags, removing style/script blocks and inline Base64 data URIs.
+   Returns plain text suitable for storage and FTS indexing."
   [^String html]
   (when html
     (-> html
+        ;; Remove style and script blocks entirely (they often contain Base64)
+        (str/replace #"(?si)<style[^>]*>.*?</style>" "")
+        (str/replace #"(?si)<script[^>]*>.*?</script>" "")
+        ;; Remove data: URIs (inline images, fonts, etc.)
+        (str/replace #"data:[^\"'\s\)]+>?" "")
+        ;; Convert line break tags to newlines
         (str/replace #"(?i)<br\s*/?>" "\n")
         (str/replace #"(?i)<p[^>]*>" "\n")
         (str/replace #"(?i)</p>" "\n")
+        ;; Strip all remaining HTML tags
         (str/replace #"(?i)<[^>]+>" "")
+        ;; HTML entities
         (str/replace #"&nbsp;" " ")
         (str/replace #"&amp;" "&")
         (str/replace #"&lt;" "<")
@@ -87,6 +95,7 @@
         (str/replace #"&quot;" "\"")
         (str/replace #"&#(\d+);"
                      (fn [m] (str (char (Long/parseLong (second m))))))
+        ;; Collapse multiple newlines
         (str/replace #"\n{3,}" "\n\n")
         str/trim)))
 

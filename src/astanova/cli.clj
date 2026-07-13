@@ -3,9 +3,8 @@
    Uses babashka/cli for option parsing and command dispatch."
   (:require [astanova.db :as db]
             [astanova.ingest :as ingest]
-            [astanova.parse :as parse]
-            [babashka.cli :as cli]
             [clojure.string :as str]
+            [clojure.pprint :as pprint]
             [datalevin.core :as d])
   (:import [java.time Instant LocalDate ZonedDateTime ZoneId]
            [java.time.format DateTimeFormatter DateTimeParseException]))
@@ -100,10 +99,12 @@
           (println)))
       (println (format "Ingesting %d file(s) (source: %s, batch: %d)..."
                        (count paths) source bsize))
-      (doseq [f paths]
-        (let [r (ingest/ingest-mbox! conn (.getAbsolutePath f) source :batch-size bsize)]
-          (println (format "  %-40s  %6d emails  %3d txs"
-                           (.getName f) (:email-count r) (:tx-count r)))))
+      (let [log-file (str (:db opts) "-ingest.log")]
+        (doseq [f paths]
+          (let [r (ingest/ingest-mbox! conn (.getAbsolutePath f) source
+                                       :batch-size bsize :log-file log-file)]
+            (println (format "  %-40s  %6d emails  %3d txs  (%d raw, %d errors)"
+                             (.getName f) (:email-count r) (:tx-count r) (:total-raw r) (:parse-errors r))))))
       (println "Done.")
       (finally
         (db/close-conn conn)))))
@@ -116,14 +117,14 @@
             query   (build-query clauses)
             results (d/q query db-snap)
             total   (count results)
-            {:keys [results page-results offset limit] :as p} (paginated-results results opts)
+            {:keys [_ page-results offset limit]} (paginated-results results opts)
             fmt     (keyword (:format opts))]
         (case fmt
           :table (print-table page-results)
-          :edn   (prn {:total total
-                       :offset offset
-                       :limit limit
-                       :results page-results})
+          :edn   (clojure.pprint/pprint {:total total
+                                         :offset offset
+                                         :limit limit
+                                         :results page-results})
           :json  (println (to-json page-results))))
       (finally
         (db/close-conn conn)))))
@@ -162,6 +163,22 @@
             (println (format "      %-40s %d emails"
                              (subs (:subject summary) 0 (min 40 (count (:subject summary))))
                              cnt)))))
+      (println "\n  Body length statistics:")
+      (let [lengths (d/q '[:find [?len ...] :where [?e :email/body-length ?len]] db)]
+        (when (seq lengths)
+          (let [n (count lengths)
+                sorted (sort lengths)
+                total (reduce + 0 sorted)
+                mean (double (/ total n))
+                median (double (if (odd? n)
+                         (nth sorted (quot n 2))
+                         (/ (+ (nth sorted (dec (quot n 2))) (nth sorted (quot n 2))) 2.0)))
+                min-len (first sorted)
+                max-len (last sorted)]
+            (println (format "    Mean:   %.0f chars" mean))
+            (println (format "    Median: %.0f chars" median))
+            (println (format "    Min:    %d chars" min-len))
+            (println (format "    Max:    %d chars" max-len)))))
       (finally
         (db/close-conn conn)))))
 
@@ -190,8 +207,8 @@
         (println (format "Exporting %d emails to %s..." (count results) output))
         (case (keyword (:format opts))
           :json (spit output (to-json results))
-          :edn  (spit output (with-out-str (prn results))))
-        (println "Done."))
+          :edn  (spit output (with-out-str (clojure.pprint/pprint results)))
+          (println "Done.")))
       (finally
         (db/close-conn conn)))))
 
@@ -260,7 +277,7 @@
               (println "  -----")
               (doseq [l sorted]
                 (println (str "  " l))))
-          :edn (prn {:count (count sorted) :labels sorted})
+          :edn (clojure.pprint/pprint {:count (count sorted) :labels sorted})
           :json (println (to-json {:labels sorted :count (count sorted)}))))
       (finally
         (db/close-conn conn)))))
@@ -300,8 +317,44 @@
               (println "  -----")
               (doseq [a sorted]
                 (println (str "  " a))))
-          :edn (prn {:count (count sorted) :addresses sorted})
+          :edn (clojure.pprint/pprint {:count (count sorted) :addresses sorted})
           :json (println (to-json {:addresses sorted :count (count sorted)}))))
+      (finally
+        (db/close-conn conn)))))
+
+;; ─── Frequencies command ───────────────────────────────────────
+
+(def frequencies-spec
+  {:search {:alias :s :desc "Filter labels by substring (case-insensitive)"}
+   :format {:desc "table | edn | json" :default "table"}
+   :limit  {:alias :n :coerce :long :default 0 :desc "Max results (0 = all)"}})
+
+(defn- frequencies-cmd [{:keys [opts]}]
+  (let [conn   (db/create-conn (:db opts))
+        db     (d/db conn)
+        fmt    (keyword (:format opts))
+        search (:search opts)
+        limit  (:limit opts)]
+    (try
+      (let [freqs (db/get-label-frequencies db)
+            filtered (if search
+                       (filter #(str/includes? (str/lower-case (first %)) (str/lower-case search))
+                               freqs)
+                       freqs)
+            limited  (if (pos? limit) (take limit filtered) filtered)
+            total    (count filtered)]
+        (case fmt
+          :table
+          (do (println (str "\n" total " labels"
+                            (when search (str " matching \"" search "\""))
+                            ":"))
+              (println "  " (format "%-35s %s" "Label" "Count"))
+              (println "  " (apply str (repeat 45 "-")))
+              (doseq [[l c] limited]
+                (println "  " (format "%-35s %d" l c))))
+          :edn (clojure.pprint/pprint {:total total :frequencies (vec limited)})
+          :json (println (to-json (for [[l c] limited]
+                                    {:label l :count c})))))
       (finally
         (db/close-conn conn)))))
 
@@ -330,7 +383,7 @@
                                   ['?e :email/to (:address opts)]
                                   ['?e :email/cc (:address opts)]))
       text            (conj (list 'or ['?e :email/subject '?txt]
-                                  ['?e :email/body '?txt])
+                                  ['?e :email/body-truncated '?txt])
                             [(list 'clojure.string/includes?
                                    (list 'clojure.string/lower-case '?txt)
                                    (clojure.string/lower-case text))])
@@ -343,7 +396,7 @@
 
 (defn- build-query [clauses]
   (let [pull-pattern [:email/subject :email/from :email/to
-                      :email/date :email/labels :email/body]]
+                      :email/date :email/labels :email/body-truncated]]
     (vec (concat
           [:find [(list 'pull '?e (vec pull-pattern)) (symbol "...")]]
           [:where]
@@ -547,6 +600,54 @@
                              (.getName f) chunk-size-mb target-dir))
             (split-mbox! (.getAbsolutePath f) chunk-size-mb target-dir)))))))
 
+;; ─── MBOX info diagnostic ──────────────────────────────────────
+
+(def mbox-info-spec
+  {:format {:desc "table | edn | json" :default "table"}})
+
+(defn- count-mbox-messages
+  "Count messages in an MBOX file by counting 'From ' at start of line.
+   Uses the same boundary detection as the splitter."
+  [^String path]
+  (let [buf-size 16384
+        raf (java.io.RandomAccessFile. path "r")
+        file-len (.length raf)]
+    (try
+      (loop [pos 0, msg-count 0, leftover ""]
+        (if (>= pos file-len)
+          msg-count
+          (let [to-read (int (min buf-size (- file-len pos)))
+                buf (byte-array to-read)
+                n (.read raf buf 0 to-read)
+                chunk (str leftover (String. buf 0 n "UTF-8"))
+                lines (str/split-lines chunk)
+                processed-lines (butlast lines)
+                new-leftover (last lines)
+                from-count (count (filter #(.startsWith % "From ") processed-lines))]
+            (recur (+ pos n) (+ msg-count from-count) new-leftover))))
+      (finally
+        (.close raf)))))
+
+(defn- mbox-info-cmd [{:keys [opts args]}]
+  (let [fmt (keyword (:format opts))]
+    (when (empty? args)
+      (println "Usage: takeout mbox-info <mbox-file>...")
+      (System/exit 1))
+    (doseq [path args]
+      (let [f (java.io.File. path)]
+        (if (not (.exists f))
+          (println "File not found:" path)
+          (let [file-len (.length f)
+                msg-count (count-mbox-messages path)
+                info {:file (.getName f)
+                      :path (.getAbsolutePath f)
+                      :size-mb (float (/ file-len (* 1024 1024)))
+                      :messages msg-count}]
+            (case fmt
+              :table (println (format "%s: %d messages (%.0f MB)" (:file info) (:messages info) (:size-mb info)))
+              :edn (clojure.pprint/pprint info)
+              :json (println (to-json info)))))))))
+
 ;; ─── Dispatch ───────────────────────────────────────────────────
 
 (def cli-tree
@@ -559,4 +660,6 @@
    {:cmds ["threads"] :fn threads-cmd :spec threads-spec :doc "List and explore email threads"}
    {:cmds ["split"]   :fn split-cmd   :spec split-spec   :doc "Split large MBOX files into smaller chunks"}
    {:cmds ["labels"]  :fn labels-cmd  :spec labels-spec  :doc "List all email labels"}
-   {:cmds ["addresses"] :fn addresses-cmd :spec addresses-spec :doc "List all email addresses"}])
+   {:cmds ["addresses"] :fn addresses-cmd :spec addresses-spec :doc "List all email addresses"}
+   {:cmds ["frequencies"] :fn frequencies-cmd :spec frequencies-spec :doc "Show label frequency distribution"}
+   {:cmds ["mbox-info"] :fn mbox-info-cmd :spec mbox-info-spec :doc "Show MBOX file message count and size"}])
