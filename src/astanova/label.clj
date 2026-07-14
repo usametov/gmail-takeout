@@ -128,3 +128,31 @@
                       :present covered
                       :total (count label-sets)
                       :missing (- (count label-sets) covered)})))))
+
+
+;; ─── Label co-occurrence ────────────────────────────────────────
+
+(defn fetch-linked-labels
+  "Find all labels that co-occur with the given label across emails.
+
+   For a given `label`, finds every email that has it, then collects all
+   other labels on those same emails. Returns a list of [label, count]
+   sorted by count descending, excluding the queried label itself.
+
+   Example:
+     (fetch-linked-labels db \"trading\")
+     ;; => ([[\"Important\" 45] [\"Sent\" 38] [\"Inbox\" 30] ...])"
+  [db label]
+  (let [;; Find all emails that have this label
+        eids (d/q '[:find [?e ...]
+                    :in $ ?label
+                    :where [?e :email/labels ?label]]
+                  db label)
+        ;; Collect all distinct labels on those emails, excluding the queried label
+        result (when (seq eids)
+                 (d/q '[:find [?l ...]
+                        :in $ [?e ...] ?label
+                        :where [?e :email/labels ?l]
+                               [(not= ?l ?label)]]
+                       db (vec eids) label))]
+    (sort result)))

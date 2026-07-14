@@ -140,7 +140,7 @@
                     "\nBody")
           msg  (mime-msg raw)]
       ;; Jakarta Mail preserves the CRLF + folding whitespace
-      (is (= ["Archived" "Opened" "Category\r\n Updates" "security" "ai/chatbots/watson"]
+      (is (= ["Archived" "Opened" "Category Updates" "security" "ai/chatbots/watson"]
              (sut/parse-gmail-labels msg))))))
 
 ;; ─── parse-raw-message (inline fixture) ──────────────────────────

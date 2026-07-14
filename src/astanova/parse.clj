@@ -48,6 +48,7 @@
       (if header-vals
         (->> header-vals
              (mapcat #(str/split % #","))
+             (map #(str/replace % #"\r?\n" ""))
              (map str/trim)
              (remove str/blank?)
              (vec))

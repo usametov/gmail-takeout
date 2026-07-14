@@ -4,13 +4,14 @@
   (:require [astanova.db :as db]
             [astanova.ingest :as ingest]
             [astanova.label :as label]
+            [cheshire.core :as json]
             [clojure.string :as str]
             [clojure.pprint :as pprint]
             [datalevin.core :as d])
   (:import [java.time Instant LocalDate ZonedDateTime ZoneId]
            [java.time.format DateTimeFormatter DateTimeParseException]))
 
-(declare build-query-clauses build-query print-table to-json apply-limit-offset paginated-results count-mbox-messages)
+(declare build-query-clauses build-query print-table apply-limit-offset paginated-results count-mbox-messages)
 
 ;; ─── Date parsing ───────────────────────────────────────────────
 
@@ -127,7 +128,7 @@
                                          :offset offset
                                          :limit limit
                                          :results page-results})
-          :json  (println (to-json page-results))))
+          :json  (println (json/generate-string page-results))))
       (finally
         (db/close-conn conn)))))
 
@@ -208,7 +209,7 @@
             output  (first args)]
         (println (format "Exporting %d emails to %s..." (count results) output))
         (case (keyword (:format opts))
-          :json (spit output (to-json results))
+          :json (spit output (json/generate-string results))
           :edn  (spit output (with-out-str (clojure.pprint/pprint results)))
           (println "Done.")))
       (finally
@@ -280,7 +281,7 @@
               (doseq [l sorted]
                 (println (str "  " l))))
           :edn (clojure.pprint/pprint {:count (count sorted) :labels sorted})
-          :json (println (to-json {:labels sorted :count (count sorted)}))))
+          :json (println (str "[" (str/join ", " (map #(pr-str (str %)) sorted)) "]"))))
       (finally
         (db/close-conn conn)))))
 
@@ -320,7 +321,7 @@
               (doseq [a sorted]
                 (println (str "  " a))))
           :edn (clojure.pprint/pprint {:count (count sorted) :addresses sorted})
-          :json (println (to-json {:addresses sorted :count (count sorted)}))))
+          :json (println (str "[" (str/join ", " (map #(pr-str (str %)) sorted)) "]"))))
       (finally
         (db/close-conn conn)))))
 
@@ -390,7 +391,31 @@
                 (println (str "  labels: " (clojure.string/join ", " (:labels e))))
                 (println)))
           :edn (clojure.pprint/pprint result)
-          :json (println (to-json result))))
+          :json (println (json/generate-string result))))
+      (finally
+        (db/close-conn conn)))))
+
+;; ─── Linked labels command ─────────────────────────────────────
+
+(def linked-labels-spec
+  {:label  {:alias :l :desc "Label to find linked labels for" :required true}
+   :format {:desc "table | edn | json" :default "table"}})
+
+(defn- linked-labels-cmd [{:keys [opts]}]
+  (let [conn   (db/create-conn (:db opts))
+        db     (d/db conn)
+        label  (:label opts)
+        fmt    (keyword (:format opts))]
+    (try
+      (let [linked (label/fetch-linked-labels db label)]
+        (case fmt
+          :table
+          (do (println (str "\nLabels linked to \"" label "\":"))
+              (println "  -----")
+              (doseq [l linked]
+                (println (str "  " l))))
+          :edn (clojure.pprint/pprint {:label label :linked linked})
+          :json (println (str "[" (str/join ", " (map #(pr-str (str %)) linked)) "]"))))
       (finally
         (db/close-conn conn)))))
 
@@ -425,8 +450,8 @@
               (doseq [[l c] limited]
                 (println "  " (format "%-35s %d" l c))))
           :edn (clojure.pprint/pprint {:total total :frequencies (vec limited)})
-          :json (println (to-json (for [[l c] limited]
-                                    {:label l :count c})))))
+          :json (println (json/generate-string (for [[l c] limited]
+                                                    {:label l :count c})))))
       (finally
         (db/close-conn conn)))))
 
@@ -524,35 +549,6 @@
                                        (inst? v)  (str v)
                                        :else      (subs (str v) 0 (min (get-col-width) (count (str v)))))))))))
     (println)))
-
-(defn- json-escape [s]
-  (-> (str s)
-      (str/replace "\\" "\\\\")
-      (str/replace "\"" "\\\"")
-      (str/replace "\n" "\\n")
-      (str/replace "\t" "\\t")))
-
-(defn- json-val [v]
-  (cond
-    (inst? v)    (let [inst (java.time.Instant/ofEpochMilli (.getTime ^java.util.Date v))]
-                   (str "\"" (.toString inst) "\""))
-    (nil? v)     "null"
-    (string? v)  (str "\"" (json-escape v) "\"")
-    (number? v)  (str v)
-    (keyword? v) (str "\"" (name v) "\"")
-    (coll? v)    (str "[" (str/join "," (map json-val v)) "]")
-    :else        (str "\"" (json-escape (str v)) "\"")))
-
-(defn- to-json [results]
-  (str "[\n  "
-       (str/join ",\n  "
-                 (for [row results]
-                   (str "{"
-                        (str/join ", "
-                                  (for [[k v] row]
-                                    (str "\"" (name k) "\": " (json-val v))))
-                        "}")))
-       "\n]"))
 
 ;; ─── Split command (zero-copy NIO splitter) ─────────────────────
 
@@ -719,7 +715,7 @@
             (case fmt
               :table (println (format "%s: %d messages (%.0f MB)" (:file info) (:messages info) (:size-mb info)))
               :edn (clojure.pprint/pprint info)
-              :json (println (to-json info)))))))))
+              :json (println (json/generate-string info)))))))))
 
 ;; ─── Dispatch ───────────────────────────────────────────────────
 
@@ -737,4 +733,5 @@
    {:cmds ["frequencies"] :fn frequencies-cmd :spec frequencies-spec :doc "Show label frequency distribution"}
    {:cmds ["mbox-info"] :fn mbox-info-cmd :spec mbox-info-spec :doc "Show MBOX file message count and size"}
    {:cmds ["propagate"] :fn propagate-cmd :spec propagate-spec :doc "Propagate a label to all emails in threads containing it"}
-   {:cmds ["inspect-thread"] :fn inspect-thread-cmd :spec inspect-thread-spec :doc "Inspect label distribution within a thread"}])
+   {:cmds ["inspect-thread"] :fn inspect-thread-cmd :spec inspect-thread-spec :doc "Inspect label distribution within a thread"}
+   {:cmds ["linked-labels"] :fn linked-labels-cmd :spec linked-labels-spec :doc "Find labels that co-occur with a given label"}])
