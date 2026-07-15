@@ -240,3 +240,25 @@
                     "Body")
           parsed (sut/parse-raw-message raw)]
       (is (= "<orig@test>" (:thread-id parsed))))))
+
+(deftest test-parse-raw-message-empty-body-with-attachment
+  (testing "empty text body with attachment populates body with attachment metadata"
+    (let [raw (slurp "test/resources/empty-body-with-attachment.eml")
+          parsed (sut/parse-raw-message raw)]
+      (is (some? parsed) "parsed successfully")
+      (is (str/includes? (:body parsed "") "[Attachment:") "body has attachment marker")
+      (is (str/includes? (:body parsed "") "report.pdf") "body has filename")
+      (is (str/includes? (:body parsed "") "application/pdf") "body has content type")
+      (is (seq (:attachments parsed)) "has attachments")
+      (is (= "Re: Empty body with attachment" (:subject parsed))))))
+
+(deftest test-parse-raw-message-hashhedge-challenge
+  (testing "multipart/alternative with text/plain and no MIME boundaries leaking"
+    (let [raw (slurp "test/resources/hashhedge-challenge.eml")
+          parsed (sut/parse-raw-message raw)]
+      (is (some? parsed) "parsed successfully")
+      (is (= "HashHedge -- challenge" (:subject parsed)))
+      (is (pos? (count (:body parsed ""))) "body is non-empty")
+      (is (str/includes? (:body parsed "") "https://www.hashhedge.com") "body has URL")
+      (is (not (str/includes? (:body parsed "") "Content-Type:")) "no MIME headers in body")
+      (is (not (str/includes? (:body parsed "") "--000000000")) "no MIME boundaries in body"))))

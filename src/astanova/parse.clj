@@ -107,9 +107,7 @@
   "Get the MIME content-type string, lowercased, from a Part."
   [^Part part]
   (try
-    (-> (.getContentType part)
-        (or "text/plain")
-        str/lower-case)
+    (some-> (.getContentType part) str/lower-case)
     (catch Exception _ "text/plain")))
 
 (defn- input-stream->string
@@ -128,129 +126,155 @@
               (recur (.readLine reader)))))))
     (catch Exception _ "")))
 
-(defn- extract-body-from-part
-  "Iteratively extract body content from a MIME part, handling multipart etc.
-   Uses loop/recur with an explicit stack to avoid stack overflow
-   on deeply nested MIME structures.  Uses string-based content-type
-   checks (get-content-type) instead of Jakarta Mail's .isMimeType
-   to avoid triggering a recursive parser bug in ParameterList/HeaderTokenizer."
-  [^Part part]
+;; ─── MIME Part protocol ─────────────────────────────────────────
+
+(defprotocol MimePart
+  "Protocol over MIME parts, hiding Jakarta Mail interop."
+  (body [this] "Get decoded content of this part, or nil.")
+  (content-type [this] "Get content-type string, lowercased, or nil.")
+  (children [this] "Get child parts (for multipart), or nil.")
+  (filename [this] "Get filename (for attachments), or nil.")
+  (log-info [this] "Return a map with diagnostic info about this part."))
+
+(defrecord JakartaPart [^jakarta.mail.Part part]
+  MimePart
+  (body [this]
+    (try
+      (let [c (.getContent part)]
+        (cond (string? c) c
+              (instance? java.io.InputStream c) (input-stream->string c)
+              :else (str c)))
+      (catch Throwable _ nil)))
+  (content-type [this]
+    (try (some-> (.getContentType part) str/lower-case)
+         (catch Exception _ nil)))
+  (children [this]
+    (try
+      (let [ct (.getContent part)]
+        (when (instance? MimeMultipart ct)
+          (mapv (fn [i] (->JakartaPart (.getBodyPart ^MimeMultipart ct i)))
+                (range (.getCount ^MimeMultipart ct)))))
+      (catch Throwable _ nil)))
+  (filename [this]
+    (try (.getFileName part) (catch Throwable _ nil)))
+  (log-info [this]
+    (let [ct (content-type this)]
+      {:content-type ct
+       :body-type (when (body this) (class (body this)))
+       :body-length (count (str (body this)))
+       :has-children (some? (children this))
+       :child-count (count (children this))
+       :filename (filename this)})))
+
+(defn wrap-part
+  "Wrap a Jakarta Mail Part or MimeMessage in a MimePart."
+  [^jakarta.mail.Part p]
+  (->JakartaPart p))
+
+;; ─── Body extraction (recursive, uses MimePart protocol) ───────
+
+(def ^:dynamic *debug*
+  "When true, log body extraction decisions to *err*."
+  false)
+
+(def ^:dynamic *log-writer*
+  "When set, write debug MIME tree info to this java.io.Writer."
+  nil)
+
+(declare clean-body)
+
+(defn- clean-body
+  "Strip MIME boundary markers, Content-Type/Transfer-Encoding headers,
+   and other encoding artifacts from body text."
+  [s]
+  (when s
+    (-> s
+        (str/replace #"(?m)^Content-(Type|Transfer-Encoding|Disposition|ID|Description):.*$" "")
+        (str/replace #"(?m)^X-[^:]+:.*$" "")
+        (str/replace #"(?m)^MIME-Version:.*$" "")
+        (str/replace #"^-{2,}[^\n]*-{2,}\n?" "")
+        (str/replace #"\n{3,}" "\n\n")
+        str/trim)))
+
+(defn- log-mime-tree
+  "Print the MIME tree structure with body lengths to *err* and
+   *log-writer* (if set). msg-id is included for correlation with DB."
+  ([mp msg-id] (log-mime-tree mp msg-id 0))
+  ([mp msg-id depth]
+   (let [indent (apply str (repeat (* depth 2) " "))
+         ct (content-type mp)
+         b (body mp)
+         blen (count (str b))
+         kids (children mp)
+         line (str indent "- " ct " | body: " blen " chars | kids: " (count kids))]
+     (binding [*out* *err*]
+       (println line))
+     (when-let [w *log-writer*]
+       (try
+         (when (zero? depth)
+           (.write w (str "--- MIME tree for " msg-id " ---\n")))
+         (.write w (str line "\n"))
+         (when (and (zero? depth) (seq kids))
+           (.write w "\n"))
+         (catch Throwable _)))
+     (doseq [k kids]
+       (log-mime-tree k msg-id (inc depth))))))
+
+(defn- extract-text-from-part
+  "Recursively extract plain text from a MimePart.
+   Returns decoded string or nil."
+  [mp]
   (try
-    (loop [stack (list part)
-           texts (transient [])]
-      (if-let [p (first stack)]
-        (let [rest-stack (rest stack)
-              ct        (get-content-type p)]
-          (cond
-            ;; Multipart: push sub-parts onto the stack (in reverse order
-            ;; so they are processed left-to-right)
-            (str/starts-with? ct "multipart/")
-            (let [content (try (.getContent p) (catch Throwable _ nil))]
-              (if (instance? MimeMultipart content)
-                (let [mp    ^MimeMultipart content
-                      n     (.getCount mp)
-                      parts (mapv #(.getBodyPart mp %) (range n))]
-                  (recur (into rest-stack (rseq parts)) texts))
-                (recur rest-stack
-                       (conj! texts
-                              (cond
-                                (string? content) content
-                                (instance? java.io.InputStream content) (input-stream->string content)
-                                :else (str content))))))
-
-            ;; Text parts: collect content
-            (or (str/starts-with? ct "text/plain")
-                (str/starts-with? ct "text/html"))
-            (let [content (try (.getContent p) (catch Throwable _ nil))]
-              (recur rest-stack
-                     (conj! texts
-                            (cond
-                              (string? content) content
-                              (instance? java.io.InputStream content) (input-stream->string content)
-                              :else (str content)))))
-
-            ;; Other parts: skip non-text content (attachments, inline images, etc.)
-            :else
-            (recur rest-stack texts)
-            ))
-        ;; Stack exhausted — join all collected texts
-        (str/join "\n" (persistent! texts))))
-    (catch Throwable _ "")))
-
-(defn extract-text-body
-  "Extract the plain-text body from a MimeMessage, preferring text/plain over text/html.
-   Uses string-based content-type checks (get-content-type) instead of Jakarta Mail's
-   .isMimeType to avoid triggering a recursive parser bug in ParameterList/HeaderTokenizer."
-  [^MimeMessage msg]
-  (try
-    (let [ct (get-content-type msg)]
+    (let [ct (content-type mp)]
+      (when *debug*
+        (binding [*out* *err*]
+          (println "--- MIME tree ---")
+          (log-mime-tree mp "(msg-id not yet known)")
+          (println "-----------------")))
       (cond
-        (str/starts-with? ct "text/plain")
-        (let [content (.getContent msg)]
-          (cond
-            (string? content) content
-            (instance? java.io.InputStream content) (input-stream->string content)
-            :else (str content)))
+        (and ct (str/starts-with? ct "text/plain"))
+        (body mp)
 
-        (str/starts-with? ct "text/html")
-        (let [content (.getContent msg)]
-          (html->text (cond
-                        (string? content) content
-                        (instance? java.io.InputStream content) (input-stream->string content)
-                        :else (str content))))
+        (and ct (str/starts-with? ct "text/html"))
+        (some-> (body mp) html->text)
 
-        (str/starts-with? ct "multipart/")
-        (let [content (.getContent msg)]
-          (if (instance? MimeMultipart content)
-            (let [n (.getCount ^MimeMultipart content)
-                  parts (for [i (range n)]
-                          (.getBodyPart ^MimeMultipart content i))
-                  text-parts (filter #(str/includes? (get-content-type %) "text/plain") parts)
-                  texts (map #(try 
-                                 (let [c (.getContent ^Part %)]
-                                   (cond
-                                     (string? c) c
-                                     (instance? java.io.InputStream c) (input-stream->string c)
-                                     :else (str c)))
-                                 (catch Throwable _ "")) text-parts)]
-              (or (first texts) ""))
-            (extract-body-from-part msg)))
+        (and ct (or (str/starts-with? ct "multipart/")
+                    (str/starts-with? ct "message/rfc822")))
+        (let [kids (children mp)]
+          (some extract-text-from-part kids))
 
         :else
-        (extract-body-from-part msg)))
-    (catch Throwable e
-      (println "WARNING: Failed to extract text body:" (.getMessage e))
-      "")))
+        (do (when *debug*
+              (binding [*out* *err*]
+                (println "  skipping unknown content-type:" ct)))
+            nil)))
+    (catch Throwable t
+      (when *debug*
+        (binding [*out* *err*]
+          (println "  extract-text-from-part error:" (.getMessage t))))
+      nil)))
+
+(defn extract-text-body
+  "Extract the plain-text body from a MimeMessage.
+   Prefers text/plain over text/html, skips non-text parts."
+  [^MimeMessage msg]
+  (or (clean-body (extract-text-from-part (wrap-part msg))) ""))
 
 (defn extract-html-body
   "Extract the HTML body from a MimeMessage. Returns nil if no HTML part found."
   [^MimeMessage msg]
   (try
-    (let [ct (get-content-type msg)]
-      (cond
-        (str/starts-with? ct "text/html")
-        (let [content (.getContent msg)]
-          (cond
-            (string? content) content
-            (instance? java.io.InputStream content) (input-stream->string content)
-            :else (str content)))
+    (letfn [(find-html [mp]
+              (let [ct (content-type mp)]
+                (cond
+                  (and ct (str/starts-with? ct "text/html"))
+                  (body mp)
 
-        (str/starts-with? ct "multipart/")
-        (let [content (.getContent msg)]
-          (if (instance? MimeMultipart content)
-            (->> (range (.getCount ^MimeMultipart content))
-                 (map #(.getBodyPart ^MimeMultipart content %))
-                 (filter #(str/includes? (get-content-type %) "text/html"))
-                 (map #(try 
-                        (let [c (.getContent ^Part %)]
-                          (cond
-                            (string? c) c
-                            (instance? java.io.InputStream c) (input-stream->string c)
-                            :else (str c)))
-                        (catch Throwable _ "")))
-                 (first))
-            nil))
-        :else nil))
+                  (and ct (str/starts-with? ct "multipart/"))
+                  (some find-html (children mp))
+
+                  :else nil)))]
+      (find-html (wrap-part msg)))
     (catch Throwable _ nil)))
 
 ;; ─── Attachment metadata ────────────────────────────────────────
@@ -325,7 +349,14 @@
        :to          (try (addresses->seq (.getRecipients msg jakarta.mail.Message$RecipientType/TO)) (catch Exception _ nil))
        :cc          (try (addresses->seq (.getRecipients msg jakarta.mail.Message$RecipientType/CC)) (catch Exception _ nil))
        :date        (try (.getSentDate msg) (catch Exception _ nil))
-       :body        (extract-text-body msg)
+       :body        (let [txt (extract-text-body msg)
+                        atts (extract-attachments msg)]
+                     (if (and (zero? (count txt)) (seq atts))
+                       (str/join "\n" (mapv (fn [att]
+                                               (let [m (try (clojure.edn/read-string att) (catch Exception _ {:filename att :content-type ""}))]
+                                                 (str "[Attachment: " (:filename m) " (" (first (str/split (:content-type m) #";")) ")]")))
+                                              atts))
+                       txt))
        :html        (extract-html-body msg)
        :thread-id   (or (safe-header msg "Thread-Topic")
                       (safe-header msg "References")

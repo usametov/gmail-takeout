@@ -4,6 +4,7 @@
   (:require [astanova.db :as db]
             [astanova.ingest :as ingest]
             [astanova.label :as label]
+            [astanova.parse :as parse]
             [cheshire.core :as json]
             [clojure.string :as str]
             [clojure.pprint :as pprint]
@@ -36,7 +37,8 @@
   {:source {:alias :s :default "google-takeout" :desc "Source label"}
    :batch  {:alias :b :coerce :long :default 100 :desc "Transaction batch size"
             :validate {:pred #(pos? %)
-                       :ex-msg (fn [_] "Batch size must be positive")}}})
+                       :ex-msg (fn [_] "Batch size must be positive")}}
+   :debug  {:desc "Enable MIME tree debug logging to stderr"}})
 
 (def query-spec
   {:subject     {:alias :s :desc "Filter by subject substring"}
@@ -101,11 +103,14 @@
           (println)))
       (println (format "Ingesting %d file(s) (source: %s, batch: %d)..."
                        (count paths) source bsize))
+      (when (:debug opts)
+        (println "  Debug mode: MIME tree logging enabled"))
       (let [log-file (str (:db opts) "-ingest.log")]
         (doseq [f paths]
           (let [from-count (count-mbox-messages (.getAbsolutePath f))
-                r (ingest/ingest-mbox! conn (.getAbsolutePath f) source
-                                       :batch-size bsize :log-file log-file)]
+                r (binding [parse/*debug* (:debug opts)]
+                    (ingest/ingest-mbox! conn (.getAbsolutePath f) source
+                                       :batch-size bsize :log-file log-file))]
             (println (format "  %-40s  %6d emails  %3d txs  (MboxIterator: %d, From_ lines: %d, errors: %d)"
                              (.getName f) (:email-count r) (:tx-count r) (:total-raw r) from-count (:parse-errors r))))))
       (println "Done.")
