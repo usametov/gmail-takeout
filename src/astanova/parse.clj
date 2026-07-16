@@ -1,14 +1,32 @@
 (ns astanova.parse
   "MBOX parsing and email structuring using Apache Mime4j + Jakarta Mail."
   (:require [clojure.java.io :as io]
-            [clojure.string :as str])
+            [clojure.string :as str]
+            [taoensso.timbre :as timbre :refer [warn]]
+            [taoensso.timbre.appenders.core :as appenders]
+            [hickory.core :as hickory :refer [as-hickory]]
+            [clojure.edn :as edn])
+  (:require [slingshot.slingshot :refer [try+ throw+]])
   (:import [org.apache.james.mime4j.mboxiterator MboxIterator]
+           [jakarta.mail MessagingException]
            [jakarta.mail Session]
            [jakarta.mail.internet MimeMessage MimeMultipart InternetAddress]
            [jakarta.mail Part]
            [java.io ByteArrayInputStream]
            [java.nio.charset Charset]
            [java.util Properties]))
+
+(timbre/merge-config!
+ {:appenders {:spit (appenders/spit-appender {:fname "./takeout.log"})}})
+
+(defmacro with-context
+  "Accumulate structured context as errors propagate up."
+  [ctx & body]
+  `(try+
+     ~@body
+     (catch Object e#
+       (throw+ (merge ~ctx e#)
+               (:throwable ~'&throw-context)))))
 
 ;; ─── MBOX file -> seq of raw messages ───────────────────────────
 
@@ -34,10 +52,11 @@
   "Safely extract a header value from a MimeMessage, returning nil on failure."
   [^MimeMessage msg ^String name]
   (try
-    (let [vals (.getHeader msg name)]
-      (when vals
-        (first vals)))
-    (catch Exception _ nil)))
+    (some-> (.getHeader msg name)
+            first)
+    (catch MessagingException e
+      (warn e "Couldn't read header" name msg)
+      nil)))
 
 (defn parse-gmail-labels
   "Extract Gmail labels from the X-Gmail-Labels header (Google Takeout specific).
@@ -53,7 +72,9 @@
              (remove str/blank?)
              (vec))
         []))
-    (catch Exception _ [])))
+    (catch MessagingException e
+      (warn e "Couldn't read X-Gmail-Labels header" msg)
+      [])))
 
 ;; ─── Address parsing ────────────────────────────────────────────
 
@@ -62,7 +83,9 @@
   [addr]
   (when addr
     (try (.getAddress ^InternetAddress addr)
-         (catch Exception _ (str addr)))))
+         (catch Exception e
+           (warn e "Couldn't extract address from" addr)
+           (str addr)))))
 
 (defn- addresses->seq
   "Convert an array of Address to a seq of strings."
@@ -72,34 +95,44 @@
 
 ;; ─── HTML cleaning ──────────────────────────────────────────────
 
+(defn- extract-text-from-hickory
+  "Recursively extract plain text from a Hickory node tree.
+   Handles both strings (text nodes) and maps (element nodes).
+   Adds newlines after block-level elements."
+  [node]
+  (cond
+    (string? node) node
+    (map? node)
+    (case (:type node)
+      :element
+      (if (= :br (:tag node))
+        "\n"
+        (let [block? #{:p :div :li :h1 :h2 :h3 :h4 :h5 :h6 :tr :td :th :blockquote :pre}
+              inner (apply str (keep extract-text-from-hickory (:content node)))]
+          (if (block? (:tag node))
+            (if (seq (:content node))
+              (str "\n" inner "\n")
+              "\n")
+            inner)))
+      nil)
+    :else nil))
+
 (defn html->text
-  "Strip HTML tags, removing style/script blocks and inline Base64 data URIs.
+  "Convert HTML to plain text using Hickory.
    Returns plain text suitable for storage and FTS indexing."
   [^String html]
   (when html
-    (-> html
-        ;; Remove style and script blocks entirely (they often contain Base64)
-        (str/replace #"(?si)<style[^>]*>.*?</style>" "")
-        (str/replace #"(?si)<script[^>]*>.*?</script>" "")
-        ;; Remove data: URIs (inline images, fonts, etc.)
-        (str/replace #"data:[^\"'\s\)]+>?" "")
-        ;; Convert line break tags to newlines
-        (str/replace #"(?i)<br\s*/?>" "\n")
-        (str/replace #"(?i)<p[^>]*>" "\n")
-        (str/replace #"(?i)</p>" "\n")
-        ;; Strip all remaining HTML tags
-        (str/replace #"(?i)<[^>]+>" "")
-        ;; HTML entities
-        (str/replace #"&nbsp;" " ")
-        (str/replace #"&amp;" "&")
-        (str/replace #"&lt;" "<")
-        (str/replace #"&gt;" ">")
-        (str/replace #"&quot;" "\"")
-        (str/replace #"&#(\d+);"
-                     (fn [m] (str (char (Long/parseLong (second m))))))
-        ;; Collapse multiple newlines
-        (str/replace #"\n{3,}" "\n\n")
-        str/trim)))
+    (try
+      (->> (hickory/parse-fragment html)
+           (map as-hickory)
+           (keep extract-text-from-hickory)
+           (apply str)
+           (#(str/replace % #"\u00a0" " "))
+           (#(str/replace % #"\n{3,}" "\n\n"))
+           str/trim)
+      (catch Exception e
+        (warn e "Couldn't parse HTML for text extraction")
+        nil))))
 
 ;; ─── Body extraction (walk MIME tree) ───────────────────────────
 
@@ -108,70 +141,74 @@
   [^Part part]
   (try
     (some-> (.getContentType part) str/lower-case)
-    (catch Exception _ "text/plain")))
+    (catch Exception e
+      (warn e "Couldn't get content-type from" part)
+      "text/plain")))
 
 (defn- input-stream->string
-  "Read an InputStream into a string."
+  "Read an InputStream into a string. Throws on decode errors."
   [is]
-  (try
-    (with-open [reader (java.io.BufferedReader.
-                      (java.io.InputStreamReader. is "UTF-8"))]
-      (let [sb (StringBuilder.)]
-        (loop [line (.readLine reader)]
-          (if (nil? line)
-            (.toString sb)
-            (do
-              (.append sb line)
-              (.append sb "\n")
-              (recur (.readLine reader)))))))
-    (catch Exception _ "")))
+  (with-open [r (java.io.BufferedReader.
+                  (java.io.InputStreamReader. is "UTF-8"))]
+    (->> (line-seq r)
+         (str/join "\n"))))
 
-;; ─── MIME Part protocol ─────────────────────────────────────────
+;; ─── Jakarta Mail → immutable Clojure maps ────────────────────
 
-(defprotocol MimePart
-  "Protocol over MIME parts, hiding Jakarta Mail interop."
-  (body [this] "Get decoded content of this part, or nil.")
-  (content-type [this] "Get content-type string, lowercased, or nil.")
-  (children [this] "Get child parts (for multipart), or nil.")
-  (filename [this] "Get filename (for attachments), or nil.")
-  (log-info [this] "Return a map with diagnostic info about this part."))
+(declare read-part)
 
-(defrecord JakartaPart [^jakarta.mail.Part part]
-  MimePart
-  (body [this]
+(defn- read-part-body
+  "Decode body text from a Part. Returns string or nil for binary.
+   Throws ::body-read on decode failure with rich context."
+  [^jakarta.mail.Part part ct]
+  (when (and ct (or (str/starts-with? ct "text/")
+                    (str/starts-with? ct "message/")))
     (try
       (let [c (.getContent part)]
         (cond (string? c) c
               (instance? java.io.InputStream c) (input-stream->string c)
               :else (str c)))
-      (catch Throwable _ nil)))
-  (content-type [this]
-    (try (some-> (.getContentType part) str/lower-case)
-         (catch Exception _ nil)))
-  (children [this]
+      (catch Exception e
+        (throw+ {:type ::body-read
+                 :content-type ct
+                 :filename (try (.getFileName part) (catch Exception _ nil))
+                 :disposition (try (.getDisposition part) (catch Exception _ nil))}
+                e)))))
+
+(defn- read-part-children
+  "Recursively convert child parts of a multipart to Clojure maps."
+  [^jakarta.mail.Part part ct]
+  (when (and ct (str/starts-with? ct "multipart/"))
     (try
-      (let [ct (.getContent part)]
-        (when (instance? MimeMultipart ct)
-          (mapv (fn [i] (->JakartaPart (.getBodyPart ^MimeMultipart ct i)))
-                (range (.getCount ^MimeMultipart ct)))))
-      (catch Throwable _ nil)))
-  (filename [this]
-    (try (.getFileName part) (catch Throwable _ nil)))
-  (log-info [this]
-    (let [ct (content-type this)]
-      {:content-type ct
-       :body-type (when (body this) (class (body this)))
-       :body-length (count (str (body this)))
-       :has-children (some? (children this))
-       :child-count (count (children this))
-       :filename (filename this)})))
+      (let [content (.getContent part)]
+        (when (instance? MimeMultipart content)
+          (mapv (fn [i]
+                  (read-part (.getBodyPart ^MimeMultipart content i)))
+                (range (.getCount ^MimeMultipart content)))))
+      (catch Exception e
+        (throw+ {:type ::children-error :content-type ct} e)))))
 
-(defn wrap-part
-  "Wrap a Jakarta Mail Part or MimeMessage in a MimePart."
-  [^jakarta.mail.Part p]
-  (->JakartaPart p))
+(defn- read-part
+  "Convert a Jakarta Mail Part or MimeMessage into an immutable Clojure map.
+   This is the only place that touches Jakarta Mail after this point.
+   Returns {:content-type, :filename, :disposition, :body, :children}."
+  [^jakarta.mail.Part part]
+  (let [ct (get-content-type part)]
+    (try
+      (let [body     (read-part-body part ct)
+            children (read-part-children part ct)]
+        {:content-type ct
+         :filename    (try (.getFileName part) (catch Exception _ nil))
+         :disposition (try (.getDisposition part) (catch Exception _ nil))
+         :body        body
+         :children    children})
+      (catch Exception e
+        (throw+ {:type ::read-part
+                 :content-type ct
+                 :filename (try (.getFileName part) (catch Exception _ nil))}
+                e)))))
 
-;; ─── Body extraction (recursive, uses MimePart protocol) ───────
+;; ─── Body extraction (works on immutable maps) ─────────────────
 
 (def ^:dynamic *debug*
   "When true, log body extraction decisions to *err*."
@@ -199,14 +236,14 @@
 (defn- log-mime-tree
   "Print the MIME tree structure with body lengths to *err* and
    *log-writer* (if set). msg-id is included for correlation with DB."
-  ([mp msg-id] (log-mime-tree mp msg-id 0))
-  ([mp msg-id depth]
+  ([part-map msg-id] (log-mime-tree part-map msg-id 0))
+  ([part-map msg-id depth]
    (let [indent (apply str (repeat (* depth 2) " "))
-         ct (content-type mp)
-         b (body mp)
-         blen (count (str b))
-         kids (children mp)
-         line (str indent "- " ct " | body: " blen " chars | kids: " (count kids))]
+         ct     (:content-type part-map)
+         b      (:body part-map)
+         blen   (count (str b))
+         kids   (:children part-map)
+         line   (str indent "- " ct " | body: " blen " chars | kids: " (count kids))]
      (binding [*out* *err*]
        (println line))
      (when-let [w *log-writer*]
@@ -216,97 +253,77 @@
          (.write w (str line "\n"))
          (when (and (zero? depth) (seq kids))
            (.write w "\n"))
-         (catch Throwable _)))
-     (doseq [k kids]
-       (log-mime-tree k msg-id (inc depth))))))
+         (catch Exception e
+           (warn e "Couldn't write MIME tree log")))
+       (doseq [k kids]
+         (log-mime-tree k msg-id (inc depth)))))))
 
 (defn- extract-text-from-part
-  "Recursively extract plain text from a MimePart.
+  "Recursively extract plain text from a parsed MIME part map.
    Returns decoded string or nil."
-  [mp]
-  (try
-    (let [ct (content-type mp)]
-      (when *debug*
-        (binding [*out* *err*]
-          (println "--- MIME tree ---")
-          (log-mime-tree mp "(msg-id not yet known)")
-          (println "-----------------")))
-      (cond
-        (and ct (str/starts-with? ct "text/plain"))
-        (body mp)
+  [part-map]
+  (let [ct (:content-type part-map)]
+    (when *debug*
+      (binding [*out* *err*]
+        (println "--- MIME tree ---")
+        (log-mime-tree part-map "(msg-id not yet known)")
+        (println "-----------------")))
+    (cond
+      (and ct (str/starts-with? ct "text/plain"))
+      (:body part-map)
 
-        (and ct (str/starts-with? ct "text/html"))
-        (some-> (body mp) html->text)
+      (and ct (str/starts-with? ct "text/html"))
+      (some-> (:body part-map) html->text)
 
-        (and ct (or (str/starts-with? ct "multipart/")
-                    (str/starts-with? ct "message/rfc822")))
-        (let [kids (children mp)]
-          (some extract-text-from-part kids))
+      (and ct (or (str/starts-with? ct "multipart/")
+                  (str/starts-with? ct "message/rfc822")))
+      (some extract-text-from-part (:children part-map))
 
-        :else
-        (do (when *debug*
-              (binding [*out* *err*]
-                (println "  skipping unknown content-type:" ct)))
-            nil)))
-    (catch Throwable t
-      (when *debug*
-        (binding [*out* *err*]
-          (println "  extract-text-from-part error:" (.getMessage t))))
-      nil)))
+      :else
+      (do (when *debug*
+            (binding [*out* *err*]
+              (println "  skipping unknown content-type:" ct)))
+          nil))))
 
 (defn extract-text-body
-  "Extract the plain-text body from a MimeMessage.
+  "Extract the plain-text body from a parsed MIME part map.
    Prefers text/plain over text/html, skips non-text parts."
-  [^MimeMessage msg]
-  (or (clean-body (extract-text-from-part (wrap-part msg))) ""))
+  [part-map]
+  (or (clean-body (extract-text-from-part part-map)) ""))
 
 (defn extract-html-body
-  "Extract the HTML body from a MimeMessage. Returns nil if no HTML part found."
-  [^MimeMessage msg]
-  (try
-    (letfn [(find-html [mp]
-              (let [ct (content-type mp)]
-                (cond
-                  (and ct (str/starts-with? ct "text/html"))
-                  (body mp)
+  "Extract the HTML body from a parsed MIME part map.
+   Returns nil if no HTML part found."
+  [part-map]
+  (letfn [(find-html [m]
+            (let [ct (:content-type m)]
+              (cond
+                (and ct (str/starts-with? ct "text/html"))
+                (:body m)
 
-                  (and ct (str/starts-with? ct "multipart/"))
-                  (some find-html (children mp))
+                (and ct (str/starts-with? ct "multipart/"))
+                (some find-html (:children m))
 
-                  :else nil)))]
-      (find-html (wrap-part msg)))
-    (catch Throwable _ nil)))
-
-;; ─── Attachment metadata ────────────────────────────────────────
+                :else nil)))]
+    (find-html part-map)))
 
 (defn extract-attachments
   "Walk the MIME tree and collect attachment metadata.
    Returns a vector of EDN strings, each describing one attachment:
      {:filename \"report.pdf\" :content-type \"application/pdf\" :size 12345}
    Returns empty vector if no attachments found."
-  [^MimeMessage msg]
-  (try
-    (let [ct (get-content-type msg)]
-      (when (str/starts-with? ct "multipart/")
-        (let [content (.getContent msg)]
-          (if (instance? MimeMultipart content)
-            (let [mp    ^MimeMultipart content
-                  n     (.getCount mp)
-                  parts (for [i (range n)]
-                          (.getBodyPart mp i))]
-              (->> parts
-                   (filter (fn [^Part p]
-                             (let [disp (try (.getDisposition p) (catch Throwable _ nil))]
-                               (or (= Part/ATTACHMENT disp)
-                                   (and (not (str/includes? (get-content-type p) "text/"))
-                                        (not (str/includes? (get-content-type p) "multipart/"))
-                                        (some? (try (.getFileName p) (catch Throwable _ nil))))))))
-                   (mapv (fn [^Part p]
-                           (pr-str {:filename      (try (.getFileName p) (catch Throwable _ nil))
-                                    :content-type  (get-content-type p)
-                                    :size          (try (.getSize p) (catch Throwable _ -1))})))))
-            []))))
-    (catch Throwable _ [])))
+  [part-map]
+  (let [attachments (filter (fn [m]
+                              (or (= "attachment" (:disposition m))
+                                  (and (not (str/includes? (:content-type m) "text/"))
+                                       (not (str/includes? (:content-type m) "multipart/"))
+                                       (some? (:filename m)))))
+                            (tree-seq (fn [m] (seq (:children m))) :children part-map))]
+    (mapv (fn [m]
+            (pr-str {:filename     (:filename m)
+                     :content-type (:content-type m)
+                     :size         -1}))
+          attachments)))
 
 ;; ─── Raw message -> structured email map ────────────────────────
 
@@ -326,51 +343,63 @@
    Returns a map with keys: :message-id, :subject, :from, :to, :cc, :date,
    :body, :html, :thread-id, :labels, :attachments"
   [raw-msg]
-  (try
+  (try+
     (let [raw-str   (str/triml (str raw-msg))
           input     (ByteArrayInputStream. (.getBytes raw-str "UTF-8"))
           props     (doto (Properties.)
                       (.setProperty "mail.mime.address.strict" "false"))
           session   (Session/getDefaultInstance props)
           msg       (MimeMessage. session input)
+          part-map  (read-part msg)
           msg-id    (or (safe-header msg "Message-ID")
-                         (generate-fallback-id 
-                           (.getSubject msg)
-                           (let [from (.getFrom msg)]
-                             (when (seq from) (.getAddress (first from))))
-                           (.getSentDate msg)
-                           (extract-text-body msg)))]
+                        (generate-fallback-id
+                         (.getSubject msg)
+                         (let [from (.getFrom msg)]
+                           (when (seq from) (.getAddress (first from))))
+                         (.getSentDate msg)
+                         (extract-text-body part-map)))
+          txt       (extract-text-body part-map)
+          atts      (extract-attachments part-map)]
       {:message-id  msg-id
        :subject     (try (.getSubject msg) (catch Exception _ nil))
-       :from        (try 
+       :from        (try
                       (let [from (.getFrom msg)]
                         (when (seq from) (address->str (first from))))
                       (catch Exception _ nil))
        :to          (try (addresses->seq (.getRecipients msg jakarta.mail.Message$RecipientType/TO)) (catch Exception _ nil))
        :cc          (try (addresses->seq (.getRecipients msg jakarta.mail.Message$RecipientType/CC)) (catch Exception _ nil))
        :date        (try (.getSentDate msg) (catch Exception _ nil))
-       :body        (let [txt (extract-text-body msg)
-                        atts (extract-attachments msg)]
-                     (if (and (zero? (count txt)) (seq atts))
-                       (str/join "\n" (mapv (fn [att]
-                                               (let [m (try (clojure.edn/read-string att) (catch Exception _ {:filename att :content-type ""}))]
-                                                 (str "[Attachment: " (:filename m) " (" (first (str/split (:content-type m) #";")) ")]")))
-                                              atts))
-                       txt))
-       :html        (extract-html-body msg)
+       :body        (if (and (zero? (count txt)) (seq atts))
+                      (str/join "\n" (mapv (fn [att]
+                                             (let [m (try (edn/read-string att) (catch Exception _ {:filename att :content-type ""}))]
+                                               (str "[Attachment: " (:filename m) " (" (first (str/split (:content-type m) #";")) ")]")))
+                                           atts))
+                      txt)
+       :html        (extract-html-body part-map)
        :thread-id   (or (safe-header msg "Thread-Topic")
-                      (safe-header msg "References")
-                      (safe-header msg "X-GM-THRID"))
+                        (safe-header msg "References")
+                        (safe-header msg "X-GM-THRID"))
        :labels      (parse-gmail-labels msg)
-       :attachments (extract-attachments msg)})
-    (catch Exception e
+       :attachments atts})
+    (catch [:type ::body-read] {:keys [content-type filename disposition] :as m}
+      (let [raw-str   (str/triml (str raw-msg))
+            from-line (first (str/split-lines (str raw-msg)))]
+        (warn (:throwable &throw-context)
+              "Couldn't read body"
+              {:content-type content-type
+               :filename filename
+               :disposition disposition
+               :from-line from-line
+               :preview (subs raw-str 0 (min 200 (count raw-str)))}))
+      nil)
+    (catch Object e
       (let [raw-str   (str/triml (str raw-msg))
             from-line (first (str/split-lines (str raw-msg)))
             preview   (subs raw-str 0 (min 200 (count raw-str)))]
-        (binding [*out* *err*]
-          (println "WARNING: Failed to parse email:" (.getMessage e))
-          (println "  From line:" from-line)
-          (println "  Preview:" preview)))
+        (warn (:throwable &throw-context)
+              "Failed to parse email"
+              {:from-line from-line
+               :preview preview}))
       nil)))
 
 ;; ─── Batch ingestion ─────────────────────────────────────────────
@@ -382,11 +411,11 @@
   [mbox-path]
   (->> (mbox-messages mbox-path)
        (map (fn [raw]
-              (try
+              (try+
                 (parse-raw-message raw)
-                (catch Throwable t
-                  (binding [*out* *err*]
-                    (println "CRITICAL: Iterator error:" (.getMessage t)))
+                (catch Object e
+                  (warn (:throwable &throw-context)
+                        "Iterator error parsing raw message")
                   nil))))
        (filter some?)  ;; Remove nil results from parse errors
        (filter :message-id)))  ;; Ensure all emails have an ID

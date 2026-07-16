@@ -84,7 +84,7 @@
     (let [html "<p>Price: &pound;10 &amp; &lt; 20</p>"
           text (sut/html->text html)]
       (is (str/includes? text "Price:"))
-      (is (str/includes? text "&pound;"))
+      (is (str/includes? text "£"))
       (is (str/includes? text "&"))
       (is (str/includes? text "<")))))
 
