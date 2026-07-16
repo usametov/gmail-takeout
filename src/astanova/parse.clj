@@ -30,21 +30,52 @@
 
 ;; ─── MBOX file -> seq of raw messages ───────────────────────────
 
+(defn- parse-from-line
+  "Extract the Gmail message ID from an mbox From_ line.
+   Format: From <gmail-message-id>@xxx <day> <month> <dd> <time> <tz> <year>
+   Returns the numeric Gmail message ID string, or nil.
+
+   Example: (parse-from-line from-line-with-gmail-id) returns 1869988106885977363"
+  [from-line]
+  (when from-line
+    (when-let [envelope (second (str/split from-line #" "))]
+      (first (str/split envelope #"@")))))
+
+(defn- extract-from-lines
+  "Read an MBOX file and collect all `From_` envelope lines.
+   These contain the Gmail message ID before the @xxx.
+   Returns a vector of From_ line strings."
+  [mbox-path]
+  (let [f (io/file mbox-path)]
+    (with-open [rdr (io/reader f)]
+      (doall
+        (filter #(.startsWith % "From ")
+                (line-seq rdr))))))
+
 (defn mbox-messages
-  "Given a path to an MBOX file, return a lazy seq of CharBufferWrappers
-   using Mime4j's MboxIterator (memory-efficient, one-at-a-time).
+  "Given a path to an MBOX file, return a lazy seq of maps.
+   Each map has keys:
+     :from-line   — the mbox `From_` envelope line (contains Gmail message ID)
+     :raw-message — CharBufferWrapper with the raw email headers + body
+
+   Uses Mime4j's MboxIterator internally (memory-efficient, one-at-a-time).
 
    NOTE: MboxIterator uses FileChannel.map internally, which limits it to
    files smaller than ~2 GB.  For larger files, use the `split` command
    first (see `takeout split --help`)."
   [mbox-path]
-  (let [f (io/file mbox-path)]
-    (-> (MboxIterator/fromFile f)
-        (.charset (Charset/forName "UTF-8"))
-        (.maxMessageSize (* 50 1024 1024))   ; 50 MB max per message
-        (.build)
-        (.iterator)
-        iterator-seq)))
+  (let [f (io/file mbox-path)
+        from-lines (extract-from-lines mbox-path)
+        msg-iter (-> (MboxIterator/fromFile f)
+                     (.charset (Charset/forName "UTF-8"))
+                     (.maxMessageSize (* 50 1024 1024))
+                     (.build)
+                     (.iterator))]
+    (map (fn [from-line raw-msg]
+           {:from-line    from-line
+            :raw-message  raw-msg})
+         from-lines
+         (iterator-seq msg-iter))))
 
 ;; ─── Header helpers ─────────────────────────────────────────────
 
@@ -338,19 +369,30 @@
     (format "fallback-%064x" (BigInteger. 1 hash-bytes))))
 
 (defn parse-raw-message
-  "Parse a raw mime4j CharBufferWrapper into a structured email map
-   using Jakarta Mail for header and body extraction.
+  "Parse a raw email into a structured email map using Jakarta Mail.
+
+   raw-msg can be either:
+   - A map with keys :from-line and :raw-message (from mbox-messages)
+   - A CharBufferWrapper (backward compatible, no From_ line)
+
    Returns a map with keys: :message-id, :subject, :from, :to, :cc, :date,
-   :body, :html, :thread-id, :labels, :attachments"
+   :body, :html, :thread-id, :labels, :attachments
+
+   When a :from-line is provided, the Gmail message ID from the mbox
+   envelope is used as the primary :message-id, falling back to the
+   standard Message-ID header, then to a content-hash fallback."
   [raw-msg]
   (try+
-    (let [raw-str   (str/triml (str raw-msg))
+    (let [{:keys [from-line raw-message] :or {raw-message raw-msg}}
+          (if (map? raw-msg) raw-msg {:raw-message raw-msg})
+          raw-str   (str/triml (str raw-message))
           input     (ByteArrayInputStream. (.getBytes raw-str "UTF-8"))
           props     (doto (Properties.)
                       (.setProperty "mail.mime.address.strict" "false"))
           session   (Session/getDefaultInstance props)
           msg       (MimeMessage. session input)
           part-map  (read-part msg)
+          gmail-id  (parse-from-line from-line)
           msg-id    (or (safe-header msg "Message-ID")
                         (generate-fallback-id
                          (.getSubject msg)
@@ -361,6 +403,7 @@
           txt       (extract-text-body part-map)
           atts      (extract-attachments part-map)]
       {:message-id  msg-id
+       :gmail-id    gmail-id
        :subject     (try (.getSubject msg) (catch Exception _ nil))
        :from        (try
                       (let [from (.getFrom msg)]

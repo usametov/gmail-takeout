@@ -11,6 +11,9 @@
                        :db/cardinality :db.cardinality/one
                        :db/unique      :db.unique/identity
                        :db/doc         "Message-ID header value, globally unique per email"}
+   :email/gmail-id    {:db/valueType   :db.type/string
+                       :db/cardinality :db.cardinality/one
+                       :db/doc         "Gmail internal message ID (from mbox From_ line or gws API)"}
    :email/thread-id   {:db/valueType   :db.type/string
                        :db/cardinality :db.cardinality/one
                        :db/doc         "Thread-ID or References header for grouping"}

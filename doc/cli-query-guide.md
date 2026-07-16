@@ -15,10 +15,12 @@ Query your email database from the command line using `./takeout query`.
 9. [Inspect Thread Command](#inspect-thread-command)
 10. [MBOX Info Command](#mbox-info-command)
 11. [Split Command](#split-command)
-12. [Statistics](#statistics)
-13. [Labels Command](#labels-command)
-14. [CLI vs REPL](#cli-vs-repl)
-15. [All Options Reference](#all-options-reference)
+12. [Update Message IDs](#update-message-ids)
+13. [Gmail ID Mapping Script](#gmail-id-mapping-script)
+14. [Statistics](#statistics)
+15. [Labels Command](#labels-command)
+16. [CLI vs REPL](#cli-vs-repl)
+17. [All Options Reference](#all-options-reference)
 
 ---
 
@@ -532,6 +534,116 @@ grep -c '^From ' output.part-0002.mbox
 
 ---
 
+## Update Message IDs
+
+Add Gmail internal IDs (`:email/gmail-id`) and fix thread IDs (`:email/thread-id`)
+in the database using a mapping file produced by `scripts/map_gmail_ids.bb`.
+
+This command does **not** change `:email/id` — it only adds the Gmail internal ID
+and corrects the thread ID obtained from the Gmail API.
+
+### Prerequisites
+
+First, generate a mapping file using `scripts/map_gmail_ids.bb` (see next section).
+The mapping file is an EDN map:
+
+```edn
+{"<CAE=9OB...@mail.gmail.com>" {:gmail-id "188a1b2c3d4e5f6"
+                                :thread-id "188a1b2c3d4e5f7"}
+ "<other@mail.gmail.com>"       {:error "not-found"}
+ ...}
+```
+
+### Usage
+
+```bash
+# Preview changes
+./takeout -d emails.db update-message-ids --from map-ids.edn --dry-run
+
+# Apply
+./takeout -d emails.db update-message-ids --from map-ids.edn
+```
+
+Output:
+
+```
+Processing 45 entries from map-ids.edn...
+  <CAE=9OB...@mail.gmail.com>        gmail-id=188a1b2c3d4e5f6 thread=188a1b2c3d4e5f7
+  SKIP: <other@mail.gmail.com> (error: not-found)
+  NOT FOUND: <missing@mail.gmail.com>
+
+Done: 42 updated, 2 skipped (errors), 1 not found, 45 total
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `-f` / `--from` | EDN mapping file from `map_gmail_ids.bb` (required) |
+| `--dry-run` | Preview updates without transacting |
+
+---
+
+## Gmail ID Mapping Script
+
+`scripts/map_gmail_ids.bb` is a Babashka script that calls the Gmail API
+(via the `gws` CLI) to look up Gmail internal message IDs and thread IDs
+from RFC822 `Message-ID` headers.
+
+### Workflow
+
+```bash
+# Step 1: Query emails and pipe to the mapping script (dry-run first)
+./takeout -d emails.db query -l "trading" -n 100 --format edn \
+  | bb scripts/map_gmail_ids.bb -o map-ids.edn
+
+# Step 2: Verify map-ids.edn looks correct, then run real API calls
+./takeout -d emails.db query -l "trading" -n 100 --format edn \
+  | bb scripts/map_gmail_ids.bb -o map-ids.edn --no-dry-run
+
+# Step 3: Update the database
+./takeout -d emails.db update-message-ids --from map-ids.edn --dry-run
+./takeout -d emails.db update-message-ids --from map-ids.edn
+
+# To process all emails (no query filter):
+./takeout -d emails.db query -n 0 --format edn \
+  | bb scripts/map_gmail_ids.bb -o all-ids.edn --skip 0 -n 1000 --no-dry-run
+```
+
+### How it works
+
+1. Reads EDN from stdin — accepts the query output format `{:total .. :results [...]}`
+   or raw lists of `:email/id` values
+2. For each `:email/id` (RFC822 Message-ID), calls:
+   ```bash
+   gws gmail users messages list --params '{"userId":"me","q":"rfc822msgid:<id>"}'
+   ```
+3. Extracts Gmail internal `id` and `threadId` from the JSON response
+4. Writes the mapping as EDN to the output file
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `-o` / `--out-file` | Output EDN file (default: `gmail-ids.edn`) |
+| `-d` / `--delay` | Delay in ms between API calls (default: `1000`) |
+| `-n` / `--limit` | Max IDs to process (0 = all, default) |
+| `-s` / `--skip` | Skip first N IDs (for resume) |
+| `--user-id` | Gmail user ID (default: `me`) |
+| `--no-dry-run` | Actually call the Gmail API |
+
+### Output format
+
+```edn
+{"<CAE=9OB...@mail.gmail.com>" {:gmail-id "188a1b2c3d4e5f6"
+                                :thread-id "188a1b2c3d4e5f7"}
+ "<not-in-gmail@example.com>"  {:error "not-found"}}
+```
+
+Entries with `:error` are skipped by `update-message-ids`.
+
+---
+
 ## Statistics
 
 ```bash
@@ -606,6 +718,13 @@ See the [query-guide.md](query-guide.md) for the complete REPL query reference.
 |--------|-------------|
 | `-s` / `--size` | Approximate chunk size in MB (default: `500`) |
 | `-o` / `--output` | Output directory (default: same dir as input) |
+
+### Update Message IDs options
+
+| Option | Description |
+|--------|-------------|
+| `-f` / `--from` | EDN mapping file from `map_gmail_ids.bb` (required) |
+| `--dry-run` | Preview updates without transacting |
 
 ### Query options
 

@@ -18,6 +18,7 @@
   [email-map mbox-file source]
   (cond-> {:db/id          (d/tempid :db.part/user)
            :email/id       (:message-id email-map)
+           :email/gmail-id (:gmail-id email-map)
            :email/source   source
            :email/mbox-file mbox-file
            :email/body-truncated (subs (:body email-map) 0 (min 10000 (count (:body email-map))))
@@ -73,7 +74,7 @@
 (defn ingest-mbox!
   "Parse an MBOX file and ingest all emails into Datalevin.
    Returns stats map with :tx-count, :email-count, and :file.
-   
+
    Parameters:
      conn       - Datalevin connection (from db/create-conn)
      mbox-path  - path to the MBOX file
@@ -86,25 +87,25 @@
         log-writer (when log-file
                      (java.io.FileWriter. (java.io.File. log-file) true))
         parsed    (->> (parse/mbox-messages mbox-path)
-                       (map (fn [raw]
-                              (swap! raw-count inc)
-                              (let [raw-str (str raw)
-                                    from-line (first (str/split-lines raw-str))
-                                    result (try
-                                             (parse/parse-raw-message raw)
-                                             (catch Throwable t
-                                               (when log-writer
-                                                 (.write log-writer (str "--- Parse error #" @err-count " at raw #" @raw-count " ---\n"
-                                                                        "From line: " from-line "\n"
-                                                                        (.getMessage t) "\n")))
-                                               nil))]
-                                (when (nil? result)
-                                  (swap! err-count inc)
-                                  (when log-writer
-                                    (try
-                                      (.write log-writer (str "From line: " from-line "\n"))
-                                      (catch Throwable _))))
-                                result)))
+                       (map (fn [entry]
+                              (let [from-line (:from-line entry)
+                                    raw-msg   (:raw-message entry)]
+                                (swap! raw-count inc)
+                                (let [result (try
+                                               (parse/parse-raw-message entry)
+                                               (catch Throwable t
+                                                 (when log-writer
+                                                   (.write log-writer (str "--- Parse error #" @err-count " at raw #" @raw-count " ---\n"
+                                                                          "From line: " from-line "\n"
+                                                                          (.getMessage t) "\n")))
+                                                 nil))]
+                                  (when (nil? result)
+                                    (swap! err-count inc)
+                                    (when log-writer
+                                      (try
+                                        (.write log-writer (str "From line: " from-line "\n"))
+                                        (catch Throwable _))))
+                                  result))))
                        (filter some?)
                        (filter :message-id)
                        (doall))]
@@ -120,7 +121,7 @@
 (defn ingest-mbox-files!
   "Ingest multiple MBOX files from a directory or list of paths.
    Returns aggregated stats across all files.
-   
+
    Parameters:
      conn     - Datalevin connection
      mbox-dir - directory containing .mbox files, or seq of file paths

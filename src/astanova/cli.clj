@@ -6,6 +6,7 @@
             [astanova.label :as label]
             [astanova.parse :as parse]
             [cheshire.core :as json]
+            [clojure.edn :as edn]
             [clojure.string :as str]
             [clojure.pprint :as pprint]
             [datalevin.core :as d])
@@ -724,6 +725,54 @@
 
 ;; ─── Dispatch ───────────────────────────────────────────────────
 
+(def update-msg-ids-spec
+  {:from {:alias :f :desc "EDN file from map_gmail_ids.bb (required)" :required true}
+   :dry-run {:desc "Preview updates without transacting"}})
+
+(defn- update-msg-ids-cmd [{:keys [opts]}]
+  (let [conn    (db/create-conn (:db opts))
+        db      (d/db conn)
+        mapping (edn/read-string (slurp (:from opts)))]
+    (try
+      (let [entries mapping
+            total   (count entries)
+            updated (atom 0)
+            missing (atom 0)
+            skipped (atom 0)]
+        (println (format "Processing %d entries from %s..." total (:from opts)))
+        (doseq [[msg-id {:keys [gmail-id thread-id error]}] entries]
+          (cond
+            (not gmail-id)
+            (do
+              (swap! skipped inc)
+              (println (format "  SKIP: %s (error: %s)"
+                               (subs (or (str msg-id) "?") 0 (min 50 (count (str msg-id))))
+                               (or error "no gmail-id"))))
+
+            :else
+            (let [entity (d/entity db [:email/id msg-id])]
+              (if entity
+                (let [eid (:db/id entity)
+                      txn (if (:dry-run opts)
+                            []
+                            [{:db/id           eid
+                              :email/gmail-id  gmail-id
+                              :email/thread-id thread-id}])]
+                  (when (seq txn)
+                    (d/transact! conn txn))
+                  (swap! updated inc)
+                  (when (:dry-run opts)
+                    (println (format "  %-50s gmail-id=%s thread=%s"
+                                    (subs msg-id 0 (min 50 (count msg-id)))
+                                    gmail-id thread-id))))
+                (do
+                  (swap! missing inc)
+                  (println (format "  NOT FOUND: %s"
+                                  (subs msg-id 0 (min 60 (count msg-id))))))))))
+        (println (format "\nDone: %d updated, %d skipped (errors), %d not found, %d total"
+                         @updated @skipped @missing total))
+        (db/close-conn conn)))))
+
 (def cli-tree
   "Command dispatch table for babashka/cli."
   [{:cmds [] :spec global-spec}
@@ -739,4 +788,5 @@
    {:cmds ["mbox-info"] :fn mbox-info-cmd :spec mbox-info-spec :doc "Show MBOX file message count and size"}
    {:cmds ["propagate"] :fn propagate-cmd :spec propagate-spec :doc "Propagate a label to all emails in threads containing it"}
    {:cmds ["inspect-thread"] :fn inspect-thread-cmd :spec inspect-thread-spec :doc "Inspect label distribution within a thread"}
-   {:cmds ["linked-labels"] :fn linked-labels-cmd :spec linked-labels-spec :doc "Find labels that co-occur with a given label"}])
+   {:cmds ["linked-labels"] :fn linked-labels-cmd :spec linked-labels-spec :doc "Find labels that co-occur with a given label"}
+   {:cmds ["update-message-ids"] :fn update-msg-ids-cmd :spec update-msg-ids-spec :doc "Add :email/gmail-id and update :email/thread-id from gws mapping EDN"}])
