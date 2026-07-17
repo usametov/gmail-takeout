@@ -1,13 +1,14 @@
 #!/usr/bin/env bb
 ;; Map Gmail RFC822 Message-IDs to Gmail internal IDs using gws CLI.
 ;;
-;; Reads EDN from stdin (list of :email/id values or list of maps),
-;; calls `gws gmail users messages list` for each, and writes the
+;; Reads EDN from stdin (query output or list of email maps),
+;; calls `gws gmail users messages list` for each Message-ID that
+;; doesn't already have :email/gmail-id set, and writes the
 ;; mapping to an output EDN file.
 ;;
 ;; Usage:
 ;;   ./takeout -d ~/Documents/Takeout/sent-emails.db query -l "important" -n 100 --format edn \
-;;     | bb scripts/map_gmail_ids.bb -o /tmp/gmail-ids.edn --no-dry-run
+;;     | bb scripts/map_gmail_ids.clj -o /tmp/gmail-ids.edn --no-dry-run
 ;;
 ;; Output EDN format:
 ;;   {"<Message-ID>" {:gmail-id "..." :thread-id "..."}, ...}
@@ -83,33 +84,44 @@
             (println "gws parse error for" message-id ":" (.getMessage e)))
           nil)))))
 
-;; ─── Main ──────────────────────────────────────────────────────
+;; ─── Input parsing ─────────────────────────────────────────────
 
-(defn extract-ids
-  "Extract email/message-id strings from EDN input.
-   Handles both raw lists and query output format {:total ... :results [...]}."
+(defn items-from-input
+  "Extract item maps from EDN input. Returns a vector of the raw item maps.
+   Handles query output format {:total .. :results [...]}, single maps,
+   and raw lists."
   [input]
-  (let [items (cond
-                ;; Query output format: {:total .. :results [{:email/id ...}]}
-                (and (map? input) (:results input))
-                (:results input)
+  (cond
+    ;; Query output format: {:total .. :results [{...}]}
+    (and (map? input) (:results input))
+    (vec (:results input))
 
-                ;; Single map with :email/id
-                (and (map? input) (:email/id input))
-                [input]
+    ;; Single map with :email/id
+    (and (map? input) (:email/id input))
+    [input]
 
-                ;; Raw list/vector
-                (or (seq? input) (vector? input))
-                input
+    ;; Raw list/vector of maps or strings
+    (or (seq? input) (vector? input))
+    (vec input)
 
-                :else
-                (do (println "Expected EDN list, map, or query result, got:" (type input))
-                    (System/exit 1)))]
-    (into [] (keep (fn [item]
-                     (cond (map? item) (:email/id item)
-                           (string? item) item
-                           :else nil)))
-          items)))
+    :else
+    (do (println "Expected EDN list, map, or query result, got:" (type input))
+        (System/exit 1))))
+
+(defn item->msg-id
+  "Extract the :email/id string from an item map.
+   Returns the Message-ID string, or the item itself if it's already a string."
+  [item]
+  (cond (map? item) (:email/id item)
+        (string? item) item
+        :else (str item)))
+
+(defn item-already-has-gmail?
+  "Check if an item already has :email/gmail-id set and non-nil."
+  [item]
+  (and (map? item) (some? (:email/gmail-id item))))
+
+;; ─── Main ──────────────────────────────────────────────────────
 
 (defn -main [& args]
   (let [opts      (parse-opts args)
@@ -121,15 +133,26 @@
         dry-run?  (:dry-run opts)
 
         ;; Read EDN from stdin
-        input     (edn/read-string (slurp *in*))
-        all-ids   (extract-ids input)
-        ids       (cond->> all-ids
-                    true            (drop skip)
-                    true            (remove str/blank?)
-                    (pos? limit)    (take limit))
-        ids       (vec ids)]
+        input       (edn/read-string (slurp *in*))
+        all-items   (items-from-input input)
 
-    (println "Processing" (count ids) "IDs"
+        ;; Split: items that already have gmail-id vs those that need lookup
+        already-have (filter item-already-has-gmail? all-items)
+        need-lookup  (remove item-already-has-gmail? all-items)
+
+        ;; Extract Message-IDs for items needing lookup
+        lookup-ids  (->> need-lookup
+                         (keep item->msg-id)
+                         (remove str/blank?))
+
+        ;; Apply skip/limit to lookup IDs only
+        lookup-ids  (cond->> lookup-ids
+                      true            (drop skip)
+                      (pos? limit)    (take limit))
+        lookup-ids  (vec lookup-ids)]
+
+    (println "Processing" (count lookup-ids) "IDs"
+             "(already have:" (count already-have) ")"
              (str "(delay=" delay-ms "ms, skip=" skip
                   (when (pos? limit) (str ", limit=" limit))
                   (when dry-run? " [DRY-RUN]") ")"))
@@ -140,34 +163,34 @@
           start-time (System/currentTimeMillis)]
 
       ;; Process each ID
-      (doseq [[i mid] (map-indexed vector ids)]
+      (doseq [[i mid] (map-indexed vector lookup-ids)]
         (let [n (inc i)]
-          (when (and (> (count ids) 10) (zero? (mod n 10)))
+          (when (and (> (count lookup-ids) 10) (zero? (mod n 10)))
             (let [elapsed    (- (System/currentTimeMillis) start-time)
-                  rate       (double (/ n (max 1 (/ elapsed 1000.0))))
-                  remaining  (/ (- elapsed) rate)
-                  est-total  (/ (* elapsed (count ids)) (max 1 n))]
+                  rate       (double (/ n (max 1 (/ elapsed 1000.0))))]
               (println (format "  [%d/%d] %.0f/s ~%.0fs remaining"
-                               n (count ids) rate (/ remaining 1000.0))))))
+                               n (count lookup-ids) rate
+                               (/ (max 0 (- (count lookup-ids) n)) rate)))))
 
-        (if dry-run?
-          (swap! results assoc mid
-                 {:gmail-id  (str "gmail-" (Math/abs (hash mid)))
-                  :thread-id (str "thread-" (Math/abs (hash mid)))})
-          (let [found (lookup-gmail-id mid user-id)]
-            (swap! results assoc mid (or found {:error "not-found"}))))
-        (Thread/sleep delay-ms))
+          (if dry-run?
+            (swap! results assoc mid
+                   {:gmail-id  (str "gmail-" (Math/abs (hash mid)))
+                    :thread-id (str "thread-" (Math/abs (hash mid)))})
+            (let [found (lookup-gmail-id mid user-id)]
+              (swap! results assoc mid (or found {:error "not-found"}))))
+          (Thread/sleep delay-ms))
 
       ;; Write output
-      (println "\nWriting" (count @results) "entries to" out-file)
-      (spit out-file (pr-str @results))
+        (println "\nWriting" (count @results) "entries to" out-file)
+        (spit out-file (pr-str @results))
 
       ;; Summary
-      (let [elapsed     (quot (- (System/currentTimeMillis) start-time) 1000)
-            found       (count (filter :gmail-id (vals @results)))
-            missing     (count (filter :error (vals @results)))]
-        (println "Done." found "found," missing "missing."
-                 (str "(elapsed: " (quot elapsed 60) "m " (mod elapsed 60) "s)"))))))
+        (let [elapsed     (quot (- (System/currentTimeMillis) start-time) 1000)
+              found       (count (filter :gmail-id (vals @results)))
+              missing     (count (filter :error (vals @results)))]
+          (println "Skipped (already have) :" (count already-have))
+          (println "Done." found "found," missing "missing."
+                   (str "(elapsed: " (quot elapsed 60) "m " (mod elapsed 60) "s)")))))))
 
 (when (= *file* (System/getProperty "babashka.file"))
   (apply -main *command-line-args*))

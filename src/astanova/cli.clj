@@ -500,7 +500,7 @@
 (defn- build-query [clauses]
   (let [pull-pattern [:email/id :email/subject :email/from :email/to
                       :email/date :email/labels :email/body-truncated
-                      :email/thread-id]]
+                      :email/gmail-id :email/thread-id]]
     (vec (concat
           [:find [(list 'pull '?e (vec pull-pattern)) (symbol "...")]]
           [:where]
@@ -738,13 +738,14 @@
             total   (count entries)
             updated (atom 0)
             missing (atom 0)
-            skipped (atom 0)]
+            skipped-gws (atom 0)
+            skipped-already (atom 0)]
         (println (format "Processing %d entries from %s..." total (:from opts)))
         (doseq [[msg-id {:keys [gmail-id thread-id error]}] entries]
           (cond
             (not gmail-id)
             (do
-              (swap! skipped inc)
+              (swap! skipped-gws inc)
               (println (format "  SKIP: %s (error: %s)"
                                (subs (or (str msg-id) "?") 0 (min 50 (count (str msg-id))))
                                (or error "no gmail-id"))))
@@ -752,25 +753,30 @@
             :else
             (let [entity (d/entity db [:email/id msg-id])]
               (if entity
-                (let [eid (:db/id entity)
-                      txn (if (:dry-run opts)
-                            []
-                            [{:db/id           eid
-                              :email/gmail-id  gmail-id
-                              :email/thread-id thread-id}])]
-                  (when (seq txn)
-                    (d/transact! conn txn))
-                  (swap! updated inc)
-                  (when (:dry-run opts)
-                    (println (format "  %-50s gmail-id=%s thread=%s"
-                                    (subs msg-id 0 (min 50 (count msg-id)))
-                                    gmail-id thread-id))))
+                (if (:email/gmail-id entity)
+                  (do
+                    (swap! skipped-already inc)
+                    (println (format "  SKIP (already set): %s"
+                                    (subs msg-id 0 (min 50 (count msg-id))))))
+                  (let [eid (:db/id entity)
+                        txn (if (:dry-run opts)
+                              []
+                              [{:db/id           eid
+                                :email/gmail-id  gmail-id
+                                :email/thread-id thread-id}])]
+                    (when (seq txn)
+                      (d/transact! conn txn))
+                    (swap! updated inc)
+                    (when (:dry-run opts)
+                      (println (format "  %-50s gmail-id=%s thread=%s"
+                                      (subs msg-id 0 (min 50 (count msg-id)))
+                                      gmail-id thread-id)))))
                 (do
                   (swap! missing inc)
                   (println (format "  NOT FOUND: %s"
                                   (subs msg-id 0 (min 60 (count msg-id))))))))))
-        (println (format "\nDone: %d updated, %d skipped (errors), %d not found, %d total"
-                         @updated @skipped @missing total))
+        (println (format "\nDone: %d updated, %d skipped (errors), %d already set, %d not found, %d total"
+                         @updated @skipped-gws @skipped-already @missing total))
         (db/close-conn conn)))))
 
 (def cli-tree
