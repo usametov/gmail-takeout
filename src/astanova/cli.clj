@@ -730,6 +730,12 @@
    :dry-run {:desc "Preview updates without transacting"}})
 
 (defn- update-msg-ids-cmd [{:keys [opts]}]
+  (when (:help opts)
+    (println "Usage: takeout update-message-ids --from <edn-file> [--dry-run]")
+    (println)
+    (println "  -f, --from PATH  EDN file from map_gmail_ids.clj (required)")
+    (println "  --dry-run        Preview updates without transacting")
+    (System/exit 0))
   (let [conn    (db/create-conn (:db opts))
         db      (d/db conn)
         mapping (edn/read-string (slurp (:from opts)))]
@@ -779,9 +785,83 @@
                          @updated @skipped-gws @skipped-already @missing total))
         (db/close-conn conn)))))
 
+(def update-bodies-spec
+  {:from {:alias :f :desc "EDN file from fetch-bodies.clj (required)" :required true}
+   :dry-run {:desc "Preview updates without transacting"}})
+
+(defn- update-bodies-cmd [{:keys [opts]}]
+  (when (:help opts)
+    (println "Usage: takeout update-bodies --from <edn-file> [--dry-run]")
+    (println)
+    (println "  -f, --from PATH  EDN file from fetch-bodies.clj (required)")
+    (println "  --dry-run        Preview updates without transacting")
+    (System/exit 0))
+  (let [conn    (db/create-conn (:db opts))
+        db      (d/db conn)
+        mapping (edn/read-string (slurp (:from opts)))]
+    (println (format "Processing %d entries from %s..." (count mapping) (:from opts)))
+    (let [updated (atom 0)
+          skipped (atom 0)
+          missing (atom 0)]
+      (doseq [[msg-id {:keys [body gmail-id error]}] mapping]
+        (cond
+          (not body)
+          (do (swap! skipped inc)
+              (println (format "  SKIP (no body): gmail-id=%s msg-id=%s error=%s"
+                               gmail-id (subs (or msg-id "?") 0 40) (or error "?"))))
+          :else
+          (let [entity (d/entity db [:email/id msg-id])]
+            (if entity
+              (let [text (parse/html->text body)
+                    text (if (str/blank? text) (str/trim (str/replace body #"<[^>]+>" "")) text)
+                    text (subs text 0 (min 10000 (count text)))
+                    txn  (if (:dry-run opts)
+                           []
+                           [{:db/id              (:db/id entity)
+                             :email/body-truncated text
+                             :email/body-length   (count text)}])]
+                (when (seq txn)
+                  (d/transact! conn txn))
+                (swap! updated inc)
+                (when (:dry-run opts)
+                  (println (format "  %-50s body=%d chars"
+                                  (subs msg-id 0 (min 50 (count msg-id)))
+                                  (count text)))))
+              (do (swap! missing inc)
+                  (println (format "  NOT FOUND: %s" (subs msg-id 0 (min 60 (count msg-id))))))))))
+      (println (format "\nDone: %d updated, %d skipped (no body), %d not found, %d total"
+                       @updated @skipped @missing (count mapping)))
+      (db/close-conn conn))))
+
 (def cli-tree
   "Command dispatch table for babashka/cli."
-  [{:cmds [] :spec global-spec}
+  [{:cmds [] :spec global-spec :fn (fn [{:keys [opts] :as m}]
+                                      (if (:help opts)
+                                        (do
+                                          (println "Usage: takeout [options] <command> [args]")
+                                          (println)
+                                          (println "Options:")
+                                          (println "  -d, --db PATH  Database path (default: emails.db)")
+                                          (println)
+                                          (println "Commands:")
+                                          (println "  ingest <files...>           Load MBOX files into the database")
+                                          (println "  query                       Search emails by criteria")
+                                          (println "  stats                       Show DB summary statistics")
+                                          (println "  export                      Dump emails as JSON/EDN")
+                                          (println "  threads                     List and explore email threads")
+                                          (println "  split <files...>            Split large MBOX files into smaller chunks")
+                                          (println "  labels                      List all email labels")
+                                          (println "  addresses                   List all email addresses")
+                                          (println "  frequencies                 Show label frequency distribution")
+                                          (println "  mbox-info <files...>        Show MBOX file message count and size")
+                                          (println "  propagate                   Propagate a label to all emails in threads")
+                                          (println "  inspect-thread              Inspect label distribution within a thread")
+                                          (println "  linked-labels               Find labels that co-occur with a given label")
+                                          (println "  update-message-ids          Add :email/gmail-id from gws mapping EDN")
+                                          (println "  update-bodies               Update :email/body-truncated from fetch-bodies EDN")
+                                          (println)
+                                          (println "Run 'takeout <command> --help' for command-specific options."))
+                                        (println "No command specified. Use --help for usage.")))}
    {:cmds ["ingest"]  :fn ingest-cmd  :spec ingest-spec  :doc "Load MBOX files into the database"}
    {:cmds ["query"]   :fn query-cmd   :spec query-spec   :doc "Search emails by criteria"}
    {:cmds ["stats"]   :fn stats-cmd                      :doc "Show DB summary statistics"}
@@ -795,4 +875,5 @@
    {:cmds ["propagate"] :fn propagate-cmd :spec propagate-spec :doc "Propagate a label to all emails in threads containing it"}
    {:cmds ["inspect-thread"] :fn inspect-thread-cmd :spec inspect-thread-spec :doc "Inspect label distribution within a thread"}
    {:cmds ["linked-labels"] :fn linked-labels-cmd :spec linked-labels-spec :doc "Find labels that co-occur with a given label"}
-   {:cmds ["update-message-ids"] :fn update-msg-ids-cmd :spec update-msg-ids-spec :doc "Add :email/gmail-id and update :email/thread-id from gws mapping EDN"}])
+   {:cmds ["update-message-ids"] :fn update-msg-ids-cmd :spec update-msg-ids-spec :doc "Add :email/gmail-id and update :email/thread-id from gws mapping EDN"}
+   {:cmds ["update-bodies"] :fn update-bodies-cmd :spec update-bodies-spec :doc "Update :email/body-truncated from fetch-bodies EDN"}])
