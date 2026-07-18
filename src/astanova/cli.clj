@@ -735,10 +735,12 @@
     (println)
     (println "  -f, --from PATH  EDN file from map_gmail_ids.clj (required)")
     (println "  --dry-run        Preview updates without transacting")
+    (println "  --force          Update even if already set")
     (System/exit 0))
   (let [conn    (db/create-conn (:db opts))
         db      (d/db conn)
-        mapping (edn/read-string (slurp (:from opts)))]
+        mapping (edn/read-string (slurp (:from opts)))
+        force?   (:force opts)]
     (try
       (let [entries mapping
             total   (count entries)
@@ -759,7 +761,7 @@
             :else
             (let [entity (d/entity db [:email/id msg-id])]
               (if entity
-                (if (:email/gmail-id entity)
+                (if (and (:email/gmail-id entity) (not force?))
                   (do
                     (swap! skipped-already inc)
                     (println (format "  SKIP (already set): %s"

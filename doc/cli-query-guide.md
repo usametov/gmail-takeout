@@ -16,11 +16,14 @@ Query your email database from the command line using `./takeout query`.
 10. [MBOX Info Command](#mbox-info-command)
 11. [Split Command](#split-command)
 12. [Update Message IDs](#update-message-ids)
-13. [Gmail ID Mapping Script](#gmail-id-mapping-script)
-14. [Statistics](#statistics)
-15. [Labels Command](#labels-command)
-16. [CLI vs REPL](#cli-vs-repl)
-17. [All Options Reference](#all-options-reference)
+13. [Update Bodies](#update-bodies)
+14. [Gmail ID Mapping Script](#gmail-id-mapping-script)
+15. [Fetch Bodies Script](#fetch-bodies-script)
+16. [Pipeline Script](#pipeline-script)
+17. [Statistics](#statistics)
+18. [Labels Command](#labels-command)
+19. [CLI vs REPL](#cli-vs-repl)
+20. [All Options Reference](#all-options-reference)
 
 ---
 
@@ -579,47 +582,99 @@ Done: 42 updated, 2 skipped (errors), 1 not found, 45 total
 
 | Option | Description |
 |--------|-------------|
-| `-f` / `--from` | EDN mapping file from `map_gmail_ids.bb` (required) |
+| `-f` / `--from` | EDN mapping file from `map_gmail_ids.clj` (required) |
+| `--dry-run` | Preview updates without transacting |
+| `--force` | Update even if `:email/gmail-id` already set |
+
+---
+
+## Update Bodies
+
+Update `:email/body-truncated` and `:email/body-length` in the database
+using a bodies EDN file produced by `scripts/fetch-bodies.clj`.
+
+HTML bodies are converted to plain text using Hickory. Emails that already
+have a non-empty body are left untouched.
+
+### Prerequisites
+
+First, generate a bodies file using `scripts/fetch-bodies.clj` (see next section).
+The bodies file is an EDN map:
+
+```edn
+{"<msg-id>" {:body "<html>...</html>" :gmail-id "18a1abc" :subject "..."}
+ "<msg-id2>" {:error "fetch-failed" :gmail-id "18b2def"}
+ ...}
+```
+
+### Usage
+
+```bash
+# Preview changes
+./takeout -d emails.db update-bodies --from bodies.edn --dry-run
+
+# Apply
+./takeout -d emails.db update-bodies --from bodies.edn
+```
+
+Output:
+
+```
+Processing 45 entries from bodies.edn...
+  <msg-id>                                           body=1523 chars
+  SKIP (no body): gmail-id=18b2def msg-id=<msg-id2> error=fetch-failed
+  NOT FOUND: <missing-id>
+
+Done: 42 updated, 1 skipped (no body), 1 not found, 45 total
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `-f` / `--from` | EDN bodies file from `fetch-bodies.clj` (required) |
 | `--dry-run` | Preview updates without transacting |
 
 ---
 
 ## Gmail ID Mapping Script
 
-`scripts/map_gmail_ids.bb` is a Babashka script that calls the Gmail API
+`scripts/map_gmail_ids.clj` is a Babashka script that calls the Gmail API
 (via the `gws` CLI) to look up Gmail internal message IDs and thread IDs
-from RFC822 `Message-ID` headers.
+from RFC822 `Message-ID` headers. Skips emails that already have
+`:email/gmail-id` set (use `--force` to override).
 
 ### Workflow
 
 ```bash
 # Step 1: Query emails and pipe to the mapping script (dry-run first)
 ./takeout -d emails.db query -l "trading" -n 100 --format edn \
-  | bb scripts/map_gmail_ids.bb -o map-ids.edn
+  | bb scripts/map_gmail_ids.clj -o map-ids.edn
 
 # Step 2: Verify map-ids.edn looks correct, then run real API calls
 ./takeout -d emails.db query -l "trading" -n 100 --format edn \
-  | bb scripts/map_gmail_ids.bb -o map-ids.edn --no-dry-run
+  | bb scripts/map_gmail_ids.clj -o map-ids.edn --no-dry-run
 
 # Step 3: Update the database
 ./takeout -d emails.db update-message-ids --from map-ids.edn --dry-run
 ./takeout -d emails.db update-message-ids --from map-ids.edn
 
-# To process all emails (no query filter):
-./takeout -d emails.db query -n 0 --format edn \
-  | bb scripts/map_gmail_ids.bb -o all-ids.edn --skip 0 -n 1000 --no-dry-run
+# Force re-fetch all IDs (ignore existing :email/gmail-id):
+./takeout -d emails.db query -l "trading" --format edn \
+  | bb scripts/map_gmail_ids.clj -o map-ids.edn --no-dry-run --force
 ```
 
 ### How it works
 
 1. Reads EDN from stdin — accepts the query output format `{:total .. :results [...]}`
    or raw lists of `:email/id` values
-2. For each `:email/id` (RFC822 Message-ID), calls:
+2. Skips entries that already have `:email/gmail-id` (unless `--force`)
+3. For each `:email/id` (RFC822 Message-ID), calls:
    ```bash
    gws gmail users messages list --params '{"userId":"me","q":"rfc822msgid:<id>"}'
    ```
-3. Extracts Gmail internal `id` and `threadId` from the JSON response
-4. Writes the mapping as EDN to the output file
+4. Extracts Gmail internal `id` and `threadId` from the JSON response
+5. Writes the mapping as EDN to the output file
 
 ### Options
 
@@ -631,6 +686,7 @@ from RFC822 `Message-ID` headers.
 | `-s` / `--skip` | Skip first N IDs (for resume) |
 | `--user-id` | Gmail user ID (default: `me`) |
 | `--no-dry-run` | Actually call the Gmail API |
+| `--force` | Re-fetch even if `:email/gmail-id` already set |
 
 ### Output format
 
@@ -641,6 +697,99 @@ from RFC822 `Message-ID` headers.
 ```
 
 Entries with `:error` are skipped by `update-message-ids`.
+
+---
+
+## Fetch Bodies Script
+
+`scripts/fetch-bodies.clj` fetches full email bodies from the Gmail API
+for emails with empty `:email/body-truncated`. Calls `gws gmail +read`
+for each email that has `:email/gmail-id` set.
+
+### Workflow
+
+```bash
+# Dry-run first
+./takeout -d emails.db query -l "trading" --format edn \
+  | bb scripts/fetch-bodies.clj -o bodies.edn
+
+# Real API calls
+./takeout -d emails.db query -l "trading" --format edn \
+  | bb scripts/fetch-bodies.clj -o bodies.edn --no-dry-run
+
+# Then update the database
+./takeout -d emails.db update-bodies --from bodies.edn --dry-run
+./takeout -d emails.db update-bodies --from bodies.edn
+```
+
+### How it works
+
+1. Reads EDN from stdin — accepts query output format
+2. Skips emails with non-empty `:email/body-truncated`
+3. Warns about emails missing `:email/gmail-id`
+4. For each, calls:
+   ```bash
+   gws gmail +read --id <gmail-id> --headers --format json
+   ```
+5. Extracts `body_html` from the JSON response
+6. Writes bodies as EDN to the output file
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `-o` / `--out-file` | Output EDN file (default: `bodies.edn`) |
+| `-d` / `--delay` | Delay in ms between API calls (default: `500`) |
+| `-n` / `--limit` | Max emails to fetch (0 = all, default) |
+| `--no-dry-run` | Actually call the Gmail API |
+
+### Output format
+
+```edn
+{"<msg-id>" {:body "<html>full email body...</html>"
+             :gmail-id "18a1abc"
+             :db-id "<CAE=9OB...@mail.gmail.com>"
+             :subject "Re: Trading update"
+             :from "alice@example.com"}
+ "<msg-id2>" {:error "fetch-failed"
+              :gmail-id "18b2def"
+              :db-id "<other@mail.gmail.com>"}}
+```
+
+Entries with `:error` are skipped by `update-bodies`.
+
+---
+
+## Pipeline Script
+
+`scripts/update-label-pipeline.clj` runs all four steps in sequence for a
+given label:
+
+```bash
+# Dry-run (safe — no API calls, no DB changes)
+bb scripts/update-label-pipeline.clj "video/youtube"
+
+# Real run
+bb scripts/update-label-pipeline.clj "video/youtube" --no-dry-run
+
+# Real run with force, limited to 500 emails
+bb scripts/update-label-pipeline.clj "video/youtube" --no-dry-run --force -n 500
+```
+
+### Steps
+
+1. **Map Gmail IDs** — query emails by label, pipe to `map_gmail_ids.clj`
+2. **Update Gmail IDs** — `update-message-ids --from <map-file>`
+3. **Fetch bodies** — query again, pipe to `fetch-bodies.clj`
+4. **Update bodies** — `update-bodies --from <bodies-file>`
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--no-dry-run` | Actually call gws API and transact to DB |
+| `--force` | Re-fetch Gmail IDs even if already set |
+| `-n` / `--limit` | Max emails to process (default: all) |
 
 ---
 
@@ -723,7 +872,15 @@ See the [query-guide.md](query-guide.md) for the complete REPL query reference.
 
 | Option | Description |
 |--------|-------------|
-| `-f` / `--from` | EDN mapping file from `map_gmail_ids.bb` (required) |
+| `-f` / `--from` | EDN mapping file from `map_gmail_ids.clj` (required) |
+| `--dry-run` | Preview updates without transacting |
+| `--force` | Update even if already set |
+
+### Update Bodies options
+
+| Option | Description |
+|--------|-------------|
+| `-f` / `--from` | EDN bodies file from `fetch-bodies.clj` (required) |
 | `--dry-run` | Preview updates without transacting |
 
 ### Query options
