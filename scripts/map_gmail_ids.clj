@@ -20,6 +20,7 @@
 ;;   -s, --skip N          Skip first N IDs (for resume)
 ;;   --user-id ID          Gmail user ID (default: me)
 ;;   --no-dry-run          Actually call gws API
+;;   --force               Re-fetch even if :email/gmail-id already set
 
 (require '[cheshire.core :as json]
          '[babashka.process :as p]
@@ -38,7 +39,8 @@
                :limit    0
                :skip     0
                :user-id  "me"
-               :dry-run  true}]
+               :dry-run  true
+               :force    false}]
     (if-let [arg (first args)]
       (case arg
         "-o"      (recur (nnext args) (assoc opts :out-file (second args)))
@@ -51,6 +53,7 @@
         "--skip"  (recur (nnext args) (assoc opts :skip (parse-int (second args))))
         "--user-id" (recur (nnext args) (assoc opts :user-id (second args)))
         "--no-dry-run" (recur (next args) (assoc opts :dry-run false))
+        "--force"      (recur (next args) (assoc opts :force true))
         (do (println "Unknown option:" arg)
             (System/exit 1)))
       opts)))
@@ -131,14 +134,16 @@
         skip      (:skip opts)
         user-id   (:user-id opts)
         dry-run?  (:dry-run opts)
+        force?    (:force opts)
 
         ;; Read EDN from stdin
         input       (edn/read-string (slurp *in*))
         all-items   (items-from-input input)
 
         ;; Split: items that already have gmail-id vs those that need lookup
-        already-have (filter item-already-has-gmail? all-items)
-        need-lookup  (remove item-already-has-gmail? all-items)
+        ;; When --force, treat all items as needing lookup
+        already-have (if force? [] (filter item-already-has-gmail? all-items))
+        need-lookup  (if force? all-items (remove item-already-has-gmail? all-items))
 
         ;; Extract Message-IDs for items needing lookup
         lookup-ids  (->> need-lookup
@@ -151,11 +156,13 @@
                       (pos? limit)    (take limit))
         lookup-ids  (vec lookup-ids)]
 
-    (println "Processing" (count lookup-ids) "IDs"
-             "(already have:" (count already-have) ")"
-             (str "(delay=" delay-ms "ms, skip=" skip
-                  (when (pos? limit) (str ", limit=" limit))
-                  (when dry-run? " [DRY-RUN]") ")"))
+    (println (str "Processing " (count lookup-ids) " IDs"
+                 (when (seq already-have) (str " (already have: " (count already-have) ")"))
+                 (when force? " [FORCE]")
+                 " (delay=" delay-ms "ms, skip=" skip
+                 (when (pos? limit) (str ", limit=" limit))
+                 (when dry-run? " [DRY-RUN]")
+                 ")"))
     (println "Output:" out-file)
     (println)
 
