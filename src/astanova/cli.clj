@@ -5,6 +5,7 @@
             [astanova.ingest :as ingest]
             [astanova.label :as label]
             [astanova.parse :as parse]
+            [astanova.content-processor :as cp]
             [cheshire.core :as json]
             [clojure.edn :as edn]
             [clojure.string :as str]
@@ -835,6 +836,62 @@
                        @updated @skipped @missing (count mapping)))
       (db/close-conn conn))))
 
+(def extract-urls-spec
+  {:label  {:alias :l :desc "Gmail label to query (required)" :required true}
+   :output {:alias :o :desc "Output file path (stdout if not specified)"}
+   :limit  {:alias :n :desc "Max emails (default: 100)"}
+   :offset {:desc "Offset for pagination (default: 0)"}
+   :format {:desc "Output format: edn | json" :default "edn"}})
+
+(defn- extract-urls-cmd [{:keys [opts]}]
+  (when (:help opts)
+    (println "Usage: takeout extract-urls -l <label> [-o <file>] [-n <limit>] [--offset <n>]")
+    (println)
+    (println "  -l, --label LABEL  Gmail label (required)")
+    (println "  -o, --output PATH  Output file (stdout if omitted)")
+    (println "  -n, --limit N     Max emails (default: 100)")
+    (println "  --offset N        Offset for pagination (default: 0)")
+    (println "  --format FMT      Output: edn | json (default: edn)")
+    (System/exit 0))
+  (let [conn   (db/create-conn (:db opts))
+        db     (d/db conn)
+        label  (:label opts)
+        output (:output opts)
+        limit  (or (:limit opts) 100)
+        offset (or (:offset opts) 0)
+        fmt    (keyword (:format opts))]
+    (try
+      (let [results
+            (->> (d/q '[:find [(pull ?e [:email/id :email/subject :email/body-truncated]) ...]
+                        :in $ ?label
+                        :where [?e :email/labels ?label]]
+                      db label)
+                 (drop offset)
+                 (take limit)
+                 (keep (fn [item]
+                         (let [body (:email/body-truncated item)
+                               urls (cp/extract-urls body)]
+                           (cond
+                             (seq urls)
+                             [(:email/id item) urls]
+                             (str/blank? body)
+                             (do (println (str "  (no body) " (:email/id item)))
+                                 nil)
+                             :else
+                             (do (println (str "  (no URL) " (:email/id item)))
+                                 nil)))))
+                 (into {}))
+            output-str (case fmt
+                         :edn  (with-out-str (clojure.pprint/pprint results))
+                         :json (json/generate-string results))]
+        (if output
+          (spit output output-str)
+          (print output-str))
+        (println (str "\n" (count results) " emails with URLs (label: " label ")"
+                      (when output (str " -> " output)))))
+      (finally
+        (db/close-conn conn)))))
+
 (def cli-tree
   "Command dispatch table for babashka/cli."
   [{:cmds [] :spec global-spec :fn (fn [{:keys [opts] :as m}]
@@ -859,8 +916,10 @@
                                           (println "  propagate                   Propagate a label to all emails in threads")
                                           (println "  inspect-thread              Inspect label distribution within a thread")
                                           (println "  linked-labels               Find labels that co-occur with a given label")
+                                          (println "  extract-urls                Extract URLs from email bodies by label")
                                           (println "  update-message-ids          Add :email/gmail-id from gws mapping EDN")
                                           (println "  update-bodies               Update :email/body-truncated from fetch-bodies EDN")
+                                          (println "  extract-urls                Extract URLs from email bodies by label")
                                           (println)
                                           (println "Run 'takeout <command> --help' for command-specific options."))
                                         (println "No command specified. Use --help for usage.")))}
@@ -878,4 +937,5 @@
    {:cmds ["inspect-thread"] :fn inspect-thread-cmd :spec inspect-thread-spec :doc "Inspect label distribution within a thread"}
    {:cmds ["linked-labels"] :fn linked-labels-cmd :spec linked-labels-spec :doc "Find labels that co-occur with a given label"}
    {:cmds ["update-message-ids"] :fn update-msg-ids-cmd :spec update-msg-ids-spec :doc "Add :email/gmail-id and update :email/thread-id from gws mapping EDN"}
-   {:cmds ["update-bodies"] :fn update-bodies-cmd :spec update-bodies-spec :doc "Update :email/body-truncated from fetch-bodies EDN"}])
+   {:cmds ["update-bodies"] :fn update-bodies-cmd :spec update-bodies-spec :doc "Update :email/body-truncated from fetch-bodies EDN"}
+   {:cmds ["extract-urls"] :fn extract-urls-cmd :spec extract-urls-spec :doc "Extract URLs from email bodies by label"}])

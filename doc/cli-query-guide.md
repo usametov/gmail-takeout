@@ -20,7 +20,8 @@ Query your email database from the command line using `./takeout query`.
 14. [Gmail ID Mapping Script](#gmail-id-mapping-script)
 15. [Fetch Bodies Script](#fetch-bodies-script)
 16. [Pipeline Script](#pipeline-script)
-17. [Statistics](#statistics)
+17. [Extract URLs](#extract-urls)
+18. [Statistics](#statistics)
 18. [Labels Command](#labels-command)
 19. [CLI vs REPL](#cli-vs-repl)
 20. [All Options Reference](#all-options-reference)
@@ -793,6 +794,51 @@ bb scripts/update-label-pipeline.clj "video/youtube" --no-dry-run --force -n 500
 
 ---
 
+## Extract URLs
+
+Extract `https?://` URLs from email bodies for emails matching a label.
+Outputs an EDN or JSON map: `{<email-id> [url1 url2 ...], ...}`.
+
+Emails with empty bodies log `(no body) <id>` to stderr; emails with a body
+but no URLs found log `(no URL) <id>`.
+
+### Usage
+
+```bash
+# Extract URLs for a label (stdout)
+./takeout -d emails.db extract-urls -l "video/youtube" -n 100
+
+# Write to file
+./takeout -d emails.db extract-urls -l "video/youtube" -n 100 -o urls.edn
+
+# JSON output
+./takeout -d emails.db extract-urls -l "video/youtube" -n 50 --format json
+
+# Paginate
+./takeout -d emails.db extract-urls -l "video/youtube" -n 50 --offset 100
+```
+
+Output:
+
+```edn
+{"<CAE=9OB...@mail.gmail.com>" ["https://www.youtube.com/watch?v=tE_wGeKSy_4"]
+ "<other@mail.gmail.com>"  ["https://youtu.be/PTN_Ao4JQu0" "https://example.com"]}
+
+94 emails with URLs (label: video/youtube)
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `-l` / `--label` | Gmail label to query (required) |
+| `-o` / `--output` | Output file path (stdout if omitted) |
+| `-n` / `--limit` | Max emails to process (default: 100) |
+| `--offset` | Offset for pagination (default: 0) |
+| `--format` | Output: `edn` or `json` (default: `edn`) |
+
+---
+
 ## Statistics
 
 ```bash
@@ -882,6 +928,16 @@ See the [query-guide.md](query-guide.md) for the complete REPL query reference.
 |--------|-------------|
 | `-f` / `--from` | EDN bodies file from `fetch-bodies.clj` (required) |
 | `--dry-run` | Preview updates without transacting |
+
+### Extract URLs options
+
+| Option | Description |
+|--------|-------------|
+| `-l` / `--label` | Gmail label to query (required) |
+| `-o` / `--output` | Output file path (stdout if omitted) |
+| `-n` / `--limit` | Max emails (default: 100) |
+| `--offset` | Offset for pagination (default: 0) |
+| `--format` | Output: `edn` or `json` (default: `edn`) |
 
 ### Query options
 
