@@ -500,7 +500,8 @@
 
 (defn- build-query [clauses]
   (let [pull-pattern [:email/id :email/subject :email/from :email/to
-                      :email/date :email/labels :email/body-truncated
+                      :email/date :email/labels :email/links
+                      :email/body-truncated
                       :email/gmail-id :email/thread-id]]
     (vec (concat
           [:find [(list 'pull '?e (vec pull-pattern)) (symbol "...")]]
