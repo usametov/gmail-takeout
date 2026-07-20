@@ -52,6 +52,9 @@
    :email/labels      {:db/valueType   :db.type/string
                        :db/cardinality :db.cardinality/many
                        :db/doc         "Gmail labels or derived tags"}
+   :email/links       {:db/valueType   :db.type/string
+                       :db/cardinality :db.cardinality/many
+                       :db/doc         "Extracted https? URLs from email body"}
    :email/attachments {:db/valueType   :db.type/string
                         :db/cardinality :db.cardinality/many
                         :db/doc         "Attachment metadata as EDN: {:filename .. :content-type .. :size ..}"}})

@@ -892,6 +892,47 @@
       (finally
         (db/close-conn conn)))))
 
+(def update-links-spec
+  {:from {:alias :f :desc "EDN file from extract-urls (required)" :required true}
+   :dry-run {:desc "Preview updates without transacting"}})
+
+(defn- update-links-cmd [{:keys [opts]}]
+  (when (:help opts)
+    (println "Usage: takeout update-links --from <edn-file> [--dry-run]")
+    (println)
+    (println "  -f, --from PATH  EDN file from extract-urls (required)")
+    (println "  --dry-run        Preview updates without transacting")
+    (System/exit 0))
+  (let [conn    (db/create-conn (:db opts))
+        db      (d/db conn)
+        mapping (edn/read-string (slurp (:from opts)))]
+    (println (format "Processing %d entries from %s..." (count mapping) (:from opts)))
+    (let [updated (atom 0)
+          missing (atom 0)
+          empty   (atom 0)]
+      (doseq [[msg-id urls] mapping]
+        (if (seq urls)
+          (let [entity (d/entity db [:email/id msg-id])]
+            (if entity
+              (let [txn (if (:dry-run opts)
+                          []
+                          [{:db/id      (:db/id entity)
+                            :email/links urls}])]
+                (when (seq txn)
+                  (d/transact! conn txn))
+                (swap! updated inc)
+                (when (:dry-run opts)
+                  (println (format "  %-50s %d links"
+                                  (subs msg-id 0 (min 50 (count msg-id)))
+                                  (count urls)))))
+              (do (swap! missing inc)
+                  (println (format "  NOT FOUND: %s" (subs msg-id 0 (min 60 (count msg-id))))))))
+          (do (swap! empty inc)
+              (println (format "  SKIP (no links): %s" (subs msg-id 0 (min 50 (count msg-id))))))))
+      (println (format "\nDone: %d updated, %d skipped (no links), %d not found, %d total"
+                       @updated @empty @missing (count mapping)))
+      (db/close-conn conn))))
+
 (def cli-tree
   "Command dispatch table for babashka/cli."
   [{:cmds [] :spec global-spec :fn (fn [{:keys [opts] :as m}]
@@ -919,6 +960,7 @@
                                           (println "  extract-urls                Extract URLs from email bodies by label")
                                           (println "  update-message-ids          Add :email/gmail-id from gws mapping EDN")
                                           (println "  update-bodies               Update :email/body-truncated from fetch-bodies EDN")
+                                          (println "  update-links                Update :email/links from extract-urls EDN")
                                           (println "  extract-urls                Extract URLs from email bodies by label")
                                           (println)
                                           (println "Run 'takeout <command> --help' for command-specific options."))
@@ -938,4 +980,5 @@
    {:cmds ["linked-labels"] :fn linked-labels-cmd :spec linked-labels-spec :doc "Find labels that co-occur with a given label"}
    {:cmds ["update-message-ids"] :fn update-msg-ids-cmd :spec update-msg-ids-spec :doc "Add :email/gmail-id and update :email/thread-id from gws mapping EDN"}
    {:cmds ["update-bodies"] :fn update-bodies-cmd :spec update-bodies-spec :doc "Update :email/body-truncated from fetch-bodies EDN"}
+   {:cmds ["update-links"] :fn update-links-cmd :spec update-links-spec :doc "Update :email/links from extract-urls EDN"}
    {:cmds ["extract-urls"] :fn extract-urls-cmd :spec extract-urls-spec :doc "Extract URLs from email bodies by label"}])
