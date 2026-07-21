@@ -956,18 +956,19 @@
         (doseq [[url content] links]
           (let [content-type (type-map (:type content))
                 url-hash     (format "%064x" (BigInteger. 1 (.digest md (.getBytes url "UTF-8"))))
-                url-host     (or (second (re-find #"https?://([^/]+)" url)) "unknown")]
-            (if content-type
+                url-host     (or (second (re-find #"https?://([^/]+)" url)) "unknown")
+                body-text    (or (:readme content) (:xml content)
+                                 (:transcript content)
+                                 (when (:title content)
+                                   (str (:title content) "\n\n" (:description content))))]
+            (if (and content-type (not (str/blank? body-text)))
               (let [txn (if (:dry-run opts)
                           []
                           [{:content/id           url-hash
                             :content/url          url
                             :content/host         url-host
                             :content/type         content-type
-                            :content/body         (or (:readme content) (:xml content)
-                                                       (:transcript content)
-                                                       (str (:title content) "\n\n" (:description content))
-                                                       "")
+                            :content/body         body-text
                             :content/source-email email-id}])]
                 (when (seq txn)
                   (d/transact! conn txn))
@@ -976,9 +977,9 @@
                   (println (format "  %s %s (%d chars)"
                                   (name content-type)
                                   url-host
-                                  (count (or (:readme content) (:xml content) (:transcript content) ""))))))
+                                  (count body-text)))))
               (do (swap! skipped inc)
-                  (println (format "  SKIP (unknown type): %s" (subs url 0 (min 60 (count url))))))))))
+                  (println (format "  SKIP (no body): %s" (subs url 0 (min 60 (count url))))))))))
       (println (format "\nDone: %d content entities, %d skipped, from %d emails"
                        @upserted @skipped (count mapping)))
       (db/close-conn conn))))
@@ -999,40 +1000,37 @@
         limit  (or (:limit opts) 50)
         fmt    (keyword (:format opts))]
     (try
-      (let [results
-            (->> (d/q '[:find (pull ?c [*]) ?subject ?from ?date
-                        :where [?e :email/id ?email-id]
-                               [?e :email/subject ?subject]
-                               [?e :email/from ?from]
-                               [?e :email/date ?date]
-                               [?c :content/source-email ?email-id]
-                               [?c :content/host ?host]
-                               [?c :content/type ?ctype]
-                               [?c :content/url ?url]]
-                      db)
-                 (cond->>
-                   label (filter (fn [[_ _ _ _]] true))  ;; pass-through, label filter below
-                   host  (filter (fn [[c]] (= host (:content/host c))))
-                   ctype (filter (fn [[c]] (= (keyword ctype) (:content/type c)))))
-                 (take limit))]
-        ;; Post-filter by label if needed
-        (let [results (if label
-                        (filter (fn [[c _subject _from _date]]
-                                  (let [email (d/entity db [:email/id (:content/source-email c)])]
-                                    (some #(= label %) (:email/labels email))))
-                                results)
-                        results)]
-          (case fmt
-            :table
-            (doseq [[c subject from date] results]
-              (println (format "%-15s %-8s %-55s %s" (name (:content/type c)) (:content/host c) (subs (:content/url c) 0 (min 55 (count (:content/url c)))) subject))
-              (println (format "  from: %-30s date: %s" from (str date)))
-              (println))
-            :edn
-            (clojure.pprint/pprint (mapv (fn [[c s f d]] {:content c :subject s :from f :date d}) results))
-            :json
-            (println (json/generate-string (mapv (fn [[c s f d]] {:content c :subject s :from f :date d}) results))))
-          (println (str "\n" (count results) " results"))))
+      (let [all (d/q '[:find (pull ?c [*]) ?subject ?from ?date
+                       :where [?e :email/id ?email-id]
+                              [?e :email/subject ?subject]
+                              [?e :email/from ?from]
+                              [?e :email/date ?date]
+                              [?c :content/source-email ?email-id]
+                              [?c :content/host ?host]
+                              [?c :content/type ?ctype]
+                              [?c :content/url ?url]]
+                     db)
+            by-host (if host (filterv (fn [[c]] (= host (:content/host c))) all) all)
+            by-type (if ctype (filterv (fn [[c]] (= (keyword ctype) (:content/type c))) by-host) by-host)
+            by-label (if label
+                       (filterv (fn [[c _ _ _]]
+                                  (let [e (d/entity db [:email/id (:content/source-email c)])]
+                                    (some #(= label %) (:email/labels e))))
+                                by-type)
+                       by-type)
+            results (take limit by-label)]
+        (case fmt
+          :table
+          (doseq [[c subject from date] results]
+            (println (format "%-15s %-8s %-55s %s" (name (:content/type c)) (:content/host c)
+                             (subs (:content/url c) 0 (min 55 (count (:content/url c)))) subject))
+            (println (format "  from: %-30s date: %s" from (str date)))
+            (println))
+          :edn
+          (clojure.pprint/pprint (mapv (fn [[c s f d]] {:content c :subject s :from f :date d}) results))
+          :json
+          (println (json/generate-string (mapv (fn [[c s f d]] {:content c :subject s :from f :date d}) results))))
+        (println (str "\n" (count results) " results")))
       (finally
         (db/close-conn conn)))))
 

@@ -104,10 +104,12 @@
               title (:title data)
               desc  (:description data)
               dur   (:duration data)]
-          {:type :youtube
-           :title title
-           :description (subs (or desc "") 0 (min 2000 (count (or desc ""))))
-           :duration dur})
+          (if (and title (not (str/blank? title)))
+            {:type :youtube
+             :title title
+             :description (subs (or desc "") 0 (min 2000 (count (or desc ""))))
+             :duration dur}
+            {:type :youtube :error (str "no title from yt-dlp" (when err (str ": " err)))}))
         {:type :youtube :error (str "yt-dlp failed: " (or err "unknown"))}))
     (catch Exception e {:type :youtube :error (str e)})))
 
