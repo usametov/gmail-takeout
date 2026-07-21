@@ -21,7 +21,10 @@ Query your email database from the command line using `./takeout query`.
 15. [Fetch Bodies Script](#fetch-bodies-script)
 16. [Pipeline Script](#pipeline-script)
 17. [Extract URLs](#extract-urls)
-18. [Statistics](#statistics)
+18. [Update Links](#update-links)
+19. [Fetch Content Script](#fetch-content-script)
+20. [Upsert Content](#upsert-content)
+21. [Statistics](#statistics)
 18. [Labels Command](#labels-command)
 19. [CLI vs REPL](#cli-vs-repl)
 20. [All Options Reference](#all-options-reference)
@@ -839,6 +842,136 @@ Output:
 
 ---
 
+## Update Links
+
+Store extracted URLs as `:email/links` (many strings) on email entities.
+Reads the EDN file produced by `extract-urls`.
+
+### Usage
+
+```bash
+# Dry-run
+./takeout -d emails.db update-links --from urls.edn --dry-run
+
+# Apply
+./takeout -d emails.db update-links --from urls.edn
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `-f` / `--from` | EDN file from `extract-urls` (required) |
+| `--dry-run` | Preview without transacting |
+
+---
+
+## Fetch Content Script
+
+`scripts/fetch-content.clj` fetches content for URLs found in emails:
+arxiv abstracts (raw XML), GitHub READMEs (markdown), and YouTube metadata
+(title, description, duration) via `yt-dlp`.
+
+Uses `babashka.http-client` for all HTTP calls — no external dependencies
+beyond Babashka and `yt-dlp`.
+
+### Workflow
+
+```bash
+# Dry-run first
+./takeout -d emails.db query -l "trading" --format edn \
+  | bb scripts/fetch-content.clj -o content.edn
+
+# Real API calls
+./takeout -d emails.db query -l "trading" --format edn \
+  | bb scripts/fetch-content.clj -o content.edn --no-dry-run
+
+# Then store as content entities
+./takeout -d emails.db upsert-content --from content.edn
+```
+
+### Content types
+
+| Type | Source | Data |
+|------|--------|------|
+| `:arxiv` | `export.arxiv.org/api` | Raw Atom XML |
+| `:github` | `raw.githubusercontent.com` | README.md/.txt/.rst/.org (master, then main) |
+| `:youtube` | `yt-dlp --dump-json` | Title, description, duration |
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `-o` / `--out-file` | Output EDN file (default: `content.edn`) |
+| `-d` / `--delay` | Delay in ms between fetches (default: `1000`) |
+| `-n` / `--limit` | Max emails to process (0 = all) |
+| `--no-dry-run` | Actually fetch content |
+
+### Output format
+
+```edn
+{"<email-id>"
+ {:links
+  {"https://arxiv.org/abs/2412.20138" {:type :arxiv :xml "<?xml..."}
+   "https://github.com/u/r" {:type :github :readme "# Project..."}
+   "https://youtube.com/watch?v=..." {:type :youtube :title "..." :description "..." :duration 281}}}},
+ ...}
+```
+
+---
+
+## Upsert Content
+
+Store fetched content as `:content` entities in the database.
+Reads the EDN file produced by `fetch-content.clj` (`scripts/fetch-content.clj`).
+
+Each content entity is uniquely identified by a SHA-256 hash of its URL.
+
+### Content schema
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `:content/id` | string (unique) | SHA-256 hash of `:content/url` |
+| `:content/url` | string | Source URL |
+| `:content/host` | string | Domain (arxiv.org, github.com, youtube.com) |
+| `:content/type` | keyword | `:paper`, `:git-repo`, or `:video-transcript` |
+| `:content/body` | string | Raw XML, markdown, or title+description |
+| `:content/source-email` | string | `:email/id` this content was extracted from |
+
+### Usage
+
+```bash
+# Dry-run
+./takeout -d emails.db upsert-content --from content.edn --dry-run
+
+# Apply
+./takeout -d emails.db upsert-content --from content.edn
+```
+
+### Full content pipeline
+
+```bash
+# 1. Extract URLs from email bodies
+./takeout extract-urls -l "trading" -n 100 -o urls.edn
+./takeout update-links --from urls.edn
+
+# 2. Fetch content
+./takeout query -l "trading" --format edn \
+  | bb scripts/fetch-content.clj -o content.edn --no-dry-run
+
+# 3. Store as content entities
+./takeout upsert-content --from content.edn
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `-f` / `--from` | EDN file from `fetch-content.clj` (required) |
+| `--dry-run` | Preview without transacting |
+
+---
+
 ## Statistics
 
 ```bash
@@ -938,6 +1071,20 @@ See the [query-guide.md](query-guide.md) for the complete REPL query reference.
 | `-n` / `--limit` | Max emails (default: 100) |
 | `--offset` | Offset for pagination (default: 0) |
 | `--format` | Output: `edn` or `json` (default: `edn`) |
+
+### Update Links options
+
+| Option | Description |
+|--------|-------------|
+| `-f` / `--from` | EDN file from `extract-urls` (required) |
+| `--dry-run` | Preview without transacting |
+
+### Upsert Content options
+
+| Option | Description |
+|--------|-------------|
+| `-f` / `--from` | EDN file from `fetch-content.clj` (required) |
+| `--dry-run` | Preview without transacting |
 
 ### Query options
 

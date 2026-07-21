@@ -934,6 +934,108 @@
                        @updated @empty @missing (count mapping)))
       (db/close-conn conn))))
 
+(def upsert-content-spec
+  {:from {:alias :f :desc "EDN file from fetch-content.clj (required)" :required true}
+   :dry-run {:desc "Preview without transacting"}})
+
+(defn- upsert-content-cmd [{:keys [opts]}]
+  (when (:help opts)
+    (println "Usage: takeout upsert-content --from <edn-file> [--dry-run]")
+    (println)
+    (println "  -f, --from PATH  EDN file from fetch-content.clj (required)")
+    (println "  --dry-run        Preview without transacting")
+    (System/exit 0))
+  (let [conn     (db/create-conn (:db opts))
+        mapping  (edn/read-string (slurp (:from opts)))
+        type-map {:arxiv :paper :github :git-repo :youtube :video-transcript}
+        md       (java.security.MessageDigest/getInstance "SHA-256")]
+    (println (format "Processing %d emails from %s..." (count mapping) (:from opts)))
+    (let [upserted (atom 0)
+          skipped  (atom 0)]
+      (doseq [[email-id {:keys [links]}] mapping]
+        (doseq [[url content] links]
+          (let [content-type (type-map (:type content))
+                url-hash     (format "%064x" (BigInteger. 1 (.digest md (.getBytes url "UTF-8"))))
+                url-host     (or (second (re-find #"https?://([^/]+)" url)) "unknown")]
+            (if content-type
+              (let [txn (if (:dry-run opts)
+                          []
+                          [{:content/id           url-hash
+                            :content/url          url
+                            :content/host         url-host
+                            :content/type         content-type
+                            :content/body         (or (:readme content) (:xml content)
+                                                       (:transcript content)
+                                                       (str (:title content) "\n\n" (:description content))
+                                                       "")
+                            :content/source-email email-id}])]
+                (when (seq txn)
+                  (d/transact! conn txn))
+                (swap! upserted inc)
+                (when (:dry-run opts)
+                  (println (format "  %s %s (%d chars)"
+                                  (name content-type)
+                                  url-host
+                                  (count (or (:readme content) (:xml content) (:transcript content) ""))))))
+              (do (swap! skipped inc)
+                  (println (format "  SKIP (unknown type): %s" (subs url 0 (min 60 (count url))))))))))
+      (println (format "\nDone: %d content entities, %d skipped, from %d emails"
+                       @upserted @skipped (count mapping)))
+      (db/close-conn conn))))
+
+(def content-query-spec
+  {:label {:alias :l :desc "Filter by email label"}
+   :host  {:alias :h :desc "Filter by content host (arxiv.org, github.com, etc.)"}
+   :type  {:alias :t :desc "Content type: paper, git-repo, video-transcript"}
+   :limit {:alias :n :desc "Max results (default: 50)"}
+   :format {:desc "Output: edn | json | table" :default "table"}})
+
+(defn- content-query-cmd [{:keys [opts]}]
+  (let [conn   (db/create-conn (:db opts))
+        db     (d/db conn)
+        label  (:label opts)
+        host   (:host opts)
+        ctype  (:type opts)
+        limit  (or (:limit opts) 50)
+        fmt    (keyword (:format opts))]
+    (try
+      (let [results
+            (->> (d/q '[:find (pull ?c [*]) ?subject ?from ?date
+                        :where [?e :email/id ?email-id]
+                               [?e :email/subject ?subject]
+                               [?e :email/from ?from]
+                               [?e :email/date ?date]
+                               [?c :content/source-email ?email-id]
+                               [?c :content/host ?host]
+                               [?c :content/type ?ctype]
+                               [?c :content/url ?url]]
+                      db)
+                 (cond->>
+                   label (filter (fn [[_ _ _ _]] true))  ;; pass-through, label filter below
+                   host  (filter (fn [[c]] (= host (:content/host c))))
+                   ctype (filter (fn [[c]] (= (keyword ctype) (:content/type c)))))
+                 (take limit))]
+        ;; Post-filter by label if needed
+        (let [results (if label
+                        (filter (fn [[c _subject _from _date]]
+                                  (let [email (d/entity db [:email/id (:content/source-email c)])]
+                                    (some #(= label %) (:email/labels email))))
+                                results)
+                        results)]
+          (case fmt
+            :table
+            (doseq [[c subject from date] results]
+              (println (format "%-15s %-8s %-55s %s" (name (:content/type c)) (:content/host c) (subs (:content/url c) 0 (min 55 (count (:content/url c)))) subject))
+              (println (format "  from: %-30s date: %s" from (str date)))
+              (println))
+            :edn
+            (clojure.pprint/pprint (mapv (fn [[c s f d]] {:content c :subject s :from f :date d}) results))
+            :json
+            (println (json/generate-string (mapv (fn [[c s f d]] {:content c :subject s :from f :date d}) results))))
+          (println (str "\n" (count results) " results"))))
+      (finally
+        (db/close-conn conn)))))
+
 (def cli-tree
   "Command dispatch table for babashka/cli."
   [{:cmds [] :spec global-spec :fn (fn [{:keys [opts] :as m}]
@@ -962,6 +1064,8 @@
                                           (println "  update-message-ids          Add :email/gmail-id from gws mapping EDN")
                                           (println "  update-bodies               Update :email/body-truncated from fetch-bodies EDN")
                                           (println "  update-links                Update :email/links from extract-urls EDN")
+                                          (println "  upsert-content              Store fetched content as :content entities")
+                                          (println "  content                     Query content entities joined with emails")
                                           (println "  extract-urls                Extract URLs from email bodies by label")
                                           (println)
                                           (println "Run 'takeout <command> --help' for command-specific options."))
@@ -982,4 +1086,6 @@
    {:cmds ["update-message-ids"] :fn update-msg-ids-cmd :spec update-msg-ids-spec :doc "Add :email/gmail-id and update :email/thread-id from gws mapping EDN"}
    {:cmds ["update-bodies"] :fn update-bodies-cmd :spec update-bodies-spec :doc "Update :email/body-truncated from fetch-bodies EDN"}
    {:cmds ["update-links"] :fn update-links-cmd :spec update-links-spec :doc "Update :email/links from extract-urls EDN"}
+   {:cmds ["upsert-content"] :fn upsert-content-cmd :spec upsert-content-spec :doc "Store fetched content as :content entities"}
+   {:cmds ["content"] :fn content-query-cmd :spec content-query-spec :doc "Query content entities joined with source emails"}
    {:cmds ["extract-urls"] :fn extract-urls-cmd :spec extract-urls-spec :doc "Extract URLs from email bodies by label"}])

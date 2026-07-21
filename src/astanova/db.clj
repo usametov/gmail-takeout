@@ -59,6 +59,34 @@
                         :db/cardinality :db.cardinality/many
                         :db/doc         "Attachment metadata as EDN: {:filename .. :content-type .. :size ..}"}})
 
+(defn build-content-schema
+  "Schema for content entities (arxiv papers, GitHub READMEs, YouTube transcripts)."
+  []
+  {:content/id        {:db/valueType   :db.type/string
+                        :db/cardinality :db.cardinality/one
+                        :db/unique      :db.unique/identity
+                        :db/doc         "SHA-256 hash of :content/url"}
+   :content/url       {:db/valueType   :db.type/string
+                        :db/cardinality :db.cardinality/one
+                        :db/doc         "Canonical URL for this content"}
+   :content/host      {:db/valueType   :db.type/string
+                        :db/cardinality :db.cardinality/one
+                        :db/doc         "Domain: arxiv.org, github.com, youtube.com, etc."}
+   :content/type      {:db/valueType   :db.type/keyword
+                        :db/cardinality :db.cardinality/one
+                        :db/doc         "Content type: :paper, :git-repo, or :video-transcript"}
+   :content/body      {:db/valueType   :db.type/string
+                        :db/cardinality :db.cardinality/one
+                        :db/doc         "Content body (XML for arxiv, markdown for GitHub, text for YouTube)"}
+   :content/source-email {:db/valueType :db.type/string
+                           :db/cardinality :db.cardinality/one
+                           :db/doc      "Email :email/id this content was extracted from"}})
+
+(defn build-schema
+  "Combined schema for both email and content entities."
+  []
+  (merge (build-email-schema) (build-content-schema)))
+
 (defn get-email-attrs
   "Set of all email attribute keywords (for pulling entire entities)."
   [email-schema]
@@ -68,7 +96,7 @@
   "Create or open a Datalevin connection at the given directory path.
    Returns a connection ready for transactions and queries."
   [db-path]
-  (d/get-conn db-path (build-email-schema)))
+  (d/get-conn db-path (build-schema)))
 
 (defn close-conn
   "Gracefully close a Datalevin connection."
