@@ -13,7 +13,8 @@ Query your email database from the command line using `./takeout query`.
 7. [Frequencies Command](#frequencies-command)
 8. [Propagate Command](#propagate-command)
 9. [Inspect Thread Command](#inspect-thread-command)
-10. [MBOX Info Command](#mbox-info-command)
+10. [Linked Labels Command](#linked-labels-command)
+11. [MBOX Info Command](#mbox-info-command)
 11. [Split Command](#split-command)
 12. [Update Message IDs](#update-message-ids)
 13. [Update Bodies](#update-bodies)
@@ -24,7 +25,8 @@ Query your email database from the command line using `./takeout query`.
 18. [Update Links](#update-links)
 19. [Fetch Content Script](#fetch-content-script)
 20. [Upsert Content](#upsert-content)
-21. [Statistics](#statistics)
+21. [Report Script](#report-script)
+22. [Statistics](#statistics)
 18. [Labels Command](#labels-command)
 19. [CLI vs REPL](#cli-vs-repl)
 20. [All Options Reference](#all-options-reference)
@@ -422,6 +424,45 @@ Sparse labels: Sent, trading
 |--------|-------------|
 | `-t` / `--thread-id` | Thread ID to inspect (required) |
 | `-l` / `--label` | Check coverage for a specific label |
+| `--format` | Output: `table`, `edn`, or `json` (default: `table`) |
+
+---
+
+## Linked Labels Command
+
+Find labels that co-occur with a given label — which labels appear
+in the same emails as the specified one.
+
+### Usage
+
+```bash
+# Find labels linked to "trading"
+./takeout -d emails.db linked-labels -l "trading"
+
+# EDN output
+./takeout -d emails.db linked-labels -l "trading" --format edn
+
+# JSON output
+./takeout -d emails.db linked-labels -l "trading" --format json
+```
+
+Output:
+
+```
+Labels linked to "trading":
+  -----
+  Inbox
+  Important
+  Opened
+  money/cryptocurrencies
+  ...
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `-l` / `--label` | Label to find linked labels for (required) |
 | `--format` | Output: `table`, `edn`, or `json` (default: `table`) |
 
 ---
@@ -972,6 +1013,57 @@ Each content entity is uniquely identified by a SHA-256 hash of its URL.
 
 ---
 
+## Report Script
+
+`scripts/report.clj` generates a Markdown report from query output.
+Formats each email with subject, from, date, labels, links, and body snippet
+in a readable table layout.
+
+### Usage
+
+```bash
+# Generate Markdown to stdout
+./takeout -d emails.db query -l "trading" -n 10 --format edn \
+  | bb scripts/report.clj
+
+# Write to file
+./takeout -d emails.db query -l "trading" -n 10 --format edn \
+  | bb scripts/report.clj -o trading-report.md
+
+# Limit results in the report itself
+./takeout -d emails.db query -l "trading" --format edn \
+  | bb scripts/report.clj -n 5 -o report.md
+```
+
+### Output format
+
+```markdown
+# Email Report
+
+### Subject line here
+| | |
+|---|---|
+| **From** | sender@example.com |
+| **Date** | 2024-03-15 |
+| **Gmail ID** | `188a1b2c3d4e5f6` |
+| **Labels** | `Important` `trading` `Inbox` |
+| **Links** |
+| | https://example.com/page |
+| | https://github.com/user/repo |
+
+Body text snippet up to 500 chars...
+---
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `-o` / `--output` | Write to file instead of stdout |
+| `-n` / `--limit` | Max emails (default: all from input) |
+
+---
+
 ## Statistics
 
 ```bash
@@ -1078,6 +1170,21 @@ See the [query-guide.md](query-guide.md) for the complete REPL query reference.
 |--------|-------------|
 | `-f` / `--from` | EDN file from `extract-urls` (required) |
 | `--dry-run` | Preview without transacting |
+
+### Inspect Thread options
+
+| Option | Description |
+|--------|-------------|
+| `-t` / `--thread-id` | Thread ID to inspect (required) |
+| `-l` / `--label` | Check coverage for a specific label |
+| `--format` | Output: `table`, `edn`, or `json` (default: `table`) |
+
+### Linked Labels options
+
+| Option | Description |
+|--------|-------------|
+| `-l` / `--label` | Label to find linked labels for (required) |
+| `--format` | Output: `table`, `edn`, or `json` (default: `table`) |
 
 ### Upsert Content options
 

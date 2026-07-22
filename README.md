@@ -64,6 +64,7 @@ See `doc/cli-query-guide.md` for full documentation.
 | `scripts/fetch-content.clj` | Fetch linked content: arxiv abstracts, GitHub READMEs, YouTube metadata |
 | `scripts/update-label-pipeline.clj` | Run all 4 steps (map IDs → update → fetch bodies → update) for a label |
 | `scripts/top-repos.clj` | Fetch top GitHub repos by topic, sorted by stars |
+| `scripts/report.clj` | Generate Markdown report from query output |
 | `scripts/ingest-sent-emailsdb.clj` | Ingest all Sent-001 MBOX part files |
 
 ### Gmail ID mapping
