@@ -889,6 +889,7 @@
   (let [conn   (db/create-conn (:db opts))
         db     (d/db conn)
         label  (:label opts)
+        labels (when label (map str/trim (str/split label #",")))
         host   (:host opts)
         ctype  (:type opts)
         limit  (or (:limit opts) 50)
@@ -900,10 +901,10 @@
                              [?e :email/subject ?subject]
                              [?e :email/from ?from]
                              [?e :email/date ?date]]
-              label-clause (when label '[:content/labels label])
+              label-clauses (for [l labels] ['?c :content/labels l])
               query (vec (concat '[:find (pull ?c [*]) ?subject ?from ?date :where]
                                  base-clauses
-                                 (when label [label-clause])))
+                                 label-clauses))
               all (d/q query db)
             by-host (if host (filterv (fn [[c]] (= host (:content/host c))) all) all)
             by-type (if ctype (filterv (fn [[c]] (= (keyword ctype) (:content/type c))) by-host) by-host)

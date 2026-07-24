@@ -29,8 +29,6 @@
 
 (defn format-date [d] (when d (.format (java.text.SimpleDateFormat. "yyyy-MM-dd") d)))
 
-(defn truncate [s n] (if (and s (> (count s) n)) (str (subs s 0 n) "...") (or s "")))
-
 (defn type-icon [t]
   (case t :paper "📄" :git-repo "📦" :video-transcript "🎬" "📎"))
 
@@ -45,29 +43,25 @@
         t    (:content/type c)]
     (when body
       (case t
-        :paper (or (second (re-find #"(?s)<summary>(.*?)</summary>" body)) "")
-        (truncate (str/replace body #"\n+" " ") 300)))))
+        :paper (or (second (re-find #"(?s)<summary>(.*?)</summary>" body)) body)
+        body))))
 
 ;; ─── Markdown ──────────────────────────────────────────────────
 
 (defn item->markdown [item]
-  (let [{:keys [content subject from date]} item
+  (let [{:keys [content subject date]} item
         url  (:content/url content)
         host (:content/host content)
         t    (:content/type content)
-        icon (type-icon t)
-        snippet (body-snippet content)]
+        icon (type-icon t)]
     (str "### " icon " " (or subject "(no subject)") "\n"
          "| | |\n"
          "|---|---|\n"
          "| **URL** | [" (host-icon host) "](" url ") |\n"
-         "| **From** | " (or from "") " |\n"
          "| **Date** | " (or (format-date date) "") " |\n"
          "| **Type** | " (name (or t :unknown)) " |\n"
-         (when (and (not= :paper t) snippet)
-           (str "| **Snippet** | " snippet " |\n"))
-         (when (= :paper t)
-           (str "\n" (truncate (:content/body content) 2000) "\n"))
+         (when-let [body (:content/body content)]
+           (str "\n" body "\n"))
          "\n---\n")))
 
 ;; ─── Main ──────────────────────────────────────────────────────
