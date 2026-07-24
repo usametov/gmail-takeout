@@ -3,7 +3,8 @@
   (:require [clojure.test :refer [deftest is testing are]]
             [clojure.string :as str]
             [babashka.cli :as cli]
-            [astanova.cli :as sut])
+            [astanova.cli :as sut]
+            [astanova.mbox-splitter :as mbox])
   (:import [java.util Date]
            [java.time Instant]))
 
@@ -287,7 +288,7 @@
         (fn [mbox-path]
           (with-temp-dir
             (fn [out-dir]
-              (#'sut/split-mbox! mbox-path 1 out-dir)
+              (#'mbox/split-mbox! mbox-path 1 out-dir)
               (let [files (sort (filter #(.endsWith (.getName %) ".mbox")
                                         (.listFiles (java.io.File. out-dir))))]
                 (is (= 1 (count files)))
@@ -300,7 +301,7 @@
         (fn [mbox-path]
           (with-temp-dir
             (fn [out-dir]
-              (#'sut/split-mbox! mbox-path 1 out-dir)
+              (#'mbox/split-mbox! mbox-path 1 out-dir)
               (let [chunk (first (filter #(.endsWith (.getName %) ".mbox")
                                          (.listFiles (java.io.File. out-dir))))]
                 (is (= (slurp mbox-path) (slurp chunk)))))))))))
@@ -313,7 +314,7 @@
           (with-temp-dir
             (fn [out-dir]
               ;; Use tiny chunk size (1 byte) to force multiple chunks
-              (#'sut/split-mbox! mbox-path 1 out-dir)
+              (#'mbox/split-mbox! mbox-path 1 out-dir)
               (let [files (filter #(.endsWith (.getName %) ".mbox")
                                   (.listFiles (java.io.File. out-dir)))]
                 (is (pos? (count files)))

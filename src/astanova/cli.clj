@@ -6,6 +6,7 @@
             [astanova.label :as label]
             [astanova.parse :as parse]
             [astanova.content-processor :as cp]
+            [astanova.mbox-splitter :as mbox]
             [cheshire.core :as json]
             [clojure.edn :as edn]
             [clojure.string :as str]
@@ -14,7 +15,7 @@
   (:import [java.time Instant LocalDate ZonedDateTime ZoneId]
            [java.time.format DateTimeFormatter DateTimeParseException]))
 
-(declare build-query-clauses build-query print-table apply-limit-offset paginated-results count-mbox-messages)
+(declare build-query-clauses build-query print-table apply-limit-offset paginated-results)
 
 ;; ─── Date parsing ───────────────────────────────────────────────
 
@@ -109,7 +110,7 @@
         (println "  Debug mode: MIME tree logging enabled"))
       (let [log-file (str (:db opts) "-ingest.log")]
         (doseq [f paths]
-          (let [from-count (count-mbox-messages (.getAbsolutePath f))
+          (let [from-count (mbox/count-mbox-messages (.getAbsolutePath f))
                 r (binding [parse/*debug* (:debug opts)]
                     (ingest/ingest-mbox! conn (.getAbsolutePath f) source
                                        :batch-size bsize :log-file log-file))]
@@ -560,95 +561,11 @@
 
 ;; ─── Split command (zero-copy NIO splitter) ─────────────────────
 
-(defn- is-from-start?
-  "Check if 'From ' at position idx in text is at the start of a line
-   and looks like a real mbox delimiter (has an @ on the same line).
-   This rejects false positives in binary/Base64 attachment data."
-  [^String text ^long idx]
-  (and (or (zero? idx)
-           (let [prev (dec idx)]
-             (when (>= prev 0)
-               (let [ch (.charAt text prev)]
-                 (or (= ch \newline) (= ch \return))))))
-       ;; Verify this looks like a real mbox From_ line by checking for @
-       (let [line-end (str/index-of text "\n" idx)]
-         (if line-end
-           (str/includes? (subs text idx line-end) "@")
-           (str/includes? (subs text idx) "@")))))
-
-(defn- find-from-in-buffer
-  "Search text for 'From ' at start of line. Returns absolute byte pos or nil."
-  [^String text ^long buf-pos]
-  (loop [idx (str/index-of text "From ")]
-    (when idx
-      (if (is-from-start? text idx)
-        (+ buf-pos idx)
-        (recur (str/index-of text "From " (+ idx 5)))))))
-
-(defn- find-next-from-boundary
-  "Returns byte position of the next 'From ' at start of line, or nil."
-  [^java.io.RandomAccessFile raf ^long start-pos ^long max-lookahead]
-  (let [file-len (.length raf)
-        buf-size 16384]
-    (.seek raf start-pos)
-    (loop [pos start-pos]
-      (when (and (< (- pos start-pos) max-lookahead)
-                 (< pos file-len))
-        (let [to-read (int (min buf-size (- file-len pos)))
-              buf (byte-array to-read)
-              n (.read raf buf 0 to-read)]
-          (when (pos? n)
-            (let [text (String. buf 0 n "UTF-8")]
-              (or (find-from-in-buffer text pos)
-                  (recur (+ pos n))))))))))
-
-(defn- copy-range
-  [^java.nio.channels.FileChannel src ^java.io.File dest ^long start ^long end]
-  (.position src start)
-  (let [size (- end start)
-        opts (into-array java.nio.file.StandardOpenOption
-                         [java.nio.file.StandardOpenOption/CREATE
-                          java.nio.file.StandardOpenOption/WRITE
-                          java.nio.file.StandardOpenOption/TRUNCATE_EXISTING])]
-    (with-open [dst (java.nio.channels.FileChannel/open (.toPath dest) opts)]
-      (.transferFrom dst src 0 size))))
-
-(defn split-mbox!
-  "Split mbox with smart 'From ' boundary detection for safe message alignment.
-   Both start and end of each chunk are aligned to 'From ' at start of line,
-   ensuring every chunk is a valid mbox file that MboxIterator can read."
-  [^String mbox-path ^long chunk-size-mb ^String out-dir]
-  (let [chunk-size     (* chunk-size-mb 1024 1024)
-        lookahead-bytes (quot chunk-size 2)
-        stem (-> (java.io.File. mbox-path) .getName (str/replace #"\.mbox$" ""))]
-    (.mkdirs (java.io.File. out-dir))
-    (with-open [raf (java.io.RandomAccessFile. mbox-path "r")
-                src-channel (.getChannel raf)]
-      (let [total (.length raf)]
-        (loop [chunk-idx 0
-               start-pos 0]
-          (when (< start-pos total)
-            (let [approx-end (+ start-pos chunk-size)
-                  ;; Find the next 'From ' boundary after approx-end to use as chunk end
-                  end-pos (if (>= approx-end total)
-                            total
-                            (or (find-next-from-boundary raf approx-end lookahead-bytes)
-                                total))
-                  out-file (java.io.File. (format "%s/%s.part-%04d.mbox"
-                                                  out-dir stem (inc chunk-idx)))]
-              (when (< start-pos end-pos)
-                (println (format "  Writing chunk %d (%d MB target):" (inc chunk-idx) chunk-size-mb))
-                (println (format "    %s" (.getName out-file)))
-                (copy-range src-channel out-file start-pos end-pos)
-                (println (format "    %d bytes" (- end-pos start-pos))))
-              (recur (inc chunk-idx) end-pos))))))))
+;; ─── MBOX info diagnostic ──────────────────────────────────────
 
 (defn split-cmd [{:keys [opts args]}]
   (let [chunk-size-mb (or (:size opts) 500)
         out-dir (:output opts)
-        ;; babashka/cli dispatch skips option parsing when positional args
-        ;; are present (::dispatch-tree). Filter out -o/--output and
-        ;; their values from args since already parsed into :output.
         clean-args (loop [as args, acc []]
                      (if (empty? as)
                        acc
@@ -675,35 +592,10 @@
           (let [target-dir (or out-dir (.getParent f) ".")]
             (println (format "Splitting %s (%d MB/chunk) into %s/"
                              (.getName f) chunk-size-mb target-dir))
-            (split-mbox! (.getAbsolutePath f) chunk-size-mb target-dir)))))))
-
-;; ─── MBOX info diagnostic ──────────────────────────────────────
+            (mbox/split-mbox! (.getAbsolutePath f) chunk-size-mb target-dir)))))))
 
 (def mbox-info-spec
   {:format {:desc "table | edn | json" :default "table"}})
-
-(defn- count-mbox-messages
-  "Count messages in an MBOX file by counting 'From ' at start of line.
-   Uses the same boundary detection as the splitter."
-  [^String path]
-  (let [buf-size 16384
-        raf (java.io.RandomAccessFile. path "r")
-        file-len (.length raf)]
-    (try
-      (loop [pos 0, msg-count 0, leftover ""]
-        (if (>= pos file-len)
-          msg-count
-          (let [to-read (int (min buf-size (- file-len pos)))
-                buf (byte-array to-read)
-                n (.read raf buf 0 to-read)
-                chunk (str leftover (String. buf 0 n "UTF-8"))
-                lines (str/split-lines chunk)
-                processed-lines (butlast lines)
-                new-leftover (last lines)
-                from-count (count (filter #(re-find #"^From [^@]+@" %) processed-lines))]
-            (recur (+ pos n) (+ msg-count from-count) new-leftover))))
-      (finally
-        (.close raf)))))
 
 (defn- mbox-info-cmd [{:keys [opts args]}]
   (let [fmt (keyword (:format opts))]
@@ -715,7 +607,7 @@
         (if (not (.exists f))
           (println "File not found:" path)
           (let [file-len (.length f)
-                msg-count (count-mbox-messages path)
+                msg-count (mbox/count-mbox-messages path)
                 info {:file (.getName f)
                       :path (.getAbsolutePath f)
                       :size-mb (float (/ file-len (* 1024 1024)))
