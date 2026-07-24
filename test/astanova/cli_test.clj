@@ -78,32 +78,37 @@
       (is (= ['?e :email/to "bob@example.com"] (first clauses))))))
 
 (deftest test-build-query-clauses-label
-  (testing ":labels filter adds or clause with parsed labels (default mode: any)"
+  (testing ":labels filter adds clause (default mode: all)"
     (let [clauses (#'sut/build-query-clauses {:labels "inbox"})]
-      (is (= 1 (count clauses)))
-      (is (= ['?e :email/labels "inbox"] (first clauses))))))
+      (is (= 2 (count clauses)))
+      (is (= ['?e :email/labels "inbox"] (first clauses)))
+      (is (= ['?e :email/subject] (second clauses))))))
 
 (deftest test-build-query-clauses-labels-all-mode
   (testing ":labels with --labels-mode all generates separate clauses"
     (let [clauses (#'sut/build-query-clauses {:labels "a,b" :labels-mode "all"})]
-      (is (= 2 (count clauses)))
+      (is (= 3 (count clauses)))
       (is (= ['?e :email/labels "a"] (first clauses)))
-      (is (= ['?e :email/labels "b"] (second clauses))))))
+      (is (= ['?e :email/labels "b"] (second clauses)))
+      (is (= ['?e :email/subject] (nth clauses 2))))))
 
 (deftest test-build-query-clauses-labels-any-mode
   (testing ":labels with --labels-mode any wraps in :or"
     (let [clauses (#'sut/build-query-clauses {:labels "a,b" :labels-mode "any"})]
-      (is (= 1 (count clauses)))
+      (is (= 2 (count clauses)))
       (let [or-clause (first clauses)]
-        (is (= :or (first or-clause)))
-        (is (some #(= ['?e :email/labels "a"] %) or-clause))
-        (is (some #(= ['?e :email/labels "b"] %) or-clause))))))
+        (is (= 'or (first or-clause)))
+        (is (some #(= ['?e :email/labels "a"] %) (rest or-clause)))
+        (is (some #(= ['?e :email/labels "b"] %) (rest or-clause))))
+      (is (= ['?e :email/subject] (second clauses))))))
 
 (deftest test-build-query-clauses-labels-default-mode
-  (testing ":labels defaults to any mode"
+  (testing ":labels defaults to all mode"
     (let [clauses (#'sut/build-query-clauses {:labels "a,b"})]
-      (is (= 1 (count clauses)))
-      (is (= :or (ffirst clauses))))))
+      (is (= 3 (count clauses)))
+      (is (= ['?e :email/labels "a"] (first clauses)))
+      (is (= ['?e :email/labels "b"] (second clauses)))
+      (is (= ['?e :email/subject] (nth clauses 2))))))
 
 (deftest test-build-query-clauses-since
   (testing ":since filter adds date >= predicate"

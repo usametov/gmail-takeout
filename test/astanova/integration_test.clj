@@ -744,3 +744,58 @@
       (is (empty? (db/query-by-labels-all db ["test"])))
       (is (empty? (db/query-by-labels-and-text db ["test"] "text")))
       (db/close-conn conn))))
+
+;; ─── Content Entity Tests ─────────────────────────────────────
+
+(deftest test-content-schema-available
+  (testing "content schema attributes are available in the DB"
+    (let [conn (db/create-conn test-db-path)
+          db   (d/db conn)]
+      (let [results (d/q '[:find (pull ?c [:content/id :content/url])
+                           :where [?c :content/url]]
+                         db)]
+        (is (seqable? results) "content query returns a sequence"))
+      (db/close-conn conn))))
+
+(deftest test-content-store-and-query
+  (testing "store content entity and query it back"
+    (let [conn (db/create-conn test-db-path)]
+      (d/transact! conn [{:content/id "test-hash-1" :content/url "https://example.com/test"
+                          :content/host "example.com" :content/type :paper
+                          :content/body "test body" :content/source-email "test@email.com"}])
+      (let [db (d/db conn)
+            results (d/q '[:find (pull ?c [*]) :where [?c :content/id "test-hash-1"]] db)
+            entity (ffirst results)]
+        (is (some? entity) "entity found")
+        (is (= "https://example.com/test" (:content/url entity)))
+        (is (= "example.com" (:content/host entity)))
+        (is (= :paper (:content/type entity)))
+        (is (= "test@email.com" (:content/source-email entity))))
+      (db/close-conn conn))))
+
+(deftest test-content-join-with-email
+  (testing "content query joins with source email"
+    (let [conn (db/create-conn test-db-path)]
+      (d/transact! conn [{:db/id (d/tempid :db.part/user)
+                          :email/id "<source@test.com>"
+                          :email/subject "Test Email"
+                          :email/from "sender@test.com"
+                          :email/labels ["test-label"]
+                          :email/source "test"
+                          :email/body-truncated "body"
+                          :email/body-length 4}])
+      (d/transact! conn [{:content/id "linked-test" :content/url "https://arxiv.org/abs/test"
+                          :content/host "arxiv.org" :content/type :paper
+                          :content/body "abstract" :content/source-email "<source@test.com>"}])
+      (let [db (d/db conn)
+            results (d/q '[:find (pull ?c [*]) (pull ?e [:email/subject :email/from :email/labels])
+                           :where [?e :email/id ?email-id]
+                                  [?c :content/source-email ?email-id]
+                                  [?c :content/id "linked-test"]]
+                         db)]
+        (is (= 1 (count results)))
+        (let [[c email] (first results)]
+          (is (= "Test Email" (:email/subject email)))
+          (is (= "sender@test.com" (:email/from email)))
+          (is (= ["test-label"] (:email/labels email)))))
+      (db/close-conn conn))))

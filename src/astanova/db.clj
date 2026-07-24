@@ -80,7 +80,10 @@
                         :db/doc         "Content body (XML for arxiv, markdown for GitHub, text for YouTube)"}
    :content/source-email {:db/valueType :db.type/string
                            :db/cardinality :db.cardinality/one
-                           :db/doc      "Email :email/id this content was extracted from"}})
+                           :db/doc      "Email :email/id this content was extracted from"}
+   :content/labels     {:db/valueType   :db.type/string
+                        :db/cardinality :db.cardinality/many
+                        :db/doc         "Denormalized labels from the source email"}})
 
 (defn build-schema
   "Combined schema for both email and content entities."

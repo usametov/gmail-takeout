@@ -61,9 +61,16 @@
          (when (seq labels)
            (str "| **Labels** | " (str/join " " (map #(str "`" % "`") labels)) " |\n"))
          (when (seq links)
-           (str "| **Links** |\n"
-                (str/join "\n" (map (fn [url] (str "| | " url " |")) links))
-                "\n"))
+           (let [filtered (remove #(or (str/includes? % "github.com") (str/includes? % "arxiv.org")) links)
+                  shown   (take 50 filtered)
+                  omitted (- (count links) (count filtered))
+                  extra   (max 0 (- (count filtered) 50))
+                  total-skipped (+ omitted extra)]
+             (when (seq shown)
+               (str "| **Links** |\n"
+                    (str/join "\n" (map (fn [url] (str "| | " url " |")) shown))
+                    (when (pos? total-skipped)
+                      (str "\n| | *+ " total-skipped " omitted (" omitted " github/arxiv)* |"))"\n"))))
          "\n"
          (when body-truncated
            (str (truncate body-truncated 500) "\n\n"))

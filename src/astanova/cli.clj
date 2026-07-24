@@ -467,7 +467,7 @@
 (defn- build-query-clauses [opts]
   (let [labels-str    (:labels opts)
         labels        (when labels-str (str/split labels-str #","))
-        labels-mode   (keyword (:labels-mode opts "any"))
+        labels-mode   (keyword (:labels-mode opts "all"))
         text          (:text opts)]
     (cond-> []
       labels
@@ -476,7 +476,7 @@
                                      ['?e :email/labels l])]
                       (if (= 1 (count patterns))
                         patterns
-                        (list (into [:or] patterns))))
+                        [(cons 'or patterns)]))
               :all  (for [l labels]
                       ['?e :email/labels l])))
       (:subject opts) (conj ['?e :email/subject '?s]
@@ -495,7 +495,7 @@
                             [(list '>= '?d (parse-date (:since opts)))])
       (:before opts)  (conj ['?e :email/date '?d]
                             [(list '< '?d (parse-date (:before opts)))])
-      (empty? (select-keys opts [:subject :from :to :address :labels :text :since :before]))
+      (empty? (select-keys opts [:subject :from :to :address :text :since :before]))
       (conj ['?e :email/subject]))))
 
 (defn- build-query [clauses]
@@ -946,6 +946,7 @@
     (println "  --dry-run        Preview without transacting")
     (System/exit 0))
   (let [conn     (db/create-conn (:db opts))
+        db       (d/db conn)
         mapping  (edn/read-string (slurp (:from opts)))
         type-map {:arxiv :paper :github :git-repo :youtube :video-transcript}
         md       (java.security.MessageDigest/getInstance "SHA-256")]
@@ -969,7 +970,8 @@
                             :content/host         url-host
                             :content/type         content-type
                             :content/body         body-text
-                            :content/source-email email-id}])]
+                            :content/source-email email-id
+                            :content/labels       (:email/labels (d/entity db [:email/id email-id]))}])]
                 (when (seq txn)
                   (d/transact! conn txn))
                 (swap! upserted inc)
@@ -1000,25 +1002,20 @@
         limit  (or (:limit opts) 50)
         fmt    (keyword (:format opts))]
     (try
-      (let [all (d/q '[:find (pull ?c [*]) ?subject ?from ?date
-                       :where [?e :email/id ?email-id]
-                              [?e :email/subject ?subject]
-                              [?e :email/from ?from]
-                              [?e :email/date ?date]
-                              [?c :content/source-email ?email-id]
-                              [?c :content/host ?host]
-                              [?c :content/type ?ctype]
-                              [?c :content/url ?url]]
-                     db)
+      (let [;; Build query with optional :content/labels filter
+              base-clauses '[[?c :content/source-email ?email-id]
+                             [?e :email/id ?email-id]
+                             [?e :email/subject ?subject]
+                             [?e :email/from ?from]
+                             [?e :email/date ?date]]
+              label-clause (when label '[:content/labels label])
+              query (vec (concat '[:find (pull ?c [*]) ?subject ?from ?date :where]
+                                 base-clauses
+                                 (when label [label-clause])))
+              all (d/q query db)
             by-host (if host (filterv (fn [[c]] (= host (:content/host c))) all) all)
             by-type (if ctype (filterv (fn [[c]] (= (keyword ctype) (:content/type c))) by-host) by-host)
-            by-label (if label
-                       (filterv (fn [[c _ _ _]]
-                                  (let [e (d/entity db [:email/id (:content/source-email c)])]
-                                    (some #(= label %) (:email/labels e))))
-                                by-type)
-                       by-type)
-            results (take limit by-label)]
+            results (take limit by-type)]
         (case fmt
           :table
           (doseq [[c subject from date] results]

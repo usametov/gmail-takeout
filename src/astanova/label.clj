@@ -148,11 +148,11 @@
                     :in $ ?label
                     :where [?e :email/labels ?label]]
                   db label)
-        ;; Collect all distinct labels on those emails, excluding the queried label
+        ;; Collect counts of each co-occurring label
         result (when (seq eids)
-                 (d/q '[:find [?l ...]
+                 (d/q '[:find ?l (count ?e)
                         :in $ [?e ...] ?label
                         :where [?e :email/labels ?l]
                                [(not= ?l ?label)]]
                        db (vec eids) label))]
-    (sort result)))
+    (->> result (sort-by second >) vec)))
