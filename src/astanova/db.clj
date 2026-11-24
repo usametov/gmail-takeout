@@ -255,7 +255,7 @@
   "Count total emails in the database. Returns 0 for empty DB."
   [db]
   (or (d/q '[:find (count ?e) .
-             :where [?e :email/subject]]
+             :where [?e :email/id]]
            db)
       0))
 

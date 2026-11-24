@@ -3,8 +3,9 @@
 **Parse, ingest, query, and enrich Google Takeout MBOX exports.**
 
 Ingests MBOX files into a [Datalevin](https://github.com/juji-io/datalevin) database,
-extracts Gmail labels, thread IDs, and message IDs from the `From_` envelope line.
-Supports querying by label, subject, sender, date range, and more.
+extracts Gmail labels and thread IDs from headers and numeric Gmail message IDs
+from the `From_` envelope line. Supports querying by label, subject, sender,
+date range, and more.
 
 Includes scripts for:
 - Mapping RFC822 Message-IDs to Gmail internal IDs via the Gmail API

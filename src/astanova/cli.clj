@@ -63,7 +63,7 @@
 
 (def export-spec
   {:format {:desc "json | edn" :default "json"}
-   :label  {:alias :l :coerce [] :desc "Filter by label (can repeat)"}
+   :label  {:alias :l :desc "Comma-separated labels to filter by"}
    :since  {:desc "Filter by start date"}})
 
 (def threads-spec
@@ -145,7 +145,7 @@
         db   (d/db conn)]
     (try
       (println "Database statistics:\n")
-      (let [total (d/q '[:find (count ?e) . :where [?e :email/subject]] db)]
+      (let [total (or (d/q '[:find (count ?e) . :where [?e :email/id]] db) 0)]
         (println (format "  Total emails:     %d" total)))
       (let [range (d/q '[:find (min ?d) (max ?d) :where [?e :email/date ?d]] db)]
         (when-let [[lo hi] (first range)]
@@ -159,7 +159,7 @@
         (doseq [[sender cnt] (take 10 (sort-by second > senders))]
           (println (format "    %-30s %d" (str sender) cnt))))
       (println "\n  Thread statistics:")
-      (let [thread-count (d/q '[:find (count ?thread) . :where [?e :email/thread-id ?thread]] db)]
+      (let [thread-count (or (d/q '[:find (count ?thread) . :where [?e :email/thread-id ?thread]] db) 0)]
         (println (format "    Total threads:   %d" thread-count)))
       (let [threads-with-count (d/q '[:find ?thread (count ?e) :where [?e :email/thread-id ?thread]] db)
             avg-emails (if (pos? (count threads-with-count))
@@ -170,9 +170,10 @@
       (println "    Longest threads:")
       (let [threads (d/q '[:find ?thread (count ?e) :where [?e :email/thread-id ?thread]] db)]
         (doseq [[thread cnt] (take 5 (sort-by second > threads))]
-          (let [summary (db/get-thread-summary db thread)]
+          (let [summary (db/get-thread-summary db thread)
+                subject (or (:subject summary) "(no subject)")]
             (println (format "      %-40s %d emails"
-                             (subs (:subject summary) 0 (min 40 (count (:subject summary))))
+                             (subs subject 0 (min 40 (count subject)))
                              cnt)))))
       (println "\n  Body length statistics:")
       (let [lengths (d/q '[:find [?len ...] :where [?e :email/body-length ?len]] db)]
@@ -200,11 +201,17 @@
       (when (empty? args)
         (println "Usage: takeout export [options] <output-file>")
         (System/exit 1))
-      (let [label-clauses (when (seq (:label opts))
-                            [(into [:or]
-                                   (for [l (:label opts)]
-                                     ['?e :email/labels l]))])
-            clauses (cond-> (or label-clauses [['?e :email/subject]])
+      (let [labels (when-let [s (:label opts)]
+                     (->> (str/split s #",")
+                          (map str/trim)
+                          (remove str/blank?)
+                          vec))
+            label-clauses (when (seq labels)
+                            (let [patterns (mapv (fn [l] ['?e :email/labels l]) labels)]
+                              (if (= 1 (count patterns))
+                                patterns
+                                [(cons 'or patterns)])))
+            clauses (cond-> (or label-clauses [['?e :email/id]])
                       (:since opts)
                       (conj ['?e :email/date '?d]
                             [(list '>= '?d (parse-date (:since opts)))]))
@@ -481,7 +488,9 @@
               :all  (for [l labels]
                       ['?e :email/labels l])))
       (:subject opts) (conj ['?e :email/subject '?s]
-                            [(list 'clojure.string/includes? '?s (:subject opts))])
+                            [(list 'clojure.string/includes?
+                                   (list 'clojure.string/lower-case '?s)
+                                   (clojure.string/lower-case (:subject opts)))])
       (:from opts)    (conj ['?e :email/from (:from opts)])
       (:to opts)      (conj ['?e :email/to (:to opts)])
       (:address opts) (conj (list 'or ['?e :email/from (:address opts)]
@@ -497,7 +506,7 @@
       (:before opts)  (conj ['?e :email/date '?d]
                             [(list '< '?d (parse-date (:before opts)))])
       (empty? (select-keys opts [:subject :from :to :address :text :since :before]))
-      (conj ['?e :email/subject]))))
+      (conj ['?e :email/id]))))
 
 (defn- build-query [clauses]
   (let [pull-pattern [:email/id :email/subject :email/from :email/to
@@ -663,9 +672,10 @@
                   (let [eid (:db/id entity)
                         txn (if (:dry-run opts)
                               []
-                              [{:db/id           eid
-                                :email/gmail-id  gmail-id
-                                :email/thread-id thread-id}])]
+                              [(cond-> {:db/id          eid
+                                        :email/gmail-id gmail-id}
+                                 (not (str/blank? (str thread-id)))
+                                 (assoc :email/thread-id thread-id))])]
                     (when (seq txn)
                       (d/transact! conn txn))
                     (swap! updated inc)
@@ -708,21 +718,24 @@
           :else
           (let [entity (d/entity db [:email/id msg-id])]
             (if entity
-              (let [text (parse/html->text body)
-                    text (if (str/blank? text) (str/trim (str/replace body #"<[^>]+>" "")) text)
-                    text (subs text 0 (min 10000 (count text)))
+              (let [full-text (parse/html->text body)
+                    full-text (if (str/blank? full-text)
+                                (str/trim (str/replace body #"<[^>]+>" ""))
+                                full-text)
+                    body-length (count full-text)
+                    text (subs full-text 0 (min 10000 body-length))
                     txn  (if (:dry-run opts)
                            []
                            [{:db/id              (:db/id entity)
                              :email/body-truncated text
-                             :email/body-length   (count text)}])]
+                             :email/body-length   body-length}])]
                 (when (seq txn)
                   (d/transact! conn txn))
                 (swap! updated inc)
                 (when (:dry-run opts)
                   (println (format "  %-50s body=%d chars"
                                   (subs msg-id 0 (min 50 (count msg-id)))
-                                  (count text)))))
+                                  body-length))))
               (do (swap! missing inc)
                   (println (format "  NOT FOUND: %s" (subs msg-id 0 (min 60 (count msg-id))))))))))
       (println (format "\nDone: %d updated, %d skipped (no body), %d not found, %d total"
@@ -855,15 +868,16 @@
                                  (when (:title content)
                                    (str (:title content) "\n\n" (:description content))))]
             (if (and content-type (not (str/blank? body-text)))
-              (let [txn (if (:dry-run opts)
+              (let [labels (:email/labels (d/entity db [:email/id email-id]))
+                    txn (if (:dry-run opts)
                           []
-                          [{:content/id           url-hash
-                            :content/url          url
-                            :content/host         url-host
-                            :content/type         content-type
-                            :content/body         body-text
-                            :content/source-email email-id
-                            :content/labels       (:email/labels (d/entity db [:email/id email-id]))}])]
+                          [(cond-> {:content/id           url-hash
+                                    :content/url          url
+                                    :content/host         url-host
+                                    :content/type         content-type
+                                    :content/body         body-text
+                                    :content/source-email email-id}
+                             (seq labels) (assoc :content/labels labels))])]
                 (when (seq txn)
                   (d/transact! conn txn))
                 (swap! upserted inc)

@@ -37,7 +37,7 @@ clojure -M:repl/conjure
 - **MBOX ingestion** — Parse Google Takeout MBOX files with full MIME support
 - **Deduplication** — Built-in upsert via Message-ID
 - **Full-text search** — Search across subject and body
-- **Thread tracking** — Thread grouping via References, Thread-Topic, or X-GM-THRID
+- **Thread tracking** — Thread grouping via X-GM-THRID, References, or Thread-Topic
 - **Gmail labels** — Preserves X-Gmail-Labels from Takeout exports
 - **Analytics** — Top senders, label distribution, date-range filtering
 - **CLI & library** — Use as a command-line tool or from Clojure code

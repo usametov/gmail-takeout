@@ -107,10 +107,14 @@
                               [?e :email/date ?d]]
                      db thread-id)
         sorted (sort-by :email/date emails)
-        all-labels (apply set/union (map (comp set :email/labels) sorted))
         label-sets (map (comp set :email/labels) sorted)
-        common-labels (apply set/intersection label-sets)
-        sparse-labels (clojure.set/difference all-labels common-labels)]
+        all-labels (if (seq sorted)
+                     (apply set/union label-sets)
+                     #{})
+        common-labels (if (seq label-sets)
+                        (apply set/intersection label-sets)
+                        #{})
+        sparse-labels (set/difference all-labels common-labels)]
     (cond-> {:thread-id thread-id
              :email-count (count sorted)
              :emails (mapv (fn [e]

@@ -30,27 +30,32 @@
 
 ;; ─── MBOX file -> seq of raw messages ───────────────────────────
 
-(defn- parse-from-line
-  "Extract the Gmail message ID from an mbox From_ line.
-   Format: From <gmail-message-id>@xxx <day> <month> <dd> <time> <tz> <year>
-   Returns the numeric Gmail message ID string, or nil.
+(def ^:private mbox-from-line-pattern
+  "Separator pattern used by Mime4j's MboxIterator.  Keeping this identical to
+   the iterator avoids counting prose lines as message boundaries."
+  #"From \S+@\S.*\d{4}")
 
-   Example: (parse-from-line from-line-with-gmail-id) returns 1869988106885977363"
+(defn- parse-from-line
+  "Extract the numeric Gmail message ID from an mbox From_ line.
+   Accepts `From 123@xxx ...` and `From <123@xxx> ...`.  Returns nil for
+   non-Gmail envelopes such as `From alice@example.com ...`."
   [from-line]
   (when from-line
-    (when-let [envelope (second (str/split from-line #" "))]
-      (first (str/split envelope #"@")))))
+    (when-let [envelope (second (str/split (str/trim from-line) #"\s+"))]
+      (second (re-matches #"<?(\d+)@[^>]*>?" envelope)))))
 
 (defn- extract-from-lines
-  "Read an MBOX file and collect all `From_` envelope lines.
-   These contain the Gmail message ID before the @xxx.
+  "Read an MBOX file and collect its `From_` envelope lines.
+   Uses the same separator pattern as MboxIterator so body prose starting with
+   `From ` cannot shift the Gmail-ID/message pairing.
    Returns a vector of From_ line strings."
   [mbox-path]
   (let [f (io/file mbox-path)]
     (with-open [rdr (io/reader f)]
       (doall
-        (filter #(.startsWith % "From ")
-                (line-seq rdr))))))
+       (->> (line-seq rdr)
+            (map #(str/replace % #"\r$" ""))
+            (filter #(re-matches mbox-from-line-pattern %)))))))
 
 (defn mbox-messages
   "Given a path to an MBOX file, return a lazy seq of maps.
@@ -88,6 +93,15 @@
     (catch MessagingException e
       (warn e "Couldn't read header" name msg)
       nil)))
+
+(defn- reference-root
+  "Return the first Message-ID from a References header, including brackets.
+   Falls back to the first whitespace-delimited token when no angle brackets
+   are present."
+  [header]
+  (when-not (str/blank? (str header))
+    (or (second (re-find #"(<[^>]+>)" (str header)))
+        (first (str/split (str/trim (str header)) #"\s+")))))
 
 (defn parse-gmail-labels
   "Extract Gmail labels from the X-Gmail-Labels header (Google Takeout specific).
@@ -285,42 +299,47 @@
          (when (and (zero? depth) (seq kids))
            (.write w "\n"))
          (catch Exception e
-           (warn e "Couldn't write MIME tree log")))
-       (doseq [k kids]
-         (log-mime-tree k msg-id (inc depth)))))))
+           (warn e "Couldn't write MIME tree log"))))
+     (doseq [k kids]
+       (log-mime-tree k msg-id (inc depth))))))
 
-(defn- extract-text-from-part
-  "Recursively extract plain text from a parsed MIME part map.
-   Returns decoded string or nil."
+(defn- text-candidates
+  "Walk a parsed MIME tree and collect raw text/plain and text/html bodies.
+   Returns {:plain [...] :html [...]} preserving traversal order."
   [part-map]
   (let [ct (:content-type part-map)]
-    (when *debug*
-      (binding [*out* *err*]
-        (println "--- MIME tree ---")
-        (log-mime-tree part-map "(msg-id not yet known)")
-        (println "-----------------")))
     (cond
       (and ct (str/starts-with? ct "text/plain"))
-      (:body part-map)
+      {:plain [(or (:body part-map) "")] :html []}
 
       (and ct (str/starts-with? ct "text/html"))
-      (some-> (:body part-map) html->text)
+      {:plain [] :html [(or (:body part-map) "")]}
 
       (and ct (or (str/starts-with? ct "multipart/")
                   (str/starts-with? ct "message/rfc822")))
-      (some extract-text-from-part (:children part-map))
+      (apply merge-with into
+             {:plain [] :html []}
+             (map text-candidates (:children part-map)))
 
       :else
-      (do (when *debug*
-            (binding [*out* *err*]
-              (println "  skipping unknown content-type:" ct)))
-          nil))))
+      {:plain [] :html []})))
+
+(defn- clean-nonblank
+  "Run clean-body and return nil when nothing meaningful remains."
+  [s]
+  (let [s (clean-body s)]
+    (when (seq s) s)))
 
 (defn extract-text-body
   "Extract the plain-text body from a parsed MIME part map.
-   Prefers text/plain over text/html, skips non-text parts."
+   Prefers a non-blank text/plain part over text/html; skips non-text parts."
   [part-map]
-  (or (clean-body (extract-text-from-part part-map)) ""))
+  (let [{:keys [plain html]} (text-candidates part-map)]
+    (or (some clean-nonblank plain)
+        (some (fn [h]
+                (some-> h html->text clean-nonblank))
+              html)
+        "")))
 
 (defn extract-html-body
   "Extract the HTML body from a parsed MIME part map.
@@ -378,9 +397,9 @@
    Returns a map with keys: :message-id, :subject, :from, :to, :cc, :date,
    :body, :html, :thread-id, :labels, :attachments
 
-   When a :from-line is provided, the Gmail message ID from the mbox
-   envelope is used as the primary :message-id, falling back to the
-   standard Message-ID header, then to a content-hash fallback."
+   When a :from-line is provided, a numeric Gmail envelope ID is extracted
+   separately as :gmail-id.  :message-id always comes from the Message-ID
+   header, falling back to a content hash."
   [raw-msg]
   (try+
     (let [{:keys [from-line raw-message] :or {raw-message raw-msg}}
@@ -400,6 +419,8 @@
                            (when (seq from) (.getAddress (first from))))
                          (.getSentDate msg)
                          (extract-text-body part-map)))
+          _         (when *debug*
+                      (log-mime-tree part-map msg-id))
           txt       (extract-text-body part-map)
           atts      (extract-attachments part-map)]
       {:message-id  msg-id
@@ -419,9 +440,11 @@
                                            atts))
                       txt)
        :html        (extract-html-body part-map)
-       :thread-id   (or (safe-header msg "Thread-Topic")
-                        (safe-header msg "References")
-                        (safe-header msg "X-GM-THRID"))
+       :thread-id   (or (some-> (safe-header msg "X-GM-THRID")
+                                str/trim
+                                not-empty)
+                        (reference-root (safe-header msg "References"))
+                        (safe-header msg "Thread-Topic"))
        :labels      (parse-gmail-labels msg)
        :attachments atts})
     (catch [:type ::body-read] {:keys [content-type filename disposition] :as m}

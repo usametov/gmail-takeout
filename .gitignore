@@ -29,7 +29,6 @@
 /target
 *.db
 .clj-kondo
-takeout
 .DS_Store
 test/resources/
 takeout.log

@@ -288,6 +288,12 @@ Full design document for the `split` command, implemented in `src/astanova/cli.c
 **Key Requirement**:
 Find safe split points by locating the next `From` boundary after the target byte offset. Both chunk start and end are aligned to `From` boundaries, so every chunk is a valid mbox file.
 
+> **Implementation note (2026-11):** the current splitter scans buffers as
+> ISO-8859-1 so character indices equal byte offsets, passes the byte before
+> a buffer to the boundary check, keeps four bytes of overlap between scan
+> buffers, and loops `FileChannel.transferFrom`. The historical snippets below
+> predate those fixes.
+
 **Design Goals**:
 
 - High performance for large files (> several GB) using NIO zero-copy

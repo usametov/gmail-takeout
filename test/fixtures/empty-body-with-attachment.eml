@@ -1,0 +1,18 @@
+From: sender@example.com
+To: me@example.com
+Subject: Re: Empty body with attachment
+Message-ID: <empty-body-with-attachment@test>
+Date: Mon, 19 Aug 2019 10:00:00 +0000
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="outer-boundary"
+
+--outer-boundary
+Content-Type: text/plain; charset=utf-8
+
+--outer-boundary
+Content-Type: application/pdf; name="report.pdf"
+Content-Disposition: attachment; filename="report.pdf"
+Content-Transfer-Encoding: base64
+
+JVBERi0xLjQKJSVFT0YK
+--outer-boundary--

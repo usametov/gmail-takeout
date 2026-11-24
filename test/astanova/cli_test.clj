@@ -48,10 +48,10 @@
 ;; ─── build-query-clauses ────────────────────────────────────────
 
 (deftest test-build-query-clauses-default
-  (testing "no filters returns a single subject pattern (catch-all)"
+  (testing "no filters returns a single identity pattern (catch-all)"
     (let [clauses (#'sut/build-query-clauses {})]
       (is (= 1 (count clauses)))
-      (is (= ['?e :email/subject] (first clauses))))))
+      (is (= ['?e :email/id] (first clauses))))))
 
 (deftest test-build-query-clauses-subject
   (testing ":subject filter adds includes? predicate"
@@ -63,7 +63,7 @@
         (is (vector? pred-vec) "should be wrapped in a vector")
         (is (list? pred) "the inner form should be a list")
         (is (= 'clojure.string/includes? (first pred)))
-        (is (= '?s (second pred)))
+        (is (= '(clojure.string/lower-case ?s) (second pred)))
         (is (= "hello" (nth pred 2)))))))
 
 (deftest test-build-query-clauses-from
@@ -83,7 +83,7 @@
     (let [clauses (#'sut/build-query-clauses {:labels "inbox"})]
       (is (= 2 (count clauses)))
       (is (= ['?e :email/labels "inbox"] (first clauses)))
-      (is (= ['?e :email/subject] (second clauses))))))
+      (is (= ['?e :email/id] (second clauses))))))
 
 (deftest test-build-query-clauses-labels-all-mode
   (testing ":labels with --labels-mode all generates separate clauses"
@@ -91,7 +91,7 @@
       (is (= 3 (count clauses)))
       (is (= ['?e :email/labels "a"] (first clauses)))
       (is (= ['?e :email/labels "b"] (second clauses)))
-      (is (= ['?e :email/subject] (nth clauses 2))))))
+      (is (= ['?e :email/id] (nth clauses 2))))))
 
 (deftest test-build-query-clauses-labels-any-mode
   (testing ":labels with --labels-mode any wraps in :or"
@@ -101,7 +101,7 @@
         (is (= 'or (first or-clause)))
         (is (some #(= ['?e :email/labels "a"] %) (rest or-clause)))
         (is (some #(= ['?e :email/labels "b"] %) (rest or-clause))))
-      (is (= ['?e :email/subject] (second clauses))))))
+      (is (= ['?e :email/id] (second clauses))))))
 
 (deftest test-build-query-clauses-labels-default-mode
   (testing ":labels defaults to all mode"
@@ -109,7 +109,7 @@
       (is (= 3 (count clauses)))
       (is (= ['?e :email/labels "a"] (first clauses)))
       (is (= ['?e :email/labels "b"] (second clauses)))
-      (is (= ['?e :email/subject] (nth clauses 2))))))
+      (is (= ['?e :email/id] (nth clauses 2))))))
 
 (deftest test-build-query-clauses-since
   (testing ":since filter adds date >= predicate"
@@ -237,6 +237,21 @@
       (is (contains? cmds "stats"))
       (is (contains? cmds "export"))
       (is (contains? cmds "threads")))))
+
+(deftest test-build-query-clauses-subject-is-case-insensitive
+  (testing ":subject lowercases both operands"
+    (let [clauses (#'sut/build-query-clauses {:subject "MeEtInG"})
+          pred    (first (second clauses))]
+      (is (= '(clojure.string/lower-case ?s) (second pred)))
+      (is (= "meeting" (nth pred 2))))))
+
+(deftest test-export-spec-does-not-swallow-output-argument
+  (testing "export -l labels leaves the positional output file in :args"
+    (let [{:keys [opts args]}
+          (cli/parse-args ["-l" "Important,Starred" "out.edn"]
+                          {:spec sut/export-spec})]
+      (is (= "Important,Starred" (:label opts)))
+      (is (= ["out.edn"] args)))))
 
 ;; ─── Split command ───────────────────────────────────────────────
 

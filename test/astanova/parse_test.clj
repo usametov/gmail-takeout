@@ -243,7 +243,7 @@
 
 (deftest test-parse-raw-message-empty-body-with-attachment
   (testing "empty text body with attachment populates body with attachment metadata"
-    (let [raw (slurp "test/resources/empty-body-with-attachment.eml")
+    (let [raw (slurp "test/fixtures/empty-body-with-attachment.eml")
           parsed (sut/parse-raw-message raw)]
       (is (some? parsed) "parsed successfully")
       (is (str/includes? (:body parsed "") "[Attachment:") "body has attachment marker")
@@ -254,7 +254,7 @@
 
 (deftest test-parse-raw-message-hashhedge-challenge
   (testing "multipart/alternative with text/plain and no MIME boundaries leaking"
-    (let [raw (slurp "test/resources/hashhedge-challenge.eml")
+    (let [raw (slurp "test/fixtures/hashhedge-challenge.eml")
           parsed (sut/parse-raw-message raw)]
       (is (some? parsed) "parsed successfully")
       (is (= "HashHedge -- challenge" (:subject parsed)))

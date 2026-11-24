@@ -295,9 +295,9 @@ library functions (via REPL), not from the CLI directly.
 
 ## Working with Threads
 
-Threads group related emails together using the `:email/thread-id` attribute, 
-which is extracted from the `Thread-Topic`, `References`, or `X-GM-THRID` 
-headers (Google Takeout uses `X-GM-THRID`).
+Threads group related emails together using the `:email/thread-id` attribute.
+Mbox ingestion prefers `X-GM-THRID` (Google Takeout), then the first Message-ID
+from `References`, then `Thread-Topic` as a last resort.
 
 ### Understanding Thread IDs
 

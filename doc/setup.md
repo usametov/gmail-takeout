@@ -17,24 +17,23 @@ This guide covers the runtime prerequisites, the CLI entry points, the
 
 ## Running the CLI from a source checkout
 
-The README and older docs use `./takeout`; that wrapper is not committed to the
-repository. From a fresh checkout use the `:run-m` alias:
+The repository includes `./takeout`, a thin wrapper around `clojure -M:run-m`:
 
 ```bash
-clojure -M:run-m --help
-clojure -M:run-m -d emails.db ingest ~/Takeout/Mail/Inbox.mbox
-clojure -M:run-m -d emails.db query -l "Important" -n 10 --format table
+./takeout --help
+./takeout -d emails.db ingest ~/Takeout/Mail/Inbox.mbox
+./takeout -d emails.db query -l "Important" -n 10 --format table
 ```
 
-Equivalent form:
+Equivalent forms if you prefer not to use the wrapper:
 
 ```bash
+clojure -M:run-m -d emails.db stats
 clojure -M -m astanova.takeout -d emails.db stats
 ```
 
-Once a wrapper is added, `./takeout …` is simply shorthand for the same thing.
-The full test suite currently depends on fixtures that are not committed, so
-`clojure -T:build ci` will fail until that is fixed; use `-M:run-m` for now.
+The test suite and `clojure -T:build ci` are expected to pass from a fresh
+checkout; the fixtures live under `test/fixtures/`.
 
 ## `gws` (Google Workspace CLI)
 

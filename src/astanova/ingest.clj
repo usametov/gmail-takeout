@@ -16,31 +16,33 @@
    Only includes attributes that have non-nil values to avoid
    Datalevin rejecting nil for single-valued schema attributes."
   [email-map mbox-file source]
-  (cond-> {:db/id          (d/tempid :db.part/user)
-           :email/id       (:message-id email-map)
-           :email/gmail-id (:gmail-id email-map)
-           :email/source   source
-           :email/mbox-file mbox-file
-           :email/body-truncated (subs (:body email-map) 0 (min 10000 (count (:body email-map))))
-           :email/body-length (count (:body email-map))}
-    (:subject email-map)
-    (assoc :email/subject (:subject email-map))
-    (:from email-map)
-    (assoc :email/from (:from email-map))
-    (:date email-map)
-    (assoc :email/date (:date email-map))
-    (seq (:labels email-map))
-    (assoc :email/labels (:labels email-map))
-    (:html email-map)
-    (assoc :email/html (:html email-map))
-    (:to email-map)
-    (assoc :email/to (:to email-map))
-    (:cc email-map)
-    (assoc :email/cc (:cc email-map))
-    (:thread-id email-map)
-    (assoc :email/thread-id (:thread-id email-map))
-    (seq (:attachments email-map))
-    (assoc :email/attachments (:attachments email-map))))
+  (let [body (or (:body email-map) "")]
+    (cond-> {:db/id                (d/tempid :db.part/user)
+             :email/id             (:message-id email-map)
+             :email/source         source
+             :email/mbox-file      mbox-file
+             :email/body-truncated (subs body 0 (min 10000 (count body)))
+             :email/body-length    (count body)}
+      (:gmail-id email-map)
+      (assoc :email/gmail-id (:gmail-id email-map))
+      (:subject email-map)
+      (assoc :email/subject (:subject email-map))
+      (:from email-map)
+      (assoc :email/from (:from email-map))
+      (:date email-map)
+      (assoc :email/date (:date email-map))
+      (seq (:labels email-map))
+      (assoc :email/labels (:labels email-map))
+      (:html email-map)
+      (assoc :email/html (:html email-map))
+      (:to email-map)
+      (assoc :email/to (:to email-map))
+      (:cc email-map)
+      (assoc :email/cc (:cc email-map))
+      (:thread-id email-map)
+      (assoc :email/thread-id (:thread-id email-map))
+      (seq (:attachments email-map))
+      (assoc :email/attachments (:attachments email-map)))))
 
 ;; ─── Batch helpers ───────────────────────────────────────────────
 
@@ -86,10 +88,11 @@
         err-count (atom 0)
         log-writer (when log-file
                      (java.io.FileWriter. (java.io.File. log-file) true))
+        ;; Keep this lazy: ingest-emails! consumes it in batches so a large
+        ;; chunk never has to realize every parsed message at once.
         parsed    (->> (parse/mbox-messages mbox-path)
                        (map (fn [entry]
-                              (let [from-line (:from-line entry)
-                                    raw-msg   (:raw-message entry)]
+                              (let [from-line (:from-line entry)]
                                 (swap! raw-count inc)
                                 (let [result (try
                                                (parse/parse-raw-message entry)
@@ -107,16 +110,18 @@
                                         (catch Throwable _))))
                                   result))))
                        (filter some?)
-                       (filter :message-id)
-                       (doall))]
-    (when log-writer
-      (.write log-writer (str "\n--- Summary for " mbox-file " ---\n"
-                              "Total raw: " @raw-count "\n"
-                              "Parse errors: " @err-count "\n"
-                              "Ingested: " (count parsed) "\n\n"))
-      (.close log-writer))
-    (let [stats (ingest-emails! conn parsed mbox-file source :batch-size batch-size)]
-      (assoc stats :total-raw @raw-count :parse-errors @err-count))))
+                       (filter :message-id))]
+    (try
+      (let [stats (ingest-emails! conn parsed mbox-file source :batch-size batch-size)]
+        (when log-writer
+          (.write log-writer (str "\n--- Summary for " mbox-file " ---\n"
+                                  "Total raw: " @raw-count "\n"
+                                  "Parse errors: " @err-count "\n"
+                                  "Ingested: " (:email-count stats) "\n\n")))
+        (assoc stats :total-raw @raw-count :parse-errors @err-count))
+      (finally
+        (when log-writer
+          (.close log-writer))))))
 
 (defn ingest-mbox-files!
   "Ingest multiple MBOX files from a directory or list of paths.
