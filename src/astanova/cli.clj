@@ -15,7 +15,7 @@
   (:import [java.time Instant LocalDate ZonedDateTime ZoneId]
            [java.time.format DateTimeFormatter DateTimeParseException]))
 
-(declare build-query-clauses build-query print-table apply-limit-offset paginated-results)
+(declare build-query-clauses build-query print-table apply-limit-offset paginated-results sort-query-results)
 
 ;; ─── Date parsing ───────────────────────────────────────────────
 
@@ -28,8 +28,12 @@
         (let [d (LocalDate/parse s DateTimeFormatter/ISO_LOCAL_DATE)]
           (java.util.Date/from (.toInstant (.atStartOfDay d (ZoneId/of "UTC")))))
         (catch DateTimeParseException _
-          (println (str "Invalid date: " s ". Use format YYYY-MM-DD."))
-          (System/exit 1))))))
+          (throw (ex-info (str "Invalid date: " s ". Use format YYYY-MM-DD.")
+                          {:date s})))))))
+
+(defn- eprintln [& xs]
+  (binding [*out* *err*]
+    (apply println xs)))
 
 ;; ─── Specs ──────────────────────────────────────────────────────
 
@@ -53,6 +57,7 @@
                  :validate {:pred #{"any" "all"}
                             :ex-msg (fn [_] "Must be 'any' or 'all'")}}
    :text        {:desc "Search text in subject and body"}
+   :no-body     {:desc "Omit body-truncated from EDN/JSON query output"}
    :since       {:desc "Emails on or after date (e.g. 2024-01-01)"}
    :before      {:desc "Emails before date"}
    :limit       {:alias :n :coerce :long :default 20 :desc "Max results"}
@@ -136,12 +141,16 @@
   (let [conn    (db/create-conn (:db opts))
         db-snap (d/db conn)]
     (try
-      (let [clauses (build-query-clauses opts)
-            query   (build-query clauses)
-            results (d/q query db-snap)
+      (let [fmt     (keyword (:format opts))
+            clauses (build-query-clauses opts)
+            query   (build-query clauses
+                                  (cond
+                                    (= :table fmt) :table
+                                    (:no-body opts) :lite
+                                    :else :full))
+            results (sort-query-results (d/q query db-snap))
             total   (count results)
-            {:keys [_ page-results offset limit]} (paginated-results results opts)
-            fmt     (keyword (:format opts))]
+            {:keys [_ page-results offset limit]} (paginated-results results opts)]
         (case fmt
           :table (print-table page-results)
           :edn   (clojure.pprint/pprint {:total total
@@ -242,42 +251,75 @@
       (finally
         (db/close-conn conn)))))
 
+(defn- print-thread-summaries [heading summaries]
+  (println heading)
+  (doseq [t summaries]
+    (println (format "  %-50s %3d emails  %s"
+                     (or (:subject t) "(no subject)")
+                     (:email-count t)
+                     (str (:last-date t))))))
+
 (defn- threads-cmd [{:keys [opts]}]
-  (let [conn (db/create-conn (:db opts))
-        db   (d/db conn)]
+  (let [conn  (db/create-conn (:db opts))
+        db    (d/db conn)
+        fmt   (keyword (:format opts))
+        limit (or (:limit opts) 20)]
     (try
       (cond
         (:thread-id opts)
-        (let [thread-id (:thread-id opts)
-              emails (db/get-thread-emails db thread-id)]
-          (println "Thread:" thread-id)
-          (println "Emails:" (count emails))
-          (doseq [e emails]
-            (println "  From:" (:email/from e))
-            (println "  Date:" (:email/date e))
-            (println "  Subject:" (:email/subject e))
-            (println)))
+        (let [thread-id (str (:thread-id opts))
+              emails    (db/get-thread-emails-basic db thread-id)
+              data      {:thread-id   thread-id
+                         :email-count (count emails)
+                         :emails      (mapv #(select-keys % [:email/id :email/subject
+                                                             :email/from :email/to
+                                                             :email/date])
+                                            emails)}]
+          (case fmt
+            :table
+            (do
+              (println "Thread:" thread-id)
+              (println "Emails:" (count emails))
+              (doseq [e emails]
+                (println "  From:" (:email/from e))
+                (println "  Date:" (:email/date e))
+                (println "  Subject:" (:email/subject e))
+                (println)))
+            :edn  (clojure.pprint/pprint data)
+            :json (println (json/generate-string data))))
 
         (:participant opts)
-        (let [threads (db/get-threads-by-participant db (:participant opts))]
-          (println "Threads involving" (:participant opts) ":" (count threads))
-          (doseq [tid threads]
-            (let [summary (db/get-thread-summary db tid)]
-              (println "  -" (:subject summary) "(" (:email-count summary) "emails)"))))
+        (let [summaries (->> (db/get-threads-by-participant db (:participant opts))
+                             (take limit)
+                             (keep #(db/get-thread-summary db %))
+                             (sort-by :last-date #(compare %2 %1))
+                             vec)]
+          (case fmt
+            :table (print-thread-summaries
+                    (str "Threads involving " (:participant opts) ": " (count summaries))
+                    summaries)
+            :edn  (clojure.pprint/pprint summaries)
+            :json (println (json/generate-string summaries))))
 
         (:search opts)
-        (let [threads (db/search-threads-by-subject db (:search opts))]
-          (println "Found" (count threads) "threads matching" (pr-str (:search opts)))
-          (doseq [tid threads]
-            (let [summary (db/get-thread-summary db tid)]
-              (println "  -" (:subject summary) "(" (:email-count summary) "emails)"))))
+        (let [summaries (->> (db/search-threads-by-subject db (:search opts))
+                             (take limit)
+                             (keep #(db/get-thread-summary db %))
+                             (sort-by :last-date #(compare %2 %1))
+                             vec)]
+          (case fmt
+            :table (print-thread-summaries
+                    (str "Threads matching " (pr-str (:search opts)) ": " (count summaries))
+                    summaries)
+            :edn  (clojure.pprint/pprint summaries)
+            :json (println (json/generate-string summaries))))
 
         :else
-        (let [threads (take (:limit opts) (db/get-recent-threads db 100))]
-          (println "Recent threads:")
-          (doseq [t threads]
-            (println (format "  %-50s %3d emails  %s"
-                             (:subject t) (:email-count t) (str (:last-date t)))))))
+        (let [summaries (vec (db/get-recent-threads db limit))]
+          (case fmt
+            :table (print-thread-summaries "Recent threads:" summaries)
+            :edn  (clojure.pprint/pprint summaries)
+            :json (println (json/generate-string summaries)))))
       (finally
         (db/close-conn conn)))))
 
@@ -308,7 +350,7 @@
               (doseq [l sorted]
                 (println (str "  " l))))
           :edn (clojure.pprint/pprint {:count (count sorted) :labels sorted})
-          :json (println (str "[" (str/join ", " (map #(pr-str (str %)) sorted)) "]"))))
+          :json (println (json/generate-string {:count (count sorted) :labels sorted}))))
       (finally
         (db/close-conn conn)))))
 
@@ -348,7 +390,7 @@
               (doseq [a sorted]
                 (println (str "  " a))))
           :edn (clojure.pprint/pprint {:count (count sorted) :addresses sorted})
-          :json (println (str "[" (str/join ", " (map #(pr-str (str %)) sorted)) "]"))))
+          :json (println (json/generate-string {:count (count sorted) :addresses sorted}))))
       (finally
         (db/close-conn conn)))))
 
@@ -360,26 +402,34 @@
    :format  {:desc "table | edn | json" :default "table"}})
 
 (defn- propagate-cmd [{:keys [opts]}]
-  (let [conn   (db/create-conn (:db opts))
-        db     (d/db conn)
-        label  (:label opts)
-        fmt    (keyword (:format opts))]
+  (let [conn  (db/create-conn (:db opts))
+        db    (d/db conn)
+        label (:label opts)
+        fmt   (keyword (:format opts))
+        dry?  (boolean (:dry-run opts))]
     (try
-      (if (:dry-run opts)
-        (let [result (label/preview-propagation db label)]
-          (println (str "\nDry-run for label \"" label "\":"))
-          (println (str "  " (:threads result) " threads affected"))
-          (println (str "  " (:total-emails result) " total emails in those threads"))
-          (println (str "  " (:updated result) " emails would receive the label"))
-          (when (seq (:previews result))
-            (println "\n  Sample of emails to update:")
-            (doseq [p (:previews result)]
-              (println (str "    " (:subject p) " — labels: " (:existing-labels p))))))
-        (let [result (label/propagate-label-to-threads conn label)]
-          (println (str "\nPropagated label \"" label "\" to threads:"))
-          (println (str "  " (:threads result) " threads affected"))
-          (println (str "  " (:total-emails result) " total emails in those threads"))
-          (println (str "  " (:updated result) " emails updated"))))
+      (let [result (if dry?
+                     (label/preview-propagation db label)
+                     (label/propagate-label-to-threads conn label))]
+        (case fmt
+          :table
+          (if dry?
+            (do
+              (println (str "\nDry-run for label \"" label "\":"))
+              (println (str "  " (:threads result) " threads affected"))
+              (println (str "  " (:total-emails result) " total emails in those threads"))
+              (println (str "  " (:updated result) " emails would receive the label"))
+              (when (seq (:previews result))
+                (println "\n  Sample of emails to update:")
+                (doseq [p (:previews result)]
+                  (println (str "    " (:subject p) " — labels: " (:existing-labels p))))))
+            (do
+              (println (str "\nPropagated label \"" label "\" to threads:"))
+              (println (str "  " (:threads result) " threads affected"))
+              (println (str "  " (:total-emails result) " total emails in those threads"))
+              (println (str "  " (:updated result) " emails updated"))))
+          :edn  (clojure.pprint/pprint result)
+          :json (println (json/generate-string result))))
       (finally
         (db/close-conn conn)))))
 
@@ -442,7 +492,7 @@
               (doseq [l linked]
                 (println (str "  " l))))
           :edn (clojure.pprint/pprint {:label label :linked linked})
-          :json (println (str "[" (str/join ", " (map #(pr-str (str %)) linked)) "]"))))
+          :json (println (json/generate-string {:label label :linked linked}))))
       (finally
         (db/close-conn conn)))))
 
@@ -520,15 +570,43 @@
       (empty? (select-keys opts [:subject :from :to :address :text :since :before]))
       (conj ['?e :email/id]))))
 
-(defn- build-query [clauses]
-  (let [pull-pattern [:email/id :email/subject :email/from :email/to
-                      :email/date :email/labels :email/links
-                      :email/body-truncated
-                      :email/gmail-id :email/thread-id]]
-    (vec (concat
-          [:find [(list 'pull '?e (vec pull-pattern)) (symbol "...")]]
-          [:where]
-          clauses))))
+(def ^:private query-pull-full
+  [:email/id :email/subject :email/from :email/to
+   :email/date :email/labels :email/links
+   :email/body-truncated :email/gmail-id :email/thread-id])
+
+(def ^:private query-pull-table
+  "The table format only renders subject/from/date/labels, so do not load
+   bodies, links or recipients for a potentially large result set."
+  [:email/id :email/subject :email/from :email/date :email/labels])
+
+(def ^:private query-pull-lite
+  "Full query shape minus the potentially large body text; used by --no-body."
+  [:email/id :email/subject :email/from :email/to :email/date
+   :email/labels :email/links :email/gmail-id :email/thread-id])
+
+(defn- build-query
+  ([clauses] (build-query clauses :full))
+  ([clauses projection]
+   (let [pull-pattern (case projection
+                        :table query-pull-table
+                        :lite  query-pull-lite
+                        query-pull-full)]
+     (vec (concat
+           [:find [(list 'pull '?e (vec pull-pattern)) (symbol "...")]]
+           [:where]
+           clauses)))))
+
+(defn- sort-query-results
+  "Newest first, with a deterministic Message-ID tie-breaker.  Sorting before
+   pagination makes --offset/--page stable across runs."
+  [results]
+  (sort-by (fn [e]
+             [(if (:email/date e) 1 0)
+              (:email/date e)
+              (str (:email/id e))])
+           #(compare %2 %1)
+           results))
 
 (defn- apply-limit-offset [results limit offset]
   (let [offset (or offset 0)
@@ -558,44 +636,49 @@
 (defn- get-col-width [] 40)
 
 (defn- print-table [results]
-  (when (empty? results)
+  (if (empty? results)
     (println "(no results)")
-    (System/exit 0))
-  (let [cols   [:email/subject :email/from :email/date :email/labels]
-        header (str/join " │ " (for [c cols]
-                                 (format (str "%-" (get-col-width) "s") (name c))))
-        sep    (str/join "─┼─" (repeat (count cols)
-                                       (apply str (repeat (get-col-width) "─"))))]
-    (println header)
-    (println sep)
-    (doseq [row results]
-      (println (str/join " │ "
-                         (for [c cols]
-                           (let [v (get row c)]
-                             (format (str "%." (get-col-width) "s")
-                                     (cond
-                                       (nil? v)   ""
-                                       (coll? v)  (str/join ", " (take 3 v))
-                                       (inst? v)  (str v)
-                                       :else      (subs (str v) 0 (min (get-col-width) (count (str v)))))))))))
-    (println)))
+    (let [cols   [:email/subject :email/from :email/date :email/labels]
+          header (str/join " │ " (for [c cols]
+                                   (format (str "%-" (get-col-width) "s") (name c))))
+          sep    (str/join "─┼─" (repeat (count cols)
+                                         (apply str (repeat (get-col-width) "─"))))]
+      (println header)
+      (println sep)
+      (doseq [row results]
+        (println (str/join " │ "
+                           (for [c cols]
+                             (let [v (get row c)]
+                               (format (str "%." (get-col-width) "s")
+                                       (cond
+                                         (nil? v)   ""
+                                         (coll? v)  (str/join ", " (take 3 v))
+                                         (inst? v)  (str v)
+                                         :else      (subs (str v) 0 (min (get-col-width) (count (str v)))))))))))
+      (println))))
 
 ;; ─── Split command (zero-copy NIO splitter) ─────────────────────
 
 ;; ─── MBOX info diagnostic ──────────────────────────────────────
 
+(defn- split-one! [^java.io.File f chunk-size-mb out-dir]
+  (let [target-dir (or out-dir (.getParent f) ".")]
+    (println (format "Splitting %s (%d MB/chunk) into %s/"
+                     (.getName f) chunk-size-mb target-dir))
+    (mbox/split-mbox! (.getAbsolutePath f) chunk-size-mb target-dir)))
+
 (defn split-cmd [{:keys [opts args]}]
   (let [chunk-size-mb (or (:size opts) 500)
-        out-dir (:output opts)
-        clean-args (loop [as args, acc []]
-                     (if (empty? as)
-                       acc
-                       (if (or (= "-o" (first as)) (= "--output" (first as)))
-                         (recur (drop 2 as) acc)
-                         (recur (rest as) (conj acc (first as))))))]
+        out-dir       (:output opts)
+        clean-args    (loop [as args, acc []]
+                        (if (empty? as)
+                          acc
+                          (if (or (= "-o" (first as)) (= "--output" (first as)))
+                            (recur (drop 2 as) acc)
+                            (recur (rest as) (conj acc (first as))))))]
     (when (empty? clean-args)
-      (println "Error: No .mbox file specified.")
-      (println "Usage: takeout split [options] <mbox-file>...")
+      (println "Error: No .mbox file or directory specified.")
+      (println "Usage: takeout split [options] <mbox-file-or-dir>...")
       (println "Options:")
       (println "  -s, --size MB     Chunk size in MB (default 500)")
       (println "  -o, --output DIR  Output directory")
@@ -605,15 +688,22 @@
         (cond
           (not (.exists f))
           (println "File not found:" path)
+
           (.isDirectory f)
-          (println "Skipping directory (use a specific .mbox file):" path)
+          (let [files (->> (or (.listFiles f) [])
+                           (filter #(and (.isFile ^java.io.File %)
+                                         (str/ends-with? (.getName ^java.io.File %) ".mbox")))
+                           sort)]
+            (if (empty? files)
+              (println "No .mbox files found in directory:" path)
+              (doseq [mf files]
+                (split-one! mf chunk-size-mb out-dir))))
+
           (not (str/ends-with? (.getName f) ".mbox"))
           (println "Warning: Not an .mbox file, skipping:" path)
+
           :else
-          (let [target-dir (or out-dir (.getParent f) ".")]
-            (println (format "Splitting %s (%d MB/chunk) into %s/"
-                             (.getName f) chunk-size-mb target-dir))
-            (mbox/split-mbox! (.getAbsolutePath f) chunk-size-mb target-dir)))))))
+          (split-one! f chunk-size-mb out-dir))))))
 
 (def mbox-info-spec
   {:format {:desc "table | edn | json" :default "table"}})
@@ -652,10 +742,10 @@
     (println "  --dry-run        Preview updates without transacting")
     (println "  --force          Update even if already set")
     (System/exit 0))
-  (let [conn    (db/create-conn (:db opts))
-        db      (d/db conn)
-        mapping (edn/read-string (slurp (:from opts)))
-        force?   (:force opts)]
+  (let [mapping (edn/read-string (slurp (:from opts)))
+        force?  (:force opts)
+        conn    (db/create-conn (:db opts))
+        db      (d/db conn)]
     (try
       (let [entries mapping
             total   (count entries)
@@ -700,7 +790,8 @@
                   (println (format "  NOT FOUND: %s"
                                   (subs msg-id 0 (min 60 (count msg-id))))))))))
         (println (format "\nDone: %d updated, %d skipped (errors), %d already set, %d not found, %d total"
-                         @updated @skipped-gws @skipped-already @missing total))
+                         @updated @skipped-gws @skipped-already @missing total)))
+      (finally
         (db/close-conn conn)))))
 
 (def update-bodies-spec
@@ -714,11 +805,12 @@
     (println "  -f, --from PATH  EDN file from fetch-bodies.clj (required)")
     (println "  --dry-run        Preview updates without transacting")
     (System/exit 0))
-  (let [conn    (db/create-conn (:db opts))
-        db      (d/db conn)
-        mapping (edn/read-string (slurp (:from opts)))]
-    (println (format "Processing %d entries from %s..." (count mapping) (:from opts)))
-    (let [updated (atom 0)
+  (let [mapping (edn/read-string (slurp (:from opts)))
+        conn    (db/create-conn (:db opts))
+        db      (d/db conn)]
+    (try
+      (println (format "Processing %d entries from %s..." (count mapping) (:from opts)))
+      (let [updated (atom 0)
           skipped (atom 0)
           missing (atom 0)]
       (doseq [[msg-id {:keys [body gmail-id error]}] mapping]
@@ -751,8 +843,9 @@
               (do (swap! missing inc)
                   (println (format "  NOT FOUND: %s" (subs msg-id 0 (min 60 (count msg-id))))))))))
       (println (format "\nDone: %d updated, %d skipped (no body), %d not found, %d total"
-                       @updated @skipped @missing (count mapping)))
-      (db/close-conn conn))))
+                       @updated @skipped @missing (count mapping))))
+      (finally
+        (db/close-conn conn)))))
 
 (def extract-urls-spec
   {:label  {:alias :l :desc "Gmail label to query (required)" :required true}
@@ -793,10 +886,10 @@
                              (seq urls)
                              [(:email/id item) urls]
                              (str/blank? body)
-                             (do (println (str "  (no body) " (:email/id item)))
+                             (do (eprintln (str "  (no body) " (:email/id item)))
                                  nil)
                              :else
-                             (do (println (str "  (no URL) " (:email/id item)))
+                             (do (eprintln (str "  (no URL) " (:email/id item)))
                                  nil)))))
                  (into {}))
             output-str (case fmt
@@ -805,8 +898,8 @@
         (if output
           (spit output output-str)
           (print output-str))
-        (println (str "\n" (count results) " emails with URLs (label: " label ")"
-                      (when output (str " -> " output)))))
+        (eprintln (str "\n" (count results) " emails with URLs (label: " label ")"
+                       (when output (str " -> " output)))))
       (finally
         (db/close-conn conn)))))
 
@@ -821,13 +914,14 @@
     (println "  -f, --from PATH  EDN file from extract-urls (required)")
     (println "  --dry-run        Preview updates without transacting")
     (System/exit 0))
-  (let [conn    (db/create-conn (:db opts))
-        db      (d/db conn)
-        mapping (edn/read-string (slurp (:from opts)))]
-    (println (format "Processing %d entries from %s..." (count mapping) (:from opts)))
-    (let [updated (atom 0)
-          missing (atom 0)
-          empty   (atom 0)]
+  (let [mapping (edn/read-string (slurp (:from opts)))
+        conn    (db/create-conn (:db opts))
+        db      (d/db conn)]
+    (try
+      (println (format "Processing %d entries from %s..." (count mapping) (:from opts)))
+      (let [updated (atom 0)
+            missing (atom 0)
+            empty   (atom 0)]
       (doseq [[msg-id urls] mapping]
         (if (seq urls)
           (let [entity (d/entity db [:email/id msg-id])]
@@ -847,9 +941,10 @@
                   (println (format "  NOT FOUND: %s" (subs msg-id 0 (min 60 (count msg-id))))))))
           (do (swap! empty inc)
               (println (format "  SKIP (no links): %s" (subs msg-id 0 (min 50 (count msg-id))))))))
-      (println (format "\nDone: %d updated, %d skipped (no links), %d not found, %d total"
-                       @updated @empty @missing (count mapping)))
-      (db/close-conn conn))))
+        (println (format "\nDone: %d updated, %d skipped (no links), %d not found, %d total"
+                         @updated @empty @missing (count mapping))))
+      (finally
+        (db/close-conn conn)))))
 
 (def upsert-content-spec
   {:from {:alias :f :desc "EDN file from fetch-content.clj (required)" :required true}
@@ -862,14 +957,15 @@
     (println "  -f, --from PATH  EDN file from fetch-content.clj (required)")
     (println "  --dry-run        Preview without transacting")
     (System/exit 0))
-  (let [conn     (db/create-conn (:db opts))
+  (let [mapping  (edn/read-string (slurp (:from opts)))
+        conn     (db/create-conn (:db opts))
         db       (d/db conn)
-        mapping  (edn/read-string (slurp (:from opts)))
         type-map {:arxiv :paper :github :git-repo :youtube :video-transcript}
         md       (java.security.MessageDigest/getInstance "SHA-256")]
-    (println (format "Processing %d emails from %s..." (count mapping) (:from opts)))
-    (let [upserted (atom 0)
-          skipped  (atom 0)]
+    (try
+      (println (format "Processing %d emails from %s..." (count mapping) (:from opts)))
+      (let [upserted (atom 0)
+            skipped  (atom 0)]
       (doseq [[email-id {:keys [links]}] mapping]
         (doseq [[url content] links]
           (let [content-type (type-map (:type content))
@@ -900,9 +996,10 @@
                                   (count body-text)))))
               (do (swap! skipped inc)
                   (println (format "  SKIP (no body): %s" (subs url 0 (min 60 (count url))))))))))
-      (println (format "\nDone: %d content entities, %d skipped, from %d emails"
-                       @upserted @skipped (count mapping)))
-      (db/close-conn conn))))
+        (println (format "\nDone: %d content entities, %d skipped, from %d emails"
+                         @upserted @skipped (count mapping))))
+      (finally
+        (db/close-conn conn)))))
 
 (def content-query-spec
   {:label {:alias :l :desc "Filter by email label"}
@@ -946,7 +1043,7 @@
           (clojure.pprint/pprint (mapv (fn [[c s f d]] {:content c :subject s :from f :date d}) results))
           :json
           (println (json/generate-string (mapv (fn [[c s f d]] {:content c :subject s :from f :date d}) results))))
-        (println (str "\n" (count results) " results")))
+        (eprintln (str "\n" (count results) " results")))
       (finally
         (db/close-conn conn)))))
 

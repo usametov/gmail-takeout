@@ -41,11 +41,17 @@
 
 ;; ─── Paths ──────────────────────────────────────────────────────
 
-(def home    (System/getProperty "user.home"))
-(def db      (str home "/Documents/Takeout/sent-emails-latest.db"))
-(def outdir  (str home "/Documents/Takeout"))
-(def takeout (str home "/code/takeout/takeout"))
-(def scripts (str home "/code/takeout/scripts"))
+(def home      (System/getProperty "user.home"))
+(def outdir    (or (System/getenv "TAKEOUT_DIR")
+                   (str home "/Documents/Takeout")))
+(def db        (or (System/getenv "TAKEOUT_DB")
+                   (str outdir "/sent-emails-latest.db")))
+(def repo-root (or (System/getenv "TAKEOUT_ROOT")
+                   (System/getProperty "user.dir")))
+(def takeout   (or (System/getenv "TAKEOUT_BIN")
+                   (str repo-root "/takeout")))
+(def scripts   (or (System/getenv "TAKEOUT_SCRIPTS")
+                   (str repo-root "/scripts")))
 
 ;; ─── Main ──────────────────────────────────────────────────────
 

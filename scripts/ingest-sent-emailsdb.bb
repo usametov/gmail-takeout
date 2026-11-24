@@ -7,9 +7,14 @@
 (require '[babashka.fs :as fs]
          '[babashka.process :as p])
 
-(def db-path  (fs/expand-home "~/Documents/Takeout/sent-emails-latest.db"))
-(def mbox-dir (fs/expand-home "~/Documents/Takeout/Mail"))
-(def takeout  (fs/expand-home "~/code/takeout/takeout"))
+(def db-path  (fs/expand-home
+               (or (System/getenv "TAKEOUT_DB")
+                   "~/Documents/Takeout/sent-emails-latest.db")))
+(def mbox-dir (fs/expand-home
+               (or (System/getenv "TAKEOUT_MAIL_DIR")
+                   "~/Documents/Takeout/Mail")))
+(def takeout  (or (System/getenv "TAKEOUT_BIN")
+                  (str (System/getProperty "user.dir") "/takeout")))
 
 (def files
   (for [i (range 1 22)

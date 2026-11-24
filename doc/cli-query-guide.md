@@ -196,8 +196,9 @@ whatever the Datalevin database grows to; check `df -h` first if space is tight.
 
 ## Pagination
 
-By default, the query returns the first 20 results. Use the pagination options
-to control which slice of results you see.
+By default, the query returns the first 20 results. Results are ordered newest
+first, with Message-ID as a tie-breaker, so the same page is returned across
+runs. Use the pagination options to control which slice of results you see.
 
 ### Using `--limit` / `--offset`
 
@@ -324,6 +325,13 @@ JSON array of results. Note: JSON output does not include pagination metadata.
 ./takeout -d emails.db threads -s "meeting"
 ```
 
+### Structured thread output
+
+```bash
+./takeout -d emails.db threads --format json -n 5
+./takeout -d emails.db threads -t "thread-id-here" --format edn
+```
+
 ### Thread CLI options
 
 | Option | Description |
@@ -446,6 +454,9 @@ email in a thread has the label, all other emails in that thread receive it.
 
 # Apply
 ./takeout -d emails.db propagate -l "trading"
+
+# Structured preview
+./takeout -d emails.db propagate -l "trading" --dry-run --format json
 ```
 
 Output:
@@ -667,14 +678,14 @@ grep -c '^From ' output.part-0002.mbox
 ## Update Message IDs
 
 Add Gmail internal IDs (`:email/gmail-id`) and fix thread IDs (`:email/thread-id`)
-in the database using a mapping file produced by `scripts/map_gmail_ids.bb`.
+in the database using a mapping file produced by `scripts/map_gmail_ids.clj`.
 
 This command does **not** change `:email/id` — it only adds the Gmail internal ID
 and corrects the thread ID obtained from the Gmail API.
 
 ### Prerequisites
 
-First, generate a mapping file using `scripts/map_gmail_ids.bb` (see next section).
+First, generate a mapping file using `scripts/map_gmail_ids.clj` (see next section).
 The mapping file is an EDN map:
 
 ```edn
@@ -926,7 +937,8 @@ Extract `https?://` URLs from email bodies for emails matching a label.
 Outputs an EDN or JSON map: `{<email-id> [url1 url2 ...], ...}`.
 
 Emails with empty bodies log `(no body) <id>` to stderr; emails with a body
-but no URLs found log `(no URL) <id>`.
+but no URLs found log `(no URL) <id>`. The `N emails with URLs` summary is also
+written to stderr, so stdout stays valid EDN/JSON.
 
 ### Usage
 
@@ -1286,6 +1298,7 @@ See the [query-guide.md](query-guide.md) for the complete REPL query reference.
 | `-l` / `--labels` | Comma-separated Gmail labels |
 | `--labels-mode` | `any` or `all` — how to combine labels (default: `any`) |
 | `--text` | Search text in subject and body (combines with labels) |
+| `--no-body` | Omit `:email/body-truncated` from EDN/JSON output (keeps links/metadata) |
 | `--since` | Emails on or after date (e.g. `2024-01-01`) |
 | `--before` | Emails before date |
 | `-n` / `--limit` | Max results (default: 20) |
@@ -1293,3 +1306,6 @@ See the [query-guide.md](query-guide.md) for the complete REPL query reference.
 | `--page` | Page number (1-indexed, overrides `--offset`) |
 | `--page-size` | Results per page (overrides `--limit`) |
 | `--format` | Output: `table`, `edn`, or `json` (default: `edn`) |
+
+`--format table` already avoids pulling bodies. For EDN/JSON pipelines that do
+not need body text, add `--no-body` to reduce memory on large result sets.

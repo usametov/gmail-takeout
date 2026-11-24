@@ -366,3 +366,54 @@
                   chunk (java.io.File. parent (str stem ".part-0001.mbox"))]
               (is (.exists chunk) "chunk created in input dir")
               (.delete chunk))))))))
+
+(deftest test-build-query-table-projection-omits-bodies
+  (testing "table output does not pull body/links for the whole result set"
+    (let [query (#'sut/build-query [['?e :email/id]] :table)
+          text  (str query)]
+      (is (re-find #"email/subject" text))
+      (is (not (re-find #"body" text)))
+      (is (not (re-find #"email/links" text))))))
+
+(deftest test-sort-query-results-newest-first
+  (testing "queries sort by date descending with a deterministic tie-breaker"
+    (let [older {:email/id "a" :email/date #inst "2024-01-01T00:00:00.000-00:00"}
+          newer {:email/id "b" :email/date #inst "2024-02-01T00:00:00.000-00:00"}
+          undated {:email/id "c"}]
+      (is (= ["b" "a" "c"]
+             (mapv :email/id (#'sut/sort-query-results [older undated newer])))))))
+
+(deftest test-build-query-lite-projection-omits-bodies
+  (testing "--no-body keeps metadata and links but omits body text"
+    (let [query (#'sut/build-query [['?e :email/id]] :lite)
+          text  (str query)]
+      (is (re-find #"email/subject" text))
+      (is (re-find #"email/links" text))
+      (is (not (re-find #"body" text))))))
+
+(deftest test-parse-date-invalid-throws
+  (testing "invalid dates throw instead of terminating the JVM"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Invalid date"
+                          (#'sut/parse-date "not-a-date")))))
+
+(deftest test-print-table-empty-does-not-exit
+  (testing "empty table output returns normally"
+    (is (str/includes? (with-out-str (#'sut/print-table []))
+                       "(no results)"))))
+
+(deftest test-split-cmd-directory
+  (testing "split-cmd expands a directory of .mbox files"
+    (with-temp-dir
+      (fn [source-dir]
+        (with-temp-dir
+          (fn [out-dir]
+            (spit (java.io.File. ^String source-dir "one.mbox")
+                  "From a@b.com\n\nOne\n")
+            (spit (java.io.File. ^String source-dir "two.mbox")
+                  "From c@d.com\n\nTwo\n")
+            (with-out-str
+              (sut/split-cmd {:opts {:size 1 :output out-dir}
+                              :args [source-dir]}))
+            (let [files (filter #(.endsWith (.getName %) ".mbox")
+                                (.listFiles (java.io.File. ^String out-dir)))]
+              (is (= 2 (count files))))))))))

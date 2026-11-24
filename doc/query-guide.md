@@ -81,7 +81,7 @@ Complete guide to querying your email database after ingestion with `astanova.ta
 ;; Access attributes
 (:email/subject email)
 (:email/from email)
-(:email/body email)
+(:email/body-truncated email)
 (:email/date email)
 ```
 
@@ -283,7 +283,7 @@ library functions (via REPL), not from the CLI directly.
 (d/q '[:find [(pull ?e [:email/subject :email/from]) ...]
        :in $ ?term
        :where (or [?e :email/subject ?text]
-                  [?e :email/body ?text])
+                  [?e :email/body-truncated ?text])
               [(clojure.string/includes? (clojure.string/lower-case ?text) ?term)]]
      db "project update")
 
@@ -322,7 +322,7 @@ from `References`, then `Thread-Topic` as a last resort.
 ;; Manual query (customize pull pattern)
 ;; Note: Datalevin 0.9.x doesn't support :order-by in queries.
 ;; Sort results in Clojure instead:
-(->> (d/q '[:find [(pull ?e [:email/subject :email/from :email/date :email/body]) ...]
+(->> (d/q '[:find [(pull ?e [:email/subject :email/from :email/date :email/body-truncated]) ...]
             :in $ ?thread
             :where [?e :email/thread-id ?thread]
                    [?e :email/date ?d]]
@@ -479,7 +479,7 @@ from `References`, then `Thread-Topic` as a last resort.
       (println "From:" (:email/from email))
       (println "Date:" (:email/date email))
       (println "Subject:" (:email/subject email))
-      (when-let [body (:email/body email)]
+      (when-let [body (:email/body-truncated email)]
         (println "Body preview:" 
                  (subs body 0 (min 200 (count body))) 
                  "...")))))
@@ -631,6 +631,7 @@ The `astanova.db` namespace provides convenient helper functions:
 ;; Thread functions
 (db/get-thread-ids db)                  ;; Get all thread IDs
 (db/get-thread-emails db thread-id)      ;; Get all emails in thread
+(db/get-thread-emails-basic db thread-id) ;; Thread metadata only (no bodies)
 (db/get-thread-participants db thread-id) ;; Get participants
 (db/get-thread-summary db thread-id)    ;; Get thread summary
 (db/get-threads-by-participant db addr) ;; Find threads by participant
@@ -699,6 +700,11 @@ The `astanova.db` namespace provides convenient helper functions:
 ;; Avoid: pulling everything
 (d/q '[:find [(pull ?e [*]) ...] ...] db)
 ```
+
+The CLI applies this for table output: `query --format table` pulls only
+subject/from/date/labels, not bodies or links. Thread metadata uses the same
+idea via `(db/get-thread-emails-basic db thread-id)`; `db/get-thread-summary`
+and `db/get-recent-threads` use it internally.
 
 ### 3. Use Entity API for Single Records
 
@@ -933,7 +939,7 @@ clojure -M:repl/conjure
 
 - Explore the `astanova.db` namespace for more helpers
 - Check Clojure's `clojure.string` for text processing
-- Use `portal` or `cider-inspect` to explore query results
+- Use `cider-inspect` or the REPL to explore query results
 - Consider adding full-text indexing for large datasets
 
 ```clojure

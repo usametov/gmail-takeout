@@ -2,8 +2,7 @@
   "MBOX parsing and email structuring using Apache Mime4j + Jakarta Mail."
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
-            [taoensso.timbre :as timbre :refer [warn]]
-            [taoensso.timbre.appenders.core :as appenders]
+            [taoensso.timbre :refer [warn]]
             [hickory.core :as hickory :refer [as-hickory]]
             [clojure.edn :as edn])
   (:require [slingshot.slingshot :refer [try+ throw+]])
@@ -15,18 +14,6 @@
            [java.io ByteArrayInputStream]
            [java.nio.charset Charset]
            [java.util Properties]))
-
-(timbre/merge-config!
- {:appenders {:spit (appenders/spit-appender {:fname "./takeout.log"})}})
-
-(defmacro with-context
-  "Accumulate structured context as errors propagate up."
-  [ctx & body]
-  `(try+
-     ~@body
-     (catch Object e#
-       (throw+ (merge ~ctx e#)
-               (:throwable ~'&throw-context)))))
 
 ;; ─── MBOX file -> seq of raw messages ───────────────────────────
 
@@ -381,8 +368,12 @@
   "Generate a deterministic fallback ID when Message-ID is missing.
    Uses content hash to ensure same email gets same ID (for dedup)."
   [subject from date body]
-  (let [safe-body (if (string? body) (subs body 0 (min 200 (count body))) "")
-        content (str (or subject "") "|" (or from "") "|" (or date "") "|" safe-body)
+  (let [date-token (cond
+                     (instance? java.util.Date date) (str (.getTime ^java.util.Date date))
+                     (some? date) (str date)
+                     :else "")
+        safe-body  (if (string? body) (subs body 0 (min 200 (count body))) "")
+        content    (str (or subject "") "|" (or from "") "|" date-token "|" safe-body)
         hash-bytes (-> (java.security.MessageDigest/getInstance "SHA-256")
                        (.digest (.getBytes content "UTF-8")))]
     (format "fallback-%064x" (BigInteger. 1 hash-bytes))))

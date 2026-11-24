@@ -1,7 +1,9 @@
 (ns astanova.regression-test
   "Regression tests for the parser, splitter and CLI fixes made during the
    ingest-correctness pass."
-  (:require [clojure.java.io :as io]
+  (:require [cheshire.core :as json]
+            [clojure.edn :as edn]
+            [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
             [datalevin.core :as d]
@@ -424,3 +426,155 @@
                            (#'cli/build-query-clauses {:subject "meeting"}))]
                 (is (= 1 (count (d/q query snap)))))
               (finally (db/close-conn conn)))))))))
+
+(deftest test-thread-basic-projection-omits-bodies
+  (testing "thread metadata queries do not pull bodies"
+    (with-temp-dir
+      (fn [dir]
+        (let [db-path (str dir "/threads.db")
+              conn    (db/create-conn db-path)]
+          (try
+            (d/transact! conn [{:email/id "<thread-basic@test>"
+                                :email/subject "Thread"
+                                :email/from "a@b.com"
+                                :email/to ["me@example.com"]
+                                :email/date #inst "2024-01-01T00:00:00.000-00:00"
+                                :email/thread-id "thread-basic"
+                                :email/body-truncated "a long body"
+                                :email/body-length 11}
+                               {:email/id "<thread-basic-2@test>"
+                                :email/subject "Thread"
+                                :email/from "a@b.com"
+                                :email/to ["me@example.com"]
+                                :email/date #inst "2024-01-01T00:00:00.000-00:00"
+                                :email/thread-id "thread-basic"
+                                :email/body-truncated "another body"
+                                :email/body-length 12}])
+            (let [snap (d/db conn)
+                  emails (db/get-thread-emails-basic snap "thread-basic")
+                  summary (db/get-thread-summary snap "thread-basic")]
+              ;; Identical metadata must not collapse two distinct emails.
+              (is (= 2 (count emails)))
+              (is (not (contains? (first emails) :email/body-truncated)))
+              (is (= #{"a@b.com" "me@example.com"} (:participants summary)))
+              (is (= 2 (:email-count summary))))
+            (finally (db/close-conn conn))))))))
+
+(deftest test-json-cli-output-shapes
+  (testing "labels/addresses/linked-labels JSON matches the documented shape"
+    (with-temp-dir
+      (fn [dir]
+        (let [db-path (str dir "/json.db")
+              conn    (db/create-conn db-path)]
+          (try
+            (d/transact! conn [{:email/id "<json@test>"
+                                :email/subject "JSON"
+                                :email/from "alice@example.com"
+                                :email/to ["bob@example.com"]
+                                :email/labels ["alpha" "beta"]
+                                :email/date #inst "2024-01-01T00:00:00.000-00:00"
+                                :email/thread-id "json-thread"
+                                :email/body-truncated "body"
+                                :email/body-length 4}])
+            (finally (db/close-conn conn)))
+          (let [labels-out (with-out-str
+                             (#'cli/labels-cmd {:opts {:db db-path :format "json"}}))
+                addrs-out  (with-out-str
+                             (#'cli/addresses-cmd {:opts {:db db-path :format "json"}}))
+                linked-out (with-out-str
+                             (#'cli/linked-labels-cmd
+                              {:opts {:db db-path :label "alpha" :format "json"}}))
+                labels-json (json/parse-string labels-out true)
+                addrs-json  (json/parse-string addrs-out true)
+                linked-json (json/parse-string linked-out true)]
+            (is (= 2 (:count labels-json)))
+            (is (= ["alpha" "beta"] (:labels labels-json)))
+            (is (= 2 (:count addrs-json)))
+            (is (= #{"alice@example.com" "bob@example.com"}
+                   (set (:addresses addrs-json))))
+            (is (= "alpha" (:label linked-json)))
+            (is (= [["beta" 1]] (:linked linked-json)))))))))
+
+(deftest test-threads-and-propagate-json-formats
+  (testing "threads and propagate honor --format json"
+    (with-temp-dir
+      (fn [dir]
+        (let [db-path (str dir "/thread-json.db")
+              conn    (db/create-conn db-path)]
+          (try
+            (d/transact! conn [{:email/id "<tj@test>"
+                                :email/subject "Thread JSON"
+                                :email/from "a@b.com"
+                                :email/date #inst "2024-01-01T00:00:00.000-00:00"
+                                :email/thread-id "tj-thread"
+                                :email/labels ["alpha"]
+                                :email/body-truncated "body"
+                                :email/body-length 4}])
+            (finally (db/close-conn conn)))
+          (let [threads-out (with-out-str
+                              (#'cli/threads-cmd {:opts {:db db-path :format "json"}}))
+                threads-json (json/parse-string threads-out true)
+                prop-out (with-out-str
+                           (#'cli/propagate-cmd {:opts {:db db-path :label "alpha"
+                                                        :format "json" :dry-run true}}))
+                prop-json (json/parse-string prop-out true)]
+            (is (= 1 (count threads-json)))
+            (is (= "Thread JSON" (:subject (first threads-json))))
+            (is (= 1 (:threads prop-json)))
+            (is (= 0 (:updated prop-json)))))))))
+
+(deftest test-update-links-and-connection-cleanup
+  (testing "update-links updates links and closes its connection"
+    (with-temp-dir
+      (fn [dir]
+        (let [db-path (str dir "/links.db")
+              conn    (db/create-conn db-path)]
+          (d/transact! conn [{:email/id "<links@test>"
+                              :email/subject "Links"
+                              :email/body-truncated "body"
+                              :email/body-length 4}])
+          (db/close-conn conn)
+          (let [mapping (write-file! dir "links.edn"
+                                     (pr-str {"<links@test>"
+                                              ["https://example.com/a"]}))]
+            (with-out-str
+              (#'cli/update-links-cmd
+               {:opts {:db db-path :from (.getAbsolutePath mapping)}}))
+            (let [e (entity db-path "<links@test>")]
+              (is (= ["https://example.com/a"] (vec (:email/links e)))))))))))
+
+(deftest test-fallback-id-is-timezone-independent
+  (testing "fallback IDs hash epoch millis, not locale-formatted dates"
+    (let [date (java.util.Date. 1700000000000)
+          original (java.util.TimeZone/getDefault)]
+      (try
+        (let [id1 (#'parse/generate-fallback-id "subject" "from@example.com" date "body")]
+          (java.util.TimeZone/setDefault
+           (java.util.TimeZone/getTimeZone "Pacific/Kiritimati"))
+          (is (= id1 (#'parse/generate-fallback-id
+                      "subject" "from@example.com" date "body"))))
+        (finally
+          (java.util.TimeZone/setDefault original))))))
+
+(deftest test-extract-urls-keeps-stdout-machine-readable
+  (testing "diagnostics go to stderr, EDN stays parseable on stdout"
+    (with-temp-dir
+      (fn [dir]
+        (let [db-path (str dir "/urls.db")
+              conn    (db/create-conn db-path)]
+          (try
+            (d/transact! conn [{:email/id "<urls@test>"
+                                :email/subject "URLs"
+                                :email/labels ["links"]
+                                :email/body-truncated "see https://example.com/a"
+                                :email/body-length 27}])
+            (finally (db/close-conn conn)))
+          (let [out (java.io.StringWriter.)
+                err (java.io.StringWriter.)]
+            (binding [*out* out *err* err]
+              (#'cli/extract-urls-cmd
+               {:opts {:db db-path :label "links" :format "edn"}
+                :args []}))
+            (is (= {"<urls@test>" ["https://example.com/a"]}
+                   (edn/read-string (str out))))
+            (is (str/includes? (str err) "emails with URLs"))))))))

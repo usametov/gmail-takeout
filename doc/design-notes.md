@@ -143,8 +143,8 @@ Completed Steps:
   1. deps.edn configured with real dependencies
   2. DB schema defined (src/astanova/db.clj)
   3. MBOX parser implemented (src/astanova/parse.clj) - TESTED & WORKING
-  4. Ingestion pipeline (src/astanova/ingest.clj) - CODE WRITTEN, waiting on Datalevin native lib fix
-  5. CLI interface (src/astanova/cli.clj, src/astanova/takeout.clj) - CODE WRITTEN
+  4. Ingestion pipeline (src/astanova/ingest.clj) - IMPLEMENTED & TESTED (streaming batches)
+  5. CLI interface (src/astanova/cli.clj, src/astanova/takeout.clj) - IMPLEMENTED & TESTED
 
 === File Structure ===
   src/astanova/db.clj      - Datalevin schema + connection helpers
@@ -159,20 +159,21 @@ Completed Steps:
  :mvn/repos {"clojars" {:url "https://repo.clojars.org"}}  ;; Datalevin is on Clojars, not Maven Central
  :deps {org.clojure/clojure {:mvn/version "1.12.5"}
         datalevin/datalevin {:mvn/version "0.9.20"}  ;; artifact is datalevin/datalevin, not com.github.juji-io/datalevin
-        org.apache.tika/tika-core {:mvn/version "2.9.2"}
-        org.apache.tika/tika-parsers-standard-package {:mvn/version "2.9.2"}
         org.apache.james/apache-mime4j-core {:mvn/version "0.8.11"}
         org.apache.james/apache-mime4j-mbox-iterator {:mvn/version "0.8.11"}  ;; MboxIterator is a SEPARATE artifact from mime4j-core
         com.sun.mail/jakarta.mail {:mvn/version "2.0.1"}
-        djblue/portal {:mvn/version "0.66.0"}         ;; Portal debug UI (used in ingest.clj comment block)
-        org.babashka/cli {:mvn/version "0.8.67"}}}   ;; CLI framework (replaced tools.cli)
+        org.babashka/cli {:mvn/version "0.8.67"}
+        cheshire/cheshire {:mvn/version "5.13.0"}
+        com.taoensso/timbre {:mvn/version "6.7.1"}
+        org.clj-commons/hickory {:mvn/version "0.7.7"}
+        slingshot/slingshot {:mvn/version "0.12.2"}}}
 ```
 
 === Step 2: DB Schema (src/astanova/db.clj) ===
-  13 attributes covering: :email/id (unique), :email/thread-id, :email/source,
-  :email/mbox-file, :email/subject, :email/from, :email/to (many), :email/cc (many),
-  :email/date, :email/body, :email/html, :email/labels (many),
-  :email/attachments (many)
+  16 attributes covering: :email/id (unique), :email/gmail-id, :email/thread-id,
+  :email/source, :email/mbox-file, :email/subject, :email/from, :email/to (many),
+  :email/cc (many), :email/date, :email/body-truncated, :email/body-length,
+  :email/html, :email/labels (many), :email/links (many), :email/attachments (many)
 
   Note: :email/embedding removed — embeddings handled by external ColBERT service.
 
@@ -456,17 +457,14 @@ takeout split ~/Takeout/Mail/Inbox.mbox -o ~/Takeout/Mail/split/
 
 === Original Design Notes Follow ===
 
-Use **Apache Tika** for robust parsing of MBOX + individual emails (it handles RFC822, attachments metadata, HTML→text, etc.). Pair it with JavaMail (`javax.mail` / `jakarta.mail`) or a Clojure wrapper for finer control over headers/parts.
-
-**Best combo**:
-- `clj-tika` (or direct Tika interop) → parse MBOX into individual messages.
-- JavaMail for structured email data (subject, from, to, date, body parts, etc.).
-- Then embed + transact into Datalevin.
+The implementation uses **Mime4j `MboxIterator`** to stream messages and
+**Jakarta Mail** for structured headers/MIME parts. Tika was evaluated but is
+not a dependency; do not add it just for MBOX parsing.
 
 ### Performance Tips
 - Process in batches (default 100 per tx in ingest.clj).
 - Run embedding generation in parallel (use `pmap` or a thread pool).
-- MboxIterator is memory-efficient (one message at a time). Tika can be memory-heavy.
+- MboxIterator is memory-efficient (one message at a time). Avoid pulling full bodies when only thread metadata is needed.
 
 ### Next Steps After Ingestion
 
@@ -587,11 +585,11 @@ via dense vector embeddings. The design separates this cleanly into an external 
   ...)
 
 (defn index-emails! [conn]
-  (let [emails (d/q '[:find [(pull ?e [:db/id :email/body :email/subject]) ...]
+  (let [emails (d/q '[:find [(pull ?e [:db/id :email/body-truncated :email/subject]) ...]
                       :where [?e :email/subject]]
                     (d/db conn))]
-    (doseq [{:keys [db/id email/body email/subject]} emails]
-      (let [text (str subject "\n" body)
+    (doseq [{:keys [db/id email/body-truncated email/subject]} emails]
+      (let [text (str subject "\n" body-truncated)
             vec  (embed-text text)]
         (d/transact! conn [{:db/id id
                             :email/embedding vec}])))))

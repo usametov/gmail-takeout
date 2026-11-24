@@ -1,7 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
+input="${1:-email_ids.txt}"
 while IFS= read -r id || [ -n "$id" ]; do
     [[ -z "$id" ]] && continue
     echo "=== Fetching: $id ==="
     gws gmail +read --id "$id" --format json
-    echo -e "\n"
-done < /Users/asel/code/takeout/email_ids.txt
+    printf '\n'
+done < "$input"

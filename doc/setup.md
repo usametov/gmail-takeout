@@ -242,6 +242,23 @@ archive the antigravity copies. Future classifier runs default to
 `<repo>/ontology`, so old and new caches will diverge if you keep running the
 script against the old directory.
 
+## Pipeline script paths
+
+The older enrichment/ingest scripts no longer require hard-coded home paths.
+They honor:
+
+| Variable | Used for |
+|----------|----------|
+| `TAKEOUT_DB` | database path |
+| `TAKEOUT_DIR` | output directory for mapping/body files |
+| `TAKEOUT_MAIL_DIR` | MBOX source directory for `ingest-sent-emailsdb.*` |
+| `TAKEOUT_BIN` | path to the `takeout` executable |
+| `TAKEOUT_ROOT` | repository root (defaults to the current directory) |
+| `TAKEOUT_SCRIPTS` | scripts directory (defaults to `<root>/scripts`) |
+
+`scripts/fetch-bodies.sh` takes an input file argument, defaulting to
+`./email_ids.txt`.
+
 ## `~/.secrets.edn`
 
 Secrets are read from a single EDN map in the user's home directory. The file is

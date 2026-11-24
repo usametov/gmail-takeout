@@ -332,7 +332,8 @@
 
 (defn get-thread-emails
   "Get all emails in a thread, ordered by date (oldest first).
-   Returns emails with all attributes."
+   Returns emails with all attributes.  Prefer get-thread-emails-basic for
+   metadata-only use cases."
   [db thread-id]
   (->> (d/q '[:find [(pull ?e [*]) ...]
               :in $ ?thread
@@ -341,13 +342,37 @@
             db thread-id)
        (sort #(compare (:email/date %1) (:email/date %2)))))
 
+(defn get-thread-emails-basic
+  "Get thread emails with only summary attributes (no body/html/attachments),
+   ordered by date (oldest first)."
+  [db thread-id]
+  (->> (d/q '[:find [(pull ?e [:email/id :email/thread-id :email/subject :email/from
+                                :email/to :email/date]) ...]
+              :in $ ?thread
+              :where [?e :email/thread-id ?thread]
+                     [?e :email/date ?d]]
+            db thread-id)
+       (sort #(compare (:email/date %1) (:email/date %2)))))
+
+(defn- thread-participants
+  [emails]
+  (set/union (set (keep :email/from emails))
+             (set (mapcat :email/to emails))))
+
+(defn- summarize-thread
+  [thread-id emails]
+  (when (seq emails)
+    {:thread-id thread-id
+     :subject (:email/subject (first emails))
+     :email-count (count emails)
+     :participants (thread-participants emails)
+     :first-date (:email/date (first emails))
+     :last-date (:email/date (last emails))}))
+
 (defn get-thread-participants
   "Get all unique participants (from/to) in a thread."
   [db thread-id]
-  (let [emails (get-thread-emails db thread-id)
-        froms (set (keep :email/from emails))
-        tos (set (mapcat :email/to emails))]
-    (set/union froms tos)))
+  (thread-participants (get-thread-emails-basic db thread-id)))
 
 (defn get-threads-by-participant
   "Find all threads that involve a specific email address 
@@ -365,22 +390,29 @@
   "Get a summary of a thread: subject, participant count, 
    email count, date range."
   [db thread-id]
-  (let [emails (get-thread-emails db thread-id)]
-    (when (seq emails)
-      {:thread-id thread-id
-       :subject (:email/subject (first emails))
-       :email-count (count emails)
-       :participants (get-thread-participants db thread-id)
-       :first-date (:email/date (first emails))
-       :last-date (:email/date (last emails))})))
+  (summarize-thread thread-id (get-thread-emails-basic db thread-id)))
 
 (defn get-recent-threads
-  "Get N most recent threads based on the last email in each thread."
+  "Get N most recent threads based on the last email in each thread.
+   Uses one metadata-only query and groups in Clojure instead of running a
+   second full-body query per thread."
   [db n]
-  (let [thread-ids (get-thread-ids db)
-        threads (keep #(get-thread-summary db %) thread-ids)
-        sorted (sort #(compare (:last-date %2) (:last-date %1)) threads)]
-    (take n sorted)))
+  (let [rows (d/q '[:find [(pull ?e [:email/id :email/thread-id :email/subject
+                                      :email/from :email/to :email/date]) ...]
+                    :where [?e :email/thread-id ?thread]
+                           [?e :email/date ?d]]
+                  db)
+        summaries (for [[thread-id emails] (group-by :email/thread-id rows)
+                        :let [sorted (vec (sort #(compare (:email/date %1)
+                                                          (:email/date %2))
+                                                emails))]]
+                    (summarize-thread thread-id sorted))]
+    (->> summaries
+         (sort-by (fn [t] [(if (:last-date t) 1 0)
+                           (:last-date t)
+                           (str (:thread-id t))])
+                  #(compare %2 %1))
+         (take n))))
 
 (defn search-threads-by-subject
   "Find threads whose subject contains the given pattern."
