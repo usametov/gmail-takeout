@@ -148,9 +148,11 @@ repository. Use `--base-dir` or `GMAILS_BASE_DIR` to point elsewhere.
 
 See [doc/ontology-classifier.md](doc/ontology-classifier.md) for the full
 contract: config keys, noise/allow-list rules, cache consistency, audit log,
-reports, and local-model evaluation. The planned Antigravity port and the
-remaining backlog are in [doc/antigravity-port-intent.md](doc/antigravity-port-intent.md)
-and [doc/backlog-triage.md](doc/backlog-triage.md).
+reports, and local-model evaluation. The planned Antigravity port, its
+RDFS/OWL 2 RL reasoning design, and the remaining backlog are in
+[doc/antigravity-port-intent.md](doc/antigravity-port-intent.md),
+[doc/ontology-reasoning.md](doc/ontology-reasoning.md), and
+[doc/backlog-triage.md](doc/backlog-triage.md).
 
 ## Database Schema
 

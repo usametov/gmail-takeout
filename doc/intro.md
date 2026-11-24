@@ -15,6 +15,7 @@ Import and query your Google Takeout email archive using Datalevin.
 - [Label Management](label-management.md) — Label propagation and diagnostics
 - [Ontology Classifier](ontology-classifier.md) — DeepSeek ontology classification, cache enforcement, and audit
 - [Antigravity Port Intent](antigravity-port-intent.md) — DB-first port scope, ontology invariants, phases
+- [Ontology Reasoning](ontology-reasoning.md) — RDFS + OWL 2 RL subset, Datalevin rules, closed-world validation
 - [Backlog Triage](backlog-triage.md) — Remaining bugs and the port roadmap
 - [Design Notes](design-notes.md) — Architecture decisions and schema design
 

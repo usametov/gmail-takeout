@@ -37,6 +37,9 @@ with a stable ontology, and enforces the ontology rules centrally.
 | TV guide | In scope (later phase) |
 | Provider | DeepSeek/default OpenAI-compatible; no Gemini |
 | Source of truth | Ontology graph in Datalevin; JSON cache is a materialized compatibility view |
+| Formalism | RDFS core + selected OWL 2 RL rules; typed graph, closed-world integrity; OWL-Lite is not the target |
+
+Reasoning formalism and rule scope: [Ontology Reasoning](ontology-reasoning.md).
 
 ## Core architecture
 
@@ -260,6 +263,7 @@ or `:all` when auditing historical coverage.
 ## Pipeline phases
 
 ### Phase 1 — Ontology graph + shared rules + tests
+- Implement the RDFS/OWL 2 RL subset in [Ontology Reasoning](ontology-reasoning.md).
 - `schema.edn`/`rules.edn` loader.
 - Graph schema and validation queries.
 - Extract classifier rules into shared namespaces.

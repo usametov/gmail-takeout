@@ -39,9 +39,9 @@ and the DeepSeek classifier with cache enforcement.
 
 | ID | Item | Why it blocks | Effort | Decision |
 |----|------|----------------|--------|----------|
-| O1 | Define graph schema + EDN rule files (`ontology/schema.edn`, `ontology/rules.edn`): classes, parents, disjointness, term/form/label entities, validation queries. | The graph is the new source of truth; everything else depends on it. | M | **now** |
+| O1 | Define graph schema + EDN rule files (`ontology/schema.edn`, `ontology/rules.edn`): classes, parents, disjointness, term/form/label entities, RDFS + selected OWL 2 RL rules, validation queries. See [Ontology Reasoning](ontology-reasoning.md). | The graph is the new source of truth; everything else depends on it. | M–L | **now** |
 | O2 | Extract shared ontology rules from `scripts/ontology_classifier.clj` into testable Clojure namespaces. | Candidate compiler, matcher, and classifier must not drift. | M | **now** |
-| O3 | Automated tests for rules + graph validation: categories, normalization, aliases, allow/stop/DF precedence, disjointness, dual-key cache, cache/graph agreement. | The classifier currently has manual verification only. | S–M | **now** |
+| O3 | Automated tests for rules + graph validation: subclass/type closure, sameAs closure, broader/narrower/related, disjointness, functional properties, categories, aliases, allow/stop/DF, dual-key cache, cache/graph agreement. | The classifier currently has manual verification only. | M | **now** |
 | O4 | Port `compile_raw_candidates.py` to a DB-first compiler using shared rules and deterministic DF. | Without candidates, the classifier has nothing new to classify. | M | **next** |
 | O5 | Port local matcher (`extract_ontology_body`) + schema-valid structured export. | This is the actual enrichment output. | M | **next** |
 
@@ -67,7 +67,9 @@ and the DeepSeek classifier with cache enforcement.
 | O16 | LinkedIn as source config. | Falls out of O7/O15. | S | **later** |
 | O17 | Gold-set/local-model evaluation harness. | Metrics/gate already in intent. | M | **later** |
 | O18 | Cache/graph reporting dashboard. | `--check` covers most; summary command later. | S | **later** |
-| O19 | Turtle/RDF export. | Optional interoperability, not needed for v1. | M | **won't do for now** |
+| O19 | Turtle/RDF export (typed graph → `triple/3` view). | Optional interoperability, not needed for v1. | M | **later** |
+| O21 | Materialize closure (`:inferred/*`) after profiling. | Query-time rules first; materialize only if closure queries are hot. | M | **later** |
+| O22 | RDFS/OWL 2 RL conformance notes and rule coverage matrix. | Track which rules are implemented/tested; no full OWL DL claim. | S | **next** |
 | O20 | Frequency + embedding hybrid for borderline DF. | Needs embeddings; optional. | L | **won't do for now** |
 
 ## Existing backlog carried forward
