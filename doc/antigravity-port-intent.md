@@ -38,8 +38,11 @@ with a stable ontology, and enforces the ontology rules centrally.
 | Provider | DeepSeek/default OpenAI-compatible; no Gemini |
 | Source of truth | Ontology graph in Datalevin; JSON cache is a materialized compatibility view |
 | Formalism | RDFS core + selected OWL 2 RL rules; typed graph, closed-world integrity; OWL-Lite is not the target |
+| Gmail identity | Canonical decimal strings; API hex converted at the gws boundary |
+| gws role | Email enrichment only (IDs, bodies, labels, live sources); never ontology classification |
 
 Reasoning formalism and rule scope: [Ontology Reasoning](ontology-reasoning.md).
+gws integration and identity rules: [GWS Enrichment](gws-enrichment.md).
 
 ## Core architecture
 
@@ -243,6 +246,26 @@ Per-source quotas are optional; default pooled. Newest sampling can over-represe
 current job-market boilerplate and under-represent older vocabulary; use `:hash`
 or `:all` when auditing historical coverage.
 
+## GWS enrichment
+
+`gws` is an **email enrichment adapter**, not part of ontology reasoning:
+
+- maps Message-IDs to Gmail IDs and thread IDs
+- fills missing bodies
+- resolves live label names
+- ingests live Gmail sources
+
+It writes email facts only. Candidate compilation, classification, and local
+matching still run against the DB/cache.
+
+The critical identity rule is in [GWS Enrichment](gws-enrichment.md):
+
+- Gmail API IDs are hex (`19f37d9602d2c400`).
+- Takeout `From_`/`X-GM-THRID` are decimal (`1869976353534821376`).
+- Canonical storage is decimal; convert at the API boundary with `BigInteger`.
+- Never overwrite an existing decimal thread with an API hex value.
+- Dry-run/synthetic IDs must never be applied.
+
 ## Port inventory
 
 | Antigravity | Target | Notes |
@@ -261,6 +284,12 @@ or `:all` when auditing historical coverage.
 | `.agents` rules | intent/checklists | process only |
 
 ## Pipeline phases
+
+### Phase 0.5 — Gmail identity normalization
+- Canonical decimal IDs + `astanova.gmail-id` helpers.
+- Fix `update-message-ids` conflict/dry-run validation before any gws run.
+- Add ID round-trip/conflict/migration tests.
+- This can run alongside Phase 1, but must be done before gws enrichment.
 
 ### Phase 1 — Ontology graph + shared rules + tests
 - Implement the RDFS/OWL 2 RL subset in [Ontology Reasoning](ontology-reasoning.md).

@@ -162,6 +162,21 @@ Example validation queries:
 
 Exact query shapes will be finalized against Datalevin during Phase 1.
 
+## Email/thread resources
+
+Emails and threads stay as Datalevin email facts, but their Gmail identities
+map to RDF resources:
+
+- `gmail:message/<canonical-decimal>`
+- `gmail:thread/<canonical-decimal>`
+
+Canonical IDs are decimal strings; Gmail API hex values are converted at the
+adapter boundary. This keeps MBOX and API facts on the same resource. See
+[GWS Enrichment](gws-enrichment.md).
+
+Ontology terms do not depend on Gmail IDs; the graph references emails only if
+term-mention facts are added later.
+
 ## Inference and cache export
 
 - The graph stores asserted facts.

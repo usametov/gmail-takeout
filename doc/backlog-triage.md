@@ -35,6 +35,22 @@ ingest, nil/subject/stat/export fixes, CLI output contract, thread/query
 projection performance, script path env vars, dependency cleanup, docs/changelog,
 and the DeepSeek classifier with cache enforcement.
 
+## Critical gws identity finding
+
+Gmail API IDs are hex; Takeout `From_`/`X-GM-THRID` are decimal. The current
+`update-message-ids` writes API hex thread IDs over decimal ones, which splits
+threads. This must be fixed before gws enrichment.
+
+See [GWS Enrichment](gws-enrichment.md).
+
+| ID | Item | Why | Effort | Decision |
+|----|------|-----|--------|----------|
+| G1 | Canonical Gmail ID helpers (`hex->decimal`, `decimal->hex`, validation, IRIs) and canonical storage rule. | Stops thread/ID fragmentation. | S | **now** |
+| G2 | Fix `update-message-ids`: normalize API hex, conflict checks, reject synthetic/dry-run IDs, migrate old hex IDs. | Prevents corrupting thread grouping. | S–M | **now** |
+| G3 | Body enrichment provenance (`:email/body-source`, fetched-at), only fill blanks by default; `--force` explicit. | Avoid overwriting Takeout bodies silently. | S | **next** |
+| G4 | Label refresh semantics: union by default, `--replace-labels`, label provenance. | Live labels are mutable; MBOX labels are snapshots. | S | **next** |
+| G5 | Live raw ingest adapter (`messages.get format=raw` → MIME parser → upsert by Message-ID). | Needed for Gmail-only sources; local mode must still work without it. | M | **later** |
+
 ## P0 — ontology graph and enforcement
 
 | ID | Item | Why it blocks | Effort | Decision |
@@ -63,7 +79,7 @@ and the DeepSeek classifier with cache enforcement.
 |----|------|-------|--------|----------|
 | O13 | Label taxonomy graph from `resources/labels-categorized.json`; `label-ancestor` Datalog rules. | Keep JSON seed; optionally generate EDN. | S | **later** |
 | O14 | TV-guide formatter. | Confirmed in scope; depends on structured JSON + YouTube. | M | **later** |
-| O15 | Optional live `gws` source adapter. | For sources absent from Takeout/fresh mail. | M | **later** |
+| O15 | Optional live `gws` source adapter. | See G5. | M | **later** |
 | O16 | LinkedIn as source config. | Falls out of O7/O15. | S | **later** |
 | O17 | Gold-set/local-model evaluation harness. | Metrics/gate already in intent. | M | **later** |
 | O18 | Cache/graph reporting dashboard. | `--check` covers most; summary command later. | S | **later** |
@@ -88,13 +104,16 @@ and the DeepSeek classifier with cache enforcement.
 
 ## Recommended sequence
 
+0. **Phase 0.5 (P0):** G1 canonical ID helpers, G2 update-message-ids
+   normalization/conflict tests. Can run alongside Phase 1, but must precede any
+   gws enrichment.
 1. **Phase 1 (P0):** O1 graph schema/rules, O2 shared rules, O3 tests.
 2. **Phase 2 (P0/P1):** O4 candidate compiler; O5 local matcher; O9 schema; O6
    classifier relocation.
 3. **Phase 3 (P1):** O7 sources, O8 seed/migration, O10 end-to-end command.
 4. **Phase 4 (P1):** O11 YouTube, O12 Markdown.
 5. **Phase 5 (P2):** O13 label taxonomy, O14 TV guide, O15/O16 live Gmail and
-   LinkedIn, O17 evaluation.
+   LinkedIn, O17 evaluation; G3/G4/G5 as gws work begins.
 6. **Backlog cleanup:** T15/T24 docs; T16/T17 decisions; T26/T27 later.
 
 ## Decisions still open
