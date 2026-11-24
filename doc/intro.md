@@ -8,6 +8,7 @@ Import and query your Google Takeout email archive using Datalevin.
 
 ## Table of Contents
 
+- [Setup](setup.md) — Prerequisites, `~/.secrets.edn`, and first-run checks
 - [Ingest Guide](ingest-guide.md) — How to import MBOX files into the database
 - [Query Guide](query-guide.md) — Complete reference for querying emails, threads, and analytics
 - [CLI Query Guide](cli-query-guide.md) — All CLI commands and options

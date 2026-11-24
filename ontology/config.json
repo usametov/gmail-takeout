@@ -1,0 +1,112 @@
+{
+  "email_sources": {
+    "linkedin": {
+      "query": "from:jobs-noreply@linkedin.com \"AI\" after:2025-08-13",
+      "output_file": "linkedin_emails.json",
+      "fetch_method": "paginated",
+      "page_limit": 3
+    },
+    "labeled": {
+      "query": "label:\"ai/agents\" label:datalog",
+      "output_file": "datalog-agents.json",
+      "fetch_method": "single",
+      "max_results": 500
+    },
+    "google_notifications": {
+      "query": "from:notify-noreply@google.com",
+      "output_file": "google_notifications_emails.json",
+      "fetch_method": "single",
+      "max_results": 500
+    },
+    "builtin": {
+      "query": "from:support@builtin.com",
+      "output_file": "builtin_emails.json",
+      "fetch_method": "single",
+      "max_results": 500
+    },
+    "knowledge_graph_agents": {
+      "query": "label:\"ai/agents\" (label:\"knowledge-graph\" OR label:\"knowledge-graph/semantic-web\")",
+      "output_file": "knowledge-graphs-agents.json",
+      "fetch_method": "single",
+      "max_results": 500
+    },
+    "machine_learning_translation_agents": {
+      "query": "label:\"ai/agents\" label:\"machine-learning/translation\"",
+      "output_file": "machine-learning-translation-agents.json",
+      "fetch_method": "single",
+      "max_results": 500
+    },
+    "clojure_web_development": {
+      "query": "label:clojure (httpkit OR \"http-kit\" OR reitit OR \"reitit-ring\" OR compojure OR pedestal OR luminus OR liberator OR yada OR selmer OR \"ring-core\" OR \"ring-defaults\" OR \"ring-jetty\" OR \"ring middleware\" OR \"ring handler\" OR \"ring adapter\" OR \"ring-oauth2\" OR \"ring-json\" OR \"ring-mock\" OR subject:ring OR \"web development\" OR \"web framework\")",
+      "output_file": "clojure-web-development.json",
+      "fetch_method": "single",
+      "max_results": 500
+    },
+    "fitness": {
+      "query": "label:fitness OR label:\"fitness/boxing\" OR label:\"fitness/flexibility\" OR label:\"fitness/self_defense\"",
+      "output_file": "fitness.json",
+      "fetch_method": "paginated",
+      "page_limit": 10
+    }
+  },
+  "df_threshold": 0.25,
+  "standalone_generic": [
+    "Senior",
+    "Full",
+    "Stack",
+    "Developer",
+    "Engineer",
+    "Platform",
+    "Associate",
+    "Lead",
+    "Principal",
+    "Junior",
+    "Manager",
+    "Analyst"
+  ],
+  "user_stop_list": [
+    "Jobs You Might Be Interested In",
+    "View Job"
+  ],
+  "user_allow_list": [
+    "Toronto",
+    "Ontario",
+    "Full-time",
+    "Contract",
+    "Datalog",
+    "LLM",
+    "Knowledge Graph",
+    "Knowledge Graphs",
+    "AI",
+    "RAG",
+    "Machine Learning",
+    "Translation",
+    "NLP",
+    "DSPy",
+    "Clojure",
+    "HTTP-Kit",
+    "Http-Kit",
+    "Httpkit",
+    "Reitit",
+    "Ring",
+    "Reitit-Ring",
+    "Compojure",
+    "Pedestal",
+    "Luminus",
+    "Integrant"
+  ],
+  "auto_detected_df_stops": [
+    "A",
+    "API",
+    "For",
+    "Here",
+    "I",
+    "If",
+    "It",
+    "Kazakh",
+    "LLMs",
+    "The",
+    "This",
+    "Use"
+  ]
+}

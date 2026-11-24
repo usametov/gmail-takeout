@@ -25,6 +25,10 @@ The classifier is the middle stage of the pipeline (upstream step 3):
 The cache is the single source of truth after classification. No per-email LLM
 calls are allowed in local matching.
 
+The data root defaults to [`ontology/`](../ontology/README.md) in this
+repository; use `--base-dir` or `GMAILS_BASE_DIR` to point at another tree. See
+[Setup](setup.md) for the layout.
+
 ## Ontology Rules (must hold)
 
 ### Categories
@@ -90,12 +94,13 @@ Resolution order:
 |---------|--------------------------|
 | API key | `DEEPSEEK_API_KEY`, `~/.secrets.edn` `:deepseek-api-key` |
 | Base URL | `--base-url`, `DEEPSEEK_BASE`, `DEEPSEEK_BASE_URL`, `~/.secrets.edn` `:deepseek-base`, `config.json` `base_url`, `https://api.deepseek.com` |
-| Model | `--model`, `DEEPSEEK_MODEL`, `config.json` `model`, `deepseek-v4-flash` |
+| Model | `--model`, `DEEPSEEK_MODEL`, `~/.secrets.edn` `:deepseek-model`, `config.json` `model`, `deepseek-v4-flash` |
 
 `--secrets-file` selects a different EDN secrets file. The API key is never
 printed, written to the audit log, or included in reports. A key is required
 only when there are new terms to classify; `--check` and `--dry-run` work
-without one.
+without one. See [Setup](setup.md) for the full `~/.secrets.edn` contract and
+permissions.
 
 ### Request
 
@@ -211,7 +216,7 @@ bb scripts/ontology_classifier.clj --dry-run
 
 # Classify new terms and update the cache
 export DEEPSEEK_API_KEY='...'
-bb scripts/ontology_classifier.clj --base-dir ~/code/antigravity-gmail-project
+bb scripts/ontology_classifier.clj
 
 # Cost control: send at most 200 new terms this run
 bb scripts/ontology_classifier.clj --limit 200
@@ -225,7 +230,7 @@ bb scripts/ontology_classifier.clj --report /tmp/ontology-report.json
 
 | Option | Description |
 |--------|-------------|
-| `-b, --base-dir DIR` | Data root; default `$GMAILS_BASE_DIR`, `~/code/antigravity-gmail-project`, `~/code/gmails`, then cwd |
+| `-b, --base-dir DIR` | Data root; default `$GMAILS_BASE_DIR`, `<repo>/ontology`, `~/code/antigravity-gmail-project`, `~/code/gmails`, then cwd |
 | `--config PATH` | `config.json` (or `.edn`) |
 | `--candidates PATH` | `raw_candidates.json` (or `.edn`) |
 | `--cache PATH` | `ontology_cache.json` (or `.edn`) |

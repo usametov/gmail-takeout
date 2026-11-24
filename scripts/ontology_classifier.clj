@@ -21,7 +21,7 @@
 ;;
 ;; Usage:
 ;;   export DEEPSEEK_API_KEY='...'
-;;   bb scripts/ontology_classifier.clj --base-dir ~/code/antigravity-gmail-project
+;;   bb scripts/ontology_classifier.clj                 # uses ./ontology by default
 ;;
 ;;   bb scripts/ontology_classifier.clj --check      # validate config/cache/candidates
 ;;   bb scripts/ontology_classifier.clj --dry-run    # show the diff, no API/writes
@@ -163,7 +163,7 @@
 ;; ---------------------------------------------------------------------------
 
 (def cli-spec
-  {:base-dir        {:alias :b :desc "Data root (default: $GMAILS_BASE_DIR, antigravity project, ~/code/gmails, cwd)"}
+  {:base-dir        {:alias :b :desc "Data root (default: $GMAILS_BASE_DIR, ./ontology, antigravity project, ~/code/gmails, cwd)"}
    :config          {:desc "config.json (default: <base>/config.json)"}
    :candidates      {:desc "raw candidates JSON/EDN (default: <base>/raw_candidates.json)"}
    :cache           {:desc "ontology cache JSON/EDN (default: <base>/ontology_cache.json)"}
@@ -207,11 +207,12 @@
   (println "  DEEPSEEK_BASE       Base URL (or :deepseek-base in ~/.secrets.edn)")
   (println "  DEEPSEEK_MODEL      Model id (overrides config/default)")
   (println "  GMAILS_BASE_DIR     Data root when --base-dir is omitted")
+  (println "  ~/.secrets.edn      :deepseek-api-key, :deepseek-base, :deepseek-model")
   (println)
   (println "Examples:")
   (println "  bb scripts/ontology_classifier.clj --check")
   (println "  bb scripts/ontology_classifier.clj --dry-run")
-  (println "  bb scripts/ontology_classifier.clj --base-dir ~/code/antigravity-gmail-project")
+  (println "  bb scripts/ontology_classifier.clj                 # ./ontology by default")
   (println "  DEEPSEEK_BASE=http://localhost:11434/v1 DEEPSEEK_MODEL=qwen2.5:14b \\")
   (println "    bb scripts/ontology_classifier.clj --dry-run")
   (println)
@@ -221,10 +222,23 @@
 ;; Loading and paths
 ;; ---------------------------------------------------------------------------
 
+(defn- script-ontology-dir
+  "Return <repo>/ontology when the script is run from a source checkout."
+  []
+  (try
+    (when-let [file (or *file* (System/getProperty "babashka.file"))]
+      (when-not (blank? file)
+        (let [root (-> (str file) fs/absolutize fs/parent fs/parent)]
+          (str (fs/path root "ontology")))))
+    (catch Exception _ nil)))
+
 (defn- resolve-base-dir [{:keys [base-dir]}]
   (let [explicit (when-not (blank? base-dir) (expand-path base-dir))
         env      (System/getenv "GMAILS_BASE_DIR")
+        cwd      (System/getProperty "user.dir")
         candidates [(when-not (blank? env) env)
+                    (script-ontology-dir)
+                    (str (fs/path cwd "ontology"))
                     "~/code/antigravity-gmail-project"
                     "~/code/gmails"]]
     (cond
@@ -247,7 +261,7 @@
                     (let [f (expand-path p)]
                       (when (fs/exists? f) f))))
                 candidates)
-          (System/getProperty "user.dir")))))
+          cwd))))
 
 (defn- option-path [opts k base default-name]
   (if-let [p (get opts k)]
@@ -463,11 +477,16 @@
         base-url    (or (let [v (:base-url opts)] (when-not (blank? v) v))
                         (let [v (System/getenv "DEEPSEEK_BASE")] (when-not (blank? v) v))
                         (let [v (System/getenv "DEEPSEEK_BASE_URL")] (when-not (blank? v) v))
-                        (let [v (:deepseek-base secrets)] (when-not (blank? v) v))
+                        (let [v (or (:deepseek-base secrets)
+                                    (:deepseek-base-url secrets))]
+                          (when-not (blank? v) v))
                         (let [v (or (:base_url c) (:base-url c))] (when-not (blank? v) v))
                         default-base-url)
         model       (or (let [v (:model opts)] (when-not (blank? v) v))
                         (let [v (System/getenv "DEEPSEEK_MODEL")] (when-not (blank? v) v))
+                        (let [v (or (:deepseek-model secrets)
+                                    (:deepseek-model-name secrets))]
+                          (when-not (blank? v) v))
                         (let [v (:model c)] (when-not (blank? v) v))
                         default-model)]
     {:api-key  (when-not (blank? api-key) (str api-key))
@@ -483,8 +502,8 @@
                       {:categories (:categories ctx)
                        :aliases    (:aliases ctx)})]
     (when (and need-api? (blank? (:api-key client)))
-      (throw (ex-info (str "DEEPSEEK_API_KEY is not set. "
-                           "Export it or add :deepseek-api-key to ~/.secrets.edn.")
+      (throw (ex-info (str "DeepSeek API key is not configured. Set DEEPSEEK_API_KEY "
+                           "or add :deepseek-api-key to ~/.secrets.edn.")
                       {:provider "deepseek"})))
     client))
 

@@ -33,3 +33,9 @@ takeout
 .DS_Store
 test/resources/
 takeout.log
+
+# Ontology runtime artifacts; config/candidates/cache are curated and tracked.
+ontology/ontology_audit.jsonl
+ontology/*.bak
+ontology/*.report.json
+ontology/*.tmp

@@ -13,6 +13,13 @@ Includes scripts for:
 - Storing content as structured entities with host, type, and source tracking
 - Discovering top GitHub repositories by topic
 
+## Setup
+
+See [doc/setup.md](doc/setup.md) for prerequisites, source-checkout CLI
+invocation, `~/.secrets.edn` (DeepSeek key/base/model), and Gmail `gws` auth.
+The short version: only `scripts/ontology_classifier.clj` reads
+`~/.secrets.edn`, and it only needs `:deepseek-api-key` for live runs.
+
 ## Quick Start
 
 ```bash
@@ -131,8 +138,11 @@ bb scripts/ontology_classifier.clj --check     # validate cache/candidates
 bb scripts/ontology_classifier.clj --dry-run   # show diff, no API/writes
 
 export DEEPSEEK_API_KEY='...'
-bb scripts/ontology_classifier.clj --base-dir ~/code/antigravity-gmail-project
+bb scripts/ontology_classifier.clj
 ```
+
+By default the classifier reads/writes [ontology/](ontology/README.md) in this
+repository. Use `--base-dir` or `GMAILS_BASE_DIR` to point elsewhere.
 
 See [doc/ontology-classifier.md](doc/ontology-classifier.md) for the full
 contract: config keys, noise/allow-list rules, cache consistency, audit log,

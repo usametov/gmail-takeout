@@ -1,0 +1,3478 @@
+{
+  "cognitect" : {
+    "category" : "companies",
+    "normalized" : "Cognitect"
+  },
+  "senior data engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Data Engineer"
+  },
+  "hallucination" : {
+    "category" : "fields",
+    "normalized" : "Hallucination"
+  },
+  "clio" : {
+    "category" : "companies",
+    "normalized" : "Clio"
+  },
+  "LLM-as-judge" : {
+    "category" : "fields",
+    "normalized" : "LLM-as-judge"
+  },
+  "Juxt" : {
+    "category" : "companies",
+    "normalized" : "Juxt"
+  },
+  "Strativ Group" : {
+    "category" : "companies",
+    "normalized" : "Strativ Group"
+  },
+  "liberator" : {
+    "category" : "fields",
+    "normalized" : "Liberator"
+  },
+  "Citi" : {
+    "category" : "companies",
+    "normalized" : "Citi"
+  },
+  "Senior Full-Stack Engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Full-Stack Engineer"
+  },
+  "Enterprise AI" : {
+    "category" : "fields",
+    "normalized" : "Enterprise AI"
+  },
+  "graph rag" : {
+    "category" : "fields",
+    "normalized" : "Graph RAG"
+  },
+  "RBC" : {
+    "category" : "companies",
+    "normalized" : "RBC"
+  },
+  "llmasp" : {
+    "category" : "fields",
+    "normalized" : "LLMASP"
+  },
+  "polar asset management partners inc" : {
+    "category" : "companies",
+    "normalized" : "Polar Asset Management Partners Inc"
+  },
+  "ontario" : {
+    "category" : "locations",
+    "normalized" : "Ontario"
+  },
+  "Remote" : {
+    "category" : "locations",
+    "normalized" : "Remote"
+  },
+  "Fluree" : {
+    "category" : "companies",
+    "normalized" : "Fluree"
+  },
+  "webrtc" : {
+    "category" : "fields",
+    "normalized" : "WebRTC"
+  },
+  "Clojure-style" : {
+    "category" : "fields",
+    "normalized" : "Clojure-style"
+  },
+  "alibaba" : {
+    "category" : "companies",
+    "normalized" : "Alibaba"
+  },
+  "datalog db" : {
+    "category" : "fields",
+    "normalized" : "Datalog DB"
+  },
+  "Mount" : {
+    "category" : "fields",
+    "normalized" : "Mount"
+  },
+  "Senior Python Developer" : {
+    "category" : "roles",
+    "normalized" : "Senior Python Developer"
+  },
+  "Qwen3.5-9B" : {
+    "category" : "fields",
+    "normalized" : "Qwen3.5-9B"
+  },
+  "Featherless AI" : {
+    "category" : "companies",
+    "normalized" : "Featherless AI"
+  },
+  "Accenture" : {
+    "category" : "companies",
+    "normalized" : "Accenture"
+  },
+  "Ontology Engineer" : {
+    "category" : "roles",
+    "normalized" : "Ontology Engineer"
+  },
+  "quantum world technologies inc" : {
+    "category" : "companies",
+    "normalized" : "Quantum World Technologies Inc"
+  },
+  "ring" : {
+    "category" : "fields",
+    "normalized" : "Ring"
+  },
+  "lead ai engineer agentic ai applications" : {
+    "category" : "roles",
+    "normalized" : "Lead AI Engineer Agentic AI Applications"
+  },
+  "CDM Smith" : {
+    "category" : "companies",
+    "normalized" : "CDM Smith"
+  },
+  "Graph Neural Networks" : {
+    "category" : "fields",
+    "normalized" : "Graph Neural Networks"
+  },
+  "senior full-stack developer" : {
+    "category" : "roles",
+    "normalized" : "Senior Full-Stack Developer"
+  },
+  "AI Consultant" : {
+    "category" : "roles",
+    "normalized" : "AI Consultant"
+  },
+  "blue signal search" : {
+    "category" : "companies",
+    "normalized" : "Blue Signal Search"
+  },
+  "Luminus" : {
+    "category" : "fields",
+    "normalized" : "Luminus"
+  },
+  "ai consultant" : {
+    "category" : "roles",
+    "normalized" : "AI Consultant"
+  },
+  "owl" : {
+    "category" : "fields",
+    "normalized" : "OWL"
+  },
+  "Large Language Models" : {
+    "category" : "fields",
+    "normalized" : "Large Language Models"
+  },
+  "AI-First Developer" : {
+    "category" : "roles",
+    "normalized" : "AI-First Developer"
+  },
+  "LFM" : {
+    "category" : "fields",
+    "normalized" : "LFM"
+  },
+  "hugsql" : {
+    "category" : "fields",
+    "normalized" : "HugSQL"
+  },
+  "Qwen2.5-3B" : {
+    "category" : "fields",
+    "normalized" : "Qwen2.5-3B"
+  },
+  "senior back end developer" : {
+    "category" : "roles",
+    "normalized" : "Senior Back End Developer"
+  },
+  "nmt" : {
+    "category" : "fields",
+    "normalized" : "NMT"
+  },
+  "LLama-3.1-KazLLM-1.0-8B" : {
+    "category" : "fields",
+    "normalized" : "LLama-3.1-KazLLM-1.0-8B"
+  },
+  "adapters" : {
+    "category" : "fields",
+    "normalized" : "Adapters"
+  },
+  "Aversan Inc" : {
+    "category" : "companies",
+    "normalized" : "Aversan Inc"
+  },
+  "Ai Solution Engineer" : {
+    "category" : "roles",
+    "normalized" : "Ai Solution Engineer"
+  },
+  "Mangisoz" : {
+    "category" : "fields",
+    "normalized" : "Mangisoz"
+  },
+  "wish" : {
+    "category" : "companies",
+    "normalized" : "Wish"
+  },
+  "PointClickCare" : {
+    "category" : "companies",
+    "normalized" : "PointClickCare"
+  },
+  "resonaite" : {
+    "category" : "companies",
+    "normalized" : "Resonaite"
+  },
+  "ATS" : {
+    "category" : "fields",
+    "normalized" : "ATS"
+  },
+  "colbert-style" : {
+    "category" : "fields",
+    "normalized" : "ColBERT-style"
+  },
+  "waterloo ai" : {
+    "category" : "fields",
+    "normalized" : "Waterloo AI"
+  },
+  "Mercor" : {
+    "category" : "companies",
+    "normalized" : "Mercor"
+  },
+  "Retrieval-Augmented" : {
+    "category" : "fields",
+    "normalized" : "Retrieval-Augmented"
+  },
+  "backend ai prompt engineer" : {
+    "category" : "roles",
+    "normalized" : "Backend AI Prompt Engineer"
+  },
+  "Senior Back End Developer" : {
+    "category" : "roles",
+    "normalized" : "Senior Back End Developer"
+  },
+  "apache" : {
+    "category" : "fields",
+    "normalized" : "Apache"
+  },
+  "Cljfx" : {
+    "category" : "fields",
+    "normalized" : "Cljfx"
+  },
+  "Hugging Face Java" : {
+    "category" : "fields",
+    "normalized" : "Hugging Face Java"
+  },
+  "DeepSeek V3.2" : {
+    "category" : "fields",
+    "normalized" : "DeepSeek V3.2"
+  },
+  "rbc" : {
+    "category" : "companies",
+    "normalized" : "RBC"
+  },
+  "lfm2-1.2b-extract" : {
+    "category" : "fields",
+    "normalized" : "LFM2-1.2B-Extract"
+  },
+  "Transformers" : {
+    "category" : "fields",
+    "normalized" : "Transformers"
+  },
+  "senior python developer" : {
+    "category" : "roles",
+    "normalized" : "Senior Python Developer"
+  },
+  "Lead AI Engineer Agentic AI Applications" : {
+    "category" : "roles",
+    "normalized" : "Lead AI Engineer Agentic AI Applications"
+  },
+  "cayley graphs" : {
+    "category" : "fields",
+    "normalized" : "Cayley Graphs"
+  },
+  "fgf brands" : {
+    "category" : "companies",
+    "normalized" : "FGF Brands"
+  },
+  "sparql" : {
+    "category" : "fields",
+    "normalized" : "SPARQL"
+  },
+  "senior applied ai full-stack engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Applied AI Full-Stack Engineer"
+  },
+  "Resonaite" : {
+    "category" : "companies",
+    "normalized" : "Resonaite"
+  },
+  "sentence-transformers" : {
+    "category" : "fields",
+    "normalized" : "Sentence-Transformers"
+  },
+  "Senior Backend Engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Backend Engineer"
+  },
+  "clojure-style" : {
+    "category" : "fields",
+    "normalized" : "Clojure-style"
+  },
+  "fts search" : {
+    "category" : "fields",
+    "normalized" : "FTS Search"
+  },
+  "DBpedia" : {
+    "category" : "fields",
+    "normalized" : "DBpedia"
+  },
+  "full-stack ai product engineer" : {
+    "category" : "roles",
+    "normalized" : "Full-Stack AI Product Engineer"
+  },
+  "rag-style" : {
+    "category" : "fields",
+    "normalized" : "RAG-style"
+  },
+  "Supervised Fine-Tuning" : {
+    "category" : "fields",
+    "normalized" : "Supervised Fine-Tuning"
+  },
+  "Anthropic" : {
+    "category" : "fields",
+    "normalized" : "Anthropic"
+  },
+  "dspy gepa" : {
+    "category" : "fields",
+    "normalized" : "DSPy GEPA"
+  },
+  "ML Data Scientist" : {
+    "category" : "roles",
+    "normalized" : "ML Data Scientist"
+  },
+  "pydantic" : {
+    "category" : "fields",
+    "normalized" : "Pydantic"
+  },
+  "AriGraph" : {
+    "category" : "fields",
+    "normalized" : "AriGraph"
+  },
+  "eav" : {
+    "category" : "fields",
+    "normalized" : "EAV"
+  },
+  "machine learning engineer" : {
+    "category" : "roles",
+    "normalized" : "Machine Learning Engineer"
+  },
+  "Oakville" : {
+    "category" : "locations",
+    "normalized" : "Oakville"
+  },
+  "google" : {
+    "category" : "companies",
+    "normalized" : "Google"
+  },
+  "Qwen2.5-Coder-3B" : {
+    "category" : "fields",
+    "normalized" : "Qwen2.5-Coder-3B"
+  },
+  "Python REPL" : {
+    "category" : "fields",
+    "normalized" : "Python REPL"
+  },
+  "senior full stack engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Full Stack Engineer"
+  },
+  "graphrag" : {
+    "category" : "fields",
+    "normalized" : "GraphRAG"
+  },
+  "Agent-as-a-Graph" : {
+    "category" : "fields",
+    "normalized" : "Agent-as-a-Graph"
+  },
+  "retrieval" : {
+    "category" : "fields",
+    "normalized" : "Retrieval"
+  },
+  "Bitemporal Logic" : {
+    "category" : "fields",
+    "normalized" : "Bitemporal Logic"
+  },
+  "LLMASP" : {
+    "category" : "fields",
+    "normalized" : "LLMASP"
+  },
+  "keystone recruitment" : {
+    "category" : "companies",
+    "normalized" : "Keystone Recruitment"
+  },
+  "jetty" : {
+    "category" : "fields",
+    "normalized" : "Jetty"
+  },
+  "senior software ai developer" : {
+    "category" : "roles",
+    "normalized" : "Senior Software AI Developer"
+  },
+  "swagger-ui" : {
+    "category" : "fields",
+    "normalized" : "Swagger-UI"
+  },
+  "accenture" : {
+    "category" : "companies",
+    "normalized" : "Accenture"
+  },
+  "datahike" : {
+    "category" : "fields",
+    "normalized" : "Datahike"
+  },
+  "CTEs" : {
+    "category" : "fields",
+    "normalized" : "CTEs"
+  },
+  "rdf-like" : {
+    "category" : "fields",
+    "normalized" : "RDF-like"
+  },
+  "lfms" : {
+    "category" : "fields",
+    "normalized" : "LFMs"
+  },
+  "Feathery" : {
+    "category" : "companies",
+    "normalized" : "Feathery"
+  },
+  "Alibaba" : {
+    "category" : "companies",
+    "normalized" : "Alibaba"
+  },
+  "selmer" : {
+    "category" : "fields",
+    "normalized" : "Selmer"
+  },
+  "SeeSaw" : {
+    "category" : "companies",
+    "normalized" : "SeeSaw"
+  },
+  "github" : {
+    "category" : "fields",
+    "normalized" : "GitHub"
+  },
+  "liquid foundation model" : {
+    "category" : "fields",
+    "normalized" : "Liquid Foundation Model"
+  },
+  "ollama" : {
+    "category" : "fields",
+    "normalized" : "Ollama"
+  },
+  "Claude Code" : {
+    "category" : "fields",
+    "normalized" : "Claude Code"
+  },
+  "Translation" : {
+    "category" : "fields",
+    "normalized" : "Translation"
+  },
+  "ai engineer" : {
+    "category" : "roles",
+    "normalized" : "AI Engineer"
+  },
+  "reitit" : {
+    "category" : "fields",
+    "normalized" : "Reitit"
+  },
+  "Empowerists" : {
+    "category" : "companies",
+    "normalized" : "Empowerists"
+  },
+  "apple" : {
+    "category" : "companies",
+    "normalized" : "Apple"
+  },
+  "Shadow CLJS" : {
+    "category" : "fields",
+    "normalized" : "Shadow CLJS"
+  },
+  "Graph RAG" : {
+    "category" : "fields",
+    "normalized" : "Graph RAG"
+  },
+  "Sr. AI Integration Engineer" : {
+    "category" : "roles",
+    "normalized" : "Sr. AI Integration Engineer"
+  },
+  "rag" : {
+    "category" : "fields",
+    "normalized" : "RAG"
+  },
+  "cdm smith" : {
+    "category" : "companies",
+    "normalized" : "CDM Smith"
+  },
+  "AI-native" : {
+    "category" : "fields",
+    "normalized" : "AI-native"
+  },
+  "Low-Resource Languages" : {
+    "category" : "fields",
+    "normalized" : "Low-Resource Languages"
+  },
+  "Agentic AI Engineer" : {
+    "category" : "roles",
+    "normalized" : "Agentic AI Engineer"
+  },
+  "datalog-related" : {
+    "category" : "fields",
+    "normalized" : "Datalog-related"
+  },
+  "agentic translation" : {
+    "category" : "fields",
+    "normalized" : "Agentic Translation"
+  },
+  "Command-R" : {
+    "category" : "fields",
+    "normalized" : "Command-R"
+  },
+  "Liberator" : {
+    "category" : "fields",
+    "normalized" : "Liberator"
+  },
+  "AI Researcher" : {
+    "category" : "roles",
+    "normalized" : "AI Researcher"
+  },
+  "liquid ai" : {
+    "category" : "companies",
+    "normalized" : "Liquid AI"
+  },
+  "clojure" : {
+    "category" : "fields",
+    "normalized" : "Clojure"
+  },
+  "datalog generation" : {
+    "category" : "fields",
+    "normalized" : "Datalog Generation"
+  },
+  "Manulife" : {
+    "category" : "companies",
+    "normalized" : "Manulife"
+  },
+  "Extreme Networks" : {
+    "category" : "companies",
+    "normalized" : "Extreme Networks"
+  },
+  "Ring-Core" : {
+    "category" : "fields",
+    "normalized" : "Ring-Core"
+  },
+  "full stack developer" : {
+    "category" : "roles",
+    "normalized" : "Full Stack Developer"
+  },
+  "funding circle" : {
+    "category" : "companies",
+    "normalized" : "Funding Circle"
+  },
+  "lora" : {
+    "category" : "fields",
+    "normalized" : "LoRA"
+  },
+  "hillsdale investment management inc" : {
+    "category" : "companies",
+    "normalized" : "Hillsdale Investment Management Inc"
+  },
+  "Llama-3.2-3B" : {
+    "category" : "fields",
+    "normalized" : "Llama-3.2-3B"
+  },
+  "httpkit" : {
+    "category" : "fields",
+    "normalized" : "HTTP-Kit"
+  },
+  "oraq ai" : {
+    "category" : "companies",
+    "normalized" : "OraQ AI"
+  },
+  "Remote Canada" : {
+    "category" : "locations",
+    "normalized" : "Remote Canada"
+  },
+  "artificial intelligence consultant" : {
+    "category" : "roles",
+    "normalized" : "Artificial Intelligence Consultant"
+  },
+  "ML" : {
+    "category" : "fields",
+    "normalized" : "ML"
+  },
+  "modernbert" : {
+    "category" : "fields",
+    "normalized" : "ModernBERT"
+  },
+  "ptlms" : {
+    "category" : "fields",
+    "normalized" : "PTLMs"
+  },
+  "procurify" : {
+    "category" : "companies",
+    "normalized" : "Procurify"
+  },
+  "HTTP-Kit" : {
+    "category" : "fields",
+    "normalized" : "HTTP-Kit"
+  },
+  "Pydantic" : {
+    "category" : "fields",
+    "normalized" : "Pydantic"
+  },
+  "Datalog Engine" : {
+    "category" : "fields",
+    "normalized" : "Datalog Engine"
+  },
+  "NTT DATA North America" : {
+    "category" : "companies",
+    "normalized" : "NTT DATA North America"
+  },
+  "reitit-ring" : {
+    "category" : "fields",
+    "normalized" : "Reitit-Ring"
+  },
+  "Polar Asset Management Partners Inc" : {
+    "category" : "companies",
+    "normalized" : "Polar Asset Management Partners Inc"
+  },
+  "GitHub AI Consultant" : {
+    "category" : "roles",
+    "normalized" : "GitHub AI Consultant"
+  },
+  "edn-friendly" : {
+    "category" : "fields",
+    "normalized" : "EDN-friendly"
+  },
+  "Muuntaja" : {
+    "category" : "fields",
+    "normalized" : "Muuntaja"
+  },
+  "integrant" : {
+    "category" : "fields",
+    "normalized" : "Integrant"
+  },
+  "AI Innovation Specialist" : {
+    "category" : "roles",
+    "normalized" : "AI Innovation Specialist"
+  },
+  "liquid foundation models" : {
+    "category" : "fields",
+    "normalized" : "Liquid Foundation Models"
+  },
+  "Senior Software AI Developer" : {
+    "category" : "roles",
+    "normalized" : "Senior Software AI Developer"
+  },
+  "senior mts software engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior MTS Software Engineer"
+  },
+  "ai platform developer" : {
+    "category" : "roles",
+    "normalized" : "AI Platform Developer"
+  },
+  "Datalog-like" : {
+    "category" : "fields",
+    "normalized" : "Datalog-like"
+  },
+  "ptlm" : {
+    "category" : "fields",
+    "normalized" : "PTLM"
+  },
+  "Hugging Face" : {
+    "category" : "fields",
+    "normalized" : "Hugging Face"
+  },
+  "ai developer" : {
+    "category" : "roles",
+    "normalized" : "AI Developer"
+  },
+  "Pitch" : {
+    "category" : "companies",
+    "normalized" : "Pitch"
+  },
+  "Crux" : {
+    "category" : "fields",
+    "normalized" : "Crux"
+  },
+  "ai architect" : {
+    "category" : "roles",
+    "normalized" : "AI Architect"
+  },
+  "senior front-end engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Front-End Engineer"
+  },
+  "nubank" : {
+    "category" : "companies",
+    "normalized" : "Nubank"
+  },
+  "Entity-Attribute-Value" : {
+    "category" : "fields",
+    "normalized" : "Entity-Attribute-Value"
+  },
+  "oauth2" : {
+    "category" : "fields",
+    "normalized" : "OAuth2"
+  },
+  "Senior AI Developer" : {
+    "category" : "roles",
+    "normalized" : "Senior AI Developer"
+  },
+  "spec" : {
+    "category" : "fields",
+    "normalized" : "Spec"
+  },
+  "CAMEL" : {
+    "category" : "fields",
+    "normalized" : "CAMEL"
+  },
+  "hugging face" : {
+    "category" : "fields",
+    "normalized" : "Hugging Face"
+  },
+  "Selmer" : {
+    "category" : "fields",
+    "normalized" : "Selmer"
+  },
+  "WebSockets" : {
+    "category" : "fields",
+    "normalized" : "WebSockets"
+  },
+  "AI Platform Developer" : {
+    "category" : "roles",
+    "normalized" : "AI Platform Developer"
+  },
+  "bart" : {
+    "category" : "fields",
+    "normalized" : "BART"
+  },
+  "Quebec" : {
+    "category" : "locations",
+    "normalized" : "Quebec"
+  },
+  "clojure-native" : {
+    "category" : "fields",
+    "normalized" : "Clojure-native"
+  },
+  "Independent Contractor" : {
+    "category" : "job_types",
+    "normalized" : "Independent Contractor"
+  },
+  "cot" : {
+    "category" : "fields",
+    "normalized" : "CoT"
+  },
+  "Model Theory" : {
+    "category" : "fields",
+    "normalized" : "Model Theory"
+  },
+  "anthropic" : {
+    "category" : "fields",
+    "normalized" : "Anthropic"
+  },
+  "meilisearch" : {
+    "category" : "companies",
+    "normalized" : "Meilisearch"
+  },
+  "Lattice" : {
+    "category" : "fields",
+    "normalized" : "Lattice"
+  },
+  "hays" : {
+    "category" : "companies",
+    "normalized" : "Hays"
+  },
+  "rdf" : {
+    "category" : "fields",
+    "normalized" : "RDF"
+  },
+  "prometheus" : {
+    "category" : "fields",
+    "normalized" : "Prometheus"
+  },
+  "Samsung Electronics" : {
+    "category" : "companies",
+    "normalized" : "Samsung Electronics"
+  },
+  "knowledge graph" : {
+    "category" : "fields",
+    "normalized" : "Knowledge Graph"
+  },
+  "http-kit" : {
+    "category" : "fields",
+    "normalized" : "HTTP-Kit"
+  },
+  "Saris AI" : {
+    "category" : "fields",
+    "normalized" : "Saris AI"
+  },
+  "retrieval-augmented" : {
+    "category" : "fields",
+    "normalized" : "Retrieval-Augmented"
+  },
+  "Datahike" : {
+    "category" : "fields",
+    "normalized" : "Datahike"
+  },
+  "Liquid Foundation Models" : {
+    "category" : "fields",
+    "normalized" : "Liquid Foundation Models"
+  },
+  "Angular" : {
+    "category" : "fields",
+    "normalized" : "Angular"
+  },
+  "cohere" : {
+    "category" : "companies",
+    "normalized" : "Cohere"
+  },
+  "DeepSeek" : {
+    "category" : "fields",
+    "normalized" : "DeepSeek"
+  },
+  "Spec" : {
+    "category" : "fields",
+    "normalized" : "Spec"
+  },
+  "ring-jetty" : {
+    "category" : "fields",
+    "normalized" : "Ring-Jetty"
+  },
+  "Pedestal" : {
+    "category" : "fields",
+    "normalized" : "Pedestal"
+  },
+  "partners" : {
+    "category" : "companies",
+    "normalized" : "Partners"
+  },
+  "ntt data north america" : {
+    "category" : "companies",
+    "normalized" : "NTT DATA North America"
+  },
+  "ai agents" : {
+    "category" : "fields",
+    "normalized" : "AI Agents"
+  },
+  "ontology engineer" : {
+    "category" : "roles",
+    "normalized" : "Ontology Engineer"
+  },
+  "SAT" : {
+    "category" : "fields",
+    "normalized" : "SAT"
+  },
+  "Httpkit" : {
+    "category" : "fields",
+    "normalized" : "Httpkit"
+  },
+  "machine learning researcher" : {
+    "category" : "roles",
+    "normalized" : "Machine Learning Researcher"
+  },
+  "avenue code" : {
+    "category" : "companies",
+    "normalized" : "Avenue Code"
+  },
+  "Muvera" : {
+    "category" : "companies",
+    "normalized" : "Muvera"
+  },
+  "semantic web" : {
+    "category" : "fields",
+    "normalized" : "Semantic Web"
+  },
+  "graph neural networks" : {
+    "category" : "fields",
+    "normalized" : "Graph Neural Networks"
+  },
+  "Dotnet Developer" : {
+    "category" : "roles",
+    "normalized" : "Dotnet Developer"
+  },
+  "Agent Trajectory Compilation" : {
+    "category" : "fields",
+    "normalized" : "Agent Trajectory Compilation"
+  },
+  "logicblox" : {
+    "category" : "companies",
+    "normalized" : "LogicBlox"
+  },
+  "Apple Inc" : {
+    "category" : "companies",
+    "normalized" : "Apple Inc"
+  },
+  "Hillsdale Investment Management Inc" : {
+    "category" : "companies",
+    "normalized" : "Hillsdale Investment Management Inc"
+  },
+  "qwen3.5" : {
+    "category" : "fields",
+    "normalized" : "Qwen3.5"
+  },
+  "meteor" : {
+    "category" : "fields",
+    "normalized" : "METEOR"
+  },
+  "ai-native" : {
+    "category" : "fields",
+    "normalized" : "AI-native"
+  },
+  "llm" : {
+    "category" : "fields",
+    "normalized" : "LLM"
+  },
+  "llama-3.1" : {
+    "category" : "fields",
+    "normalized" : "Llama-3.1"
+  },
+  "Distillation" : {
+    "category" : "fields",
+    "normalized" : "Distillation"
+  },
+  "artificial intelligence engineer" : {
+    "category" : "roles",
+    "normalized" : "Artificial Intelligence Engineer"
+  },
+  "deepseek" : {
+    "category" : "fields",
+    "normalized" : "DeepSeek"
+  },
+  "independent contractor" : {
+    "category" : "job_types",
+    "normalized" : "Independent Contractor"
+  },
+  "Senior AI Engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior AI Engineer"
+  },
+  "ONNX" : {
+    "category" : "fields",
+    "normalized" : "ONNX"
+  },
+  "oakville" : {
+    "category" : "locations",
+    "normalized" : "Oakville"
+  },
+  "liquidai" : {
+    "category" : "companies",
+    "normalized" : "LiquidAI"
+  },
+  "AI Agents" : {
+    "category" : "fields",
+    "normalized" : "AI Agents"
+  },
+  "cheil canada" : {
+    "category" : "companies",
+    "normalized" : "Cheil Canada"
+  },
+  "Agent Data Protocol" : {
+    "category" : "fields",
+    "normalized" : "Agent Data Protocol"
+  },
+  "llms" : {
+    "category" : "fields",
+    "normalized" : "LLMs"
+  },
+  "senior developer" : {
+    "category" : "roles",
+    "normalized" : "Senior Developer"
+  },
+  "Qwen3-32B" : {
+    "category" : "fields",
+    "normalized" : "Qwen3-32B"
+  },
+  "north star staffing" : {
+    "category" : "companies",
+    "normalized" : "North Star Staffing"
+  },
+  "langchain4j" : {
+    "category" : "fields",
+    "normalized" : "LangChain4j"
+  },
+  "Jetty" : {
+    "category" : "fields",
+    "normalized" : "Jetty"
+  },
+  "component" : {
+    "category" : "fields",
+    "normalized" : "Component"
+  },
+  "Biocode Ai" : {
+    "category" : "companies",
+    "normalized" : "Biocode Ai"
+  },
+  "change.org" : {
+    "category" : "companies",
+    "normalized" : "Change.org"
+  },
+  "Contract" : {
+    "category" : "job_types",
+    "normalized" : "Contract"
+  },
+  "API" : {
+    "category" : "fields",
+    "normalized" : "API"
+  },
+  "agentic rag" : {
+    "category" : "fields",
+    "normalized" : "Agentic RAG"
+  },
+  "Change.org" : {
+    "category" : "companies",
+    "normalized" : "Change.org"
+  },
+  "SPARQL" : {
+    "category" : "fields",
+    "normalized" : "SPARQL"
+  },
+  "Full-Stack AI Product Engineer" : {
+    "category" : "roles",
+    "normalized" : "Full-Stack AI Product Engineer"
+  },
+  "FastAPI" : {
+    "category" : "fields",
+    "normalized" : "FastAPI"
+  },
+  "Adapters" : {
+    "category" : "fields",
+    "normalized" : "Adapters"
+  },
+  "boolean constraint tree" : {
+    "category" : "fields",
+    "normalized" : "Boolean Constraint Tree"
+  },
+  "http" : {
+    "category" : "fields",
+    "normalized" : "HTTP"
+  },
+  "LLM-based" : {
+    "category" : "fields",
+    "normalized" : "LLM-based"
+  },
+  "RDF-like" : {
+    "category" : "fields",
+    "normalized" : "RDF-like"
+  },
+  "senior machine learning engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Machine Learning Engineer"
+  },
+  "PRPE" : {
+    "category" : "fields",
+    "normalized" : "PRPE"
+  },
+  "Clojure Datalog" : {
+    "category" : "fields",
+    "normalized" : "Clojure Datalog"
+  },
+  "cpu" : {
+    "category" : "fields",
+    "normalized" : "CPU"
+  },
+  "multilingual knowledge graphs" : {
+    "category" : "fields",
+    "normalized" : "Multilingual Knowledge Graphs"
+  },
+  "datalog engine" : {
+    "category" : "fields",
+    "normalized" : "Datalog Engine"
+  },
+  "empowerists" : {
+    "category" : "companies",
+    "normalized" : "Empowerists"
+  },
+  "Hiccup" : {
+    "category" : "fields",
+    "normalized" : "Hiccup"
+  },
+  "Full Stack Developer" : {
+    "category" : "roles",
+    "normalized" : "Full Stack Developer"
+  },
+  "Reitit" : {
+    "category" : "fields",
+    "normalized" : "Reitit"
+  },
+  "Liquid Foundation Model" : {
+    "category" : "fields",
+    "normalized" : "Liquid Foundation Model"
+  },
+  "Software Engineer" : {
+    "category" : "roles",
+    "normalized" : "Software Engineer"
+  },
+  "wikidata" : {
+    "category" : "fields",
+    "normalized" : "Wikidata"
+  },
+  "transit" : {
+    "category" : "fields",
+    "normalized" : "Transit"
+  },
+  "openai" : {
+    "category" : "fields",
+    "normalized" : "OpenAI"
+  },
+  "EAV" : {
+    "category" : "fields",
+    "normalized" : "EAV"
+  },
+  "Few&Far" : {
+    "category" : "companies",
+    "normalized" : "Few&Far"
+  },
+  "AI Sales Engineer" : {
+    "category" : "roles",
+    "normalized" : "AI Sales Engineer"
+  },
+  "Wikidata" : {
+    "category" : "fields",
+    "normalized" : "Wikidata"
+  },
+  "North Star Staffing" : {
+    "category" : "companies",
+    "normalized" : "North Star Staffing"
+  },
+  "neuro-symbolic ai" : {
+    "category" : "fields",
+    "normalized" : "Neuro-Symbolic AI"
+  },
+  "Google" : {
+    "category" : "companies",
+    "normalized" : "Google"
+  },
+  "Compojure" : {
+    "category" : "fields",
+    "normalized" : "Compojure"
+  },
+  "rdbms" : {
+    "category" : "fields",
+    "normalized" : "RDBMS"
+  },
+  "AI-First" : {
+    "category" : "fields",
+    "normalized" : "AI-First"
+  },
+  "Senior Fullstack Software Engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Fullstack Software Engineer"
+  },
+  "Azure" : {
+    "category" : "fields",
+    "normalized" : "Azure"
+  },
+  "conversational ai" : {
+    "category" : "fields",
+    "normalized" : "Conversational AI"
+  },
+  "Sotaku" : {
+    "category" : "companies",
+    "normalized" : "Sotaku"
+  },
+  "java" : {
+    "category" : "fields",
+    "normalized" : "Java"
+  },
+  "staff full-stack engineer" : {
+    "category" : "roles",
+    "normalized" : "Staff Full-Stack Engineer"
+  },
+  "llamaindex" : {
+    "category" : "fields",
+    "normalized" : "LlamaIndex"
+  },
+  "CPU" : {
+    "category" : "fields",
+    "normalized" : "CPU"
+  },
+  "remote" : {
+    "category" : "locations",
+    "normalized" : "Remote"
+  },
+  "FrontEnd Software Engineer" : {
+    "category" : "roles",
+    "normalized" : "FrontEnd Software Engineer"
+  },
+  "ampstek" : {
+    "category" : "companies",
+    "normalized" : "Ampstek"
+  },
+  "Llama" : {
+    "category" : "fields",
+    "normalized" : "Llama"
+  },
+  "transagents" : {
+    "category" : "fields",
+    "normalized" : "TransAgents"
+  },
+  "a bitcoin" : {
+    "category" : "fields",
+    "normalized" : "Bitcoin"
+  },
+  "senior software developer" : {
+    "category" : "roles",
+    "normalized" : "Senior Software Developer"
+  },
+  "Software Developer" : {
+    "category" : "roles",
+    "normalized" : "Software Developer"
+  },
+  "labse" : {
+    "category" : "fields",
+    "normalized" : "LaBSE"
+  },
+  "jwt" : {
+    "category" : "fields",
+    "normalized" : "JWT"
+  },
+  "ats software" : {
+    "category" : "fields",
+    "normalized" : "ATS Software"
+  },
+  "Agent-o-rama" : {
+    "category" : "fields",
+    "normalized" : "Agent-o-rama"
+  },
+  "GraphQL" : {
+    "category" : "fields",
+    "normalized" : "GraphQL"
+  },
+  "Autodesk" : {
+    "category" : "companies",
+    "normalized" : "Autodesk"
+  },
+  "feathery" : {
+    "category" : "companies",
+    "normalized" : "Feathery"
+  },
+  "mangitas 01" : {
+    "category" : "fields",
+    "normalized" : "Mangitas 01"
+  },
+  "Funding Circle" : {
+    "category" : "companies",
+    "normalized" : "Funding Circle"
+  },
+  "apache tika" : {
+    "category" : "fields",
+    "normalized" : "Apache Tika"
+  },
+  "LogicBlox" : {
+    "category" : "companies",
+    "normalized" : "LogicBlox"
+  },
+  "Ontario" : {
+    "category" : "locations",
+    "normalized" : "Ontario"
+  },
+  "adaptive agent runtime environment" : {
+    "category" : "fields",
+    "normalized" : "Adaptive Agent Runtime Environment"
+  },
+  "GNN" : {
+    "category" : "fields",
+    "normalized" : "GNN"
+  },
+  "LaBSE" : {
+    "category" : "fields",
+    "normalized" : "LaBSE"
+  },
+  "academia.edu" : {
+    "category" : "companies",
+    "normalized" : "Academia.edu"
+  },
+  "Aleph" : {
+    "category" : "fields",
+    "normalized" : "Aleph"
+  },
+  "qwen2.5-coder-3b" : {
+    "category" : "fields",
+    "normalized" : "Qwen2.5-Coder-3B"
+  },
+  "machine translation" : {
+    "category" : "fields",
+    "normalized" : "Machine Translation"
+  },
+  "Full-time" : {
+    "category" : "job_types",
+    "normalized" : "Full-time"
+  },
+  "Datascript" : {
+    "category" : "fields",
+    "normalized" : "Datascript"
+  },
+  "ATOMIC" : {
+    "category" : "fields",
+    "normalized" : "ATOMIC"
+  },
+  "Iopa Solutions" : {
+    "category" : "companies",
+    "normalized" : "Iopa Solutions"
+  },
+  "seesaw" : {
+    "category" : "companies",
+    "normalized" : "SeeSaw"
+  },
+  "Neural Machine Translation" : {
+    "category" : "fields",
+    "normalized" : "Neural Machine Translation"
+  },
+  "NMT" : {
+    "category" : "fields",
+    "normalized" : "NMT"
+  },
+  "ml data engineer" : {
+    "category" : "roles",
+    "normalized" : "ML Data Engineer"
+  },
+  "OAuth2" : {
+    "category" : "fields",
+    "normalized" : "OAuth2"
+  },
+  "Retrieval-Augmented Generation" : {
+    "category" : "fields",
+    "normalized" : "Retrieval-Augmented Generation"
+  },
+  "Cognitect" : {
+    "category" : "companies",
+    "normalized" : "Cognitect"
+  },
+  "qwen3-32b" : {
+    "category" : "fields",
+    "normalized" : "Qwen3-32B"
+  },
+  "iekg" : {
+    "category" : "fields",
+    "normalized" : "IEKG"
+  },
+  "gnn" : {
+    "category" : "fields",
+    "normalized" : "GNN"
+  },
+  "Model Context Protocol" : {
+    "category" : "fields",
+    "normalized" : "Model Context Protocol"
+  },
+  "centraprise" : {
+    "category" : "companies",
+    "normalized" : "Centraprise"
+  },
+  "senior full-stack software engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Full-Stack Software Engineer"
+  },
+  "ai platform" : {
+    "category" : "fields",
+    "normalized" : "AI Platform"
+  },
+  "ml engineer ii" : {
+    "category" : "roles",
+    "normalized" : "ML Engineer II"
+  },
+  "extreme networks" : {
+    "category" : "companies",
+    "normalized" : "Extreme Networks"
+  },
+  "graphql" : {
+    "category" : "fields",
+    "normalized" : "GraphQL"
+  },
+  "NLLB" : {
+    "category" : "fields",
+    "normalized" : "NLLB"
+  },
+  "Ring" : {
+    "category" : "fields",
+    "normalized" : "Ring"
+  },
+  "HelloFresh" : {
+    "category" : "companies",
+    "normalized" : "HelloFresh"
+  },
+  "workland" : {
+    "category" : "companies",
+    "normalized" : "Workland"
+  },
+  "refrag" : {
+    "category" : "fields",
+    "normalized" : "REFRAG"
+  },
+  "aapl" : {
+    "category" : "companies",
+    "normalized" : "AAPL"
+  },
+  "anti-reward hacking schema" : {
+    "category" : "fields",
+    "normalized" : "Anti-Reward Hacking Schema"
+  },
+  "bitstrapped" : {
+    "category" : "companies",
+    "normalized" : "Bitstrapped"
+  },
+  "Academia.edu" : {
+    "category" : "companies",
+    "normalized" : "Academia.edu"
+  },
+  "qwen2.5-3b" : {
+    "category" : "fields",
+    "normalized" : "Qwen2.5-3B"
+  },
+  "ai integration engineer" : {
+    "category" : "roles",
+    "normalized" : "AI Integration Engineer"
+  },
+  "Integrant" : {
+    "category" : "fields",
+    "normalized" : "Integrant"
+  },
+  "neon one" : {
+    "category" : "companies",
+    "normalized" : "Neon One"
+  },
+  "Senior Developer" : {
+    "category" : "roles",
+    "normalized" : "Senior Developer"
+  },
+  "adapter fusion" : {
+    "category" : "fields",
+    "normalized" : "Adapter Fusion"
+  },
+  "REFRAG" : {
+    "category" : "fields",
+    "normalized" : "REFRAG"
+  },
+  "HNSW" : {
+    "category" : "fields",
+    "normalized" : "HNSW"
+  },
+  "EPAM Systems" : {
+    "category" : "companies",
+    "normalized" : "EPAM Systems"
+  },
+  "Avenue Code" : {
+    "category" : "companies",
+    "normalized" : "Avenue Code"
+  },
+  "XTDB" : {
+    "category" : "fields",
+    "normalized" : "XTDB"
+  },
+  "IdiomCE" : {
+    "category" : "fields",
+    "normalized" : "IdiomCE"
+  },
+  "Senior AI-First Developer" : {
+    "category" : "roles",
+    "normalized" : "Senior AI-First Developer"
+  },
+  "aversan inc" : {
+    "category" : "companies",
+    "normalized" : "Aversan Inc"
+  },
+  "bright data" : {
+    "category" : "companies",
+    "normalized" : "Bright Data"
+  },
+  "Retrieval" : {
+    "category" : "fields",
+    "normalized" : "Retrieval"
+  },
+  "LLM Judge Veto" : {
+    "category" : "fields",
+    "normalized" : "LLM Judge Veto"
+  },
+  "Exa" : {
+    "category" : "companies",
+    "normalized" : "Exa"
+  },
+  "Mangitas" : {
+    "category" : "fields",
+    "normalized" : "Mangitas"
+  },
+  "azure" : {
+    "category" : "fields",
+    "normalized" : "Azure"
+  },
+  "enterprise ai" : {
+    "category" : "fields",
+    "normalized" : "Enterprise AI"
+  },
+  "ISSAI" : {
+    "category" : "companies",
+    "normalized" : "ISSAI"
+  },
+  "IEKG" : {
+    "category" : "fields",
+    "normalized" : "IEKG"
+  },
+  "idiomce" : {
+    "category" : "fields",
+    "normalized" : "IdiomCE"
+  },
+  "model theory" : {
+    "category" : "fields",
+    "normalized" : "Model Theory"
+  },
+  "Ollama" : {
+    "category" : "fields",
+    "normalized" : "Ollama"
+  },
+  "Senior AI Software Developer" : {
+    "category" : "roles",
+    "normalized" : "Senior AI Software Developer"
+  },
+  "software developer" : {
+    "category" : "roles",
+    "normalized" : "Software Developer"
+  },
+  "Semantic Web" : {
+    "category" : "fields",
+    "normalized" : "Semantic Web"
+  },
+  "Agent Context Compilation" : {
+    "category" : "fields",
+    "normalized" : "Agent Context Compilation"
+  },
+  "boolean tree" : {
+    "category" : "fields",
+    "normalized" : "Boolean Tree"
+  },
+  "ml consultant" : {
+    "category" : "roles",
+    "normalized" : "ML Consultant"
+  },
+  "cljfx" : {
+    "category" : "fields",
+    "normalized" : "Cljfx"
+  },
+  "qwen2.5" : {
+    "category" : "fields",
+    "normalized" : "Qwen2.5"
+  },
+  "NovoEd" : {
+    "category" : "companies",
+    "normalized" : "NovoEd"
+  },
+  "camel" : {
+    "category" : "fields",
+    "normalized" : "CAMEL"
+  },
+  "atomrag" : {
+    "category" : "fields",
+    "normalized" : "AtomRAG"
+  },
+  "Watson" : {
+    "category" : "fields",
+    "normalized" : "Watson"
+  },
+  "bitemporal logic" : {
+    "category" : "fields",
+    "normalized" : "Bitemporal Logic"
+  },
+  "JavaScript" : {
+    "category" : "fields",
+    "normalized" : "JavaScript"
+  },
+  "agent trajectory compilation" : {
+    "category" : "fields",
+    "normalized" : "Agent Trajectory Compilation"
+  },
+  "Senior Data Engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Data Engineer"
+  },
+  "python developer" : {
+    "category" : "roles",
+    "normalized" : "Python Developer"
+  },
+  "frontend engineer" : {
+    "category" : "roles",
+    "normalized" : "Frontend Engineer"
+  },
+  "hellofresh" : {
+    "category" : "companies",
+    "normalized" : "HelloFresh"
+  },
+  "mercor" : {
+    "category" : "companies",
+    "normalized" : "Mercor"
+  },
+  "Gen AI Engineer" : {
+    "category" : "roles",
+    "normalized" : "Gen AI Engineer"
+  },
+  "full stack software engineer" : {
+    "category" : "roles",
+    "normalized" : "Full Stack Software Engineer"
+  },
+  "muuntaja" : {
+    "category" : "fields",
+    "normalized" : "Muuntaja"
+  },
+  "JWT" : {
+    "category" : "fields",
+    "normalized" : "JWT"
+  },
+  "framework ai" : {
+    "category" : "companies",
+    "normalized" : "Framework AI"
+  },
+  "METEOR" : {
+    "category" : "fields",
+    "normalized" : "METEOR"
+  },
+  "Cheil USA" : {
+    "category" : "companies",
+    "normalized" : "Cheil USA"
+  },
+  "OpenAI" : {
+    "category" : "fields",
+    "normalized" : "OpenAI"
+  },
+  "Cohere" : {
+    "category" : "companies",
+    "normalized" : "Cohere"
+  },
+  "Toronto" : {
+    "category" : "locations",
+    "normalized" : "Toronto"
+  },
+  "Neo4j" : {
+    "category" : "fields",
+    "normalized" : "Neo4j"
+  },
+  "REST API" : {
+    "category" : "fields",
+    "normalized" : "REST API"
+  },
+  "CQ Search Group Ltd" : {
+    "category" : "fields",
+    "normalized" : "CQ Search Group Ltd"
+  },
+  "toronto" : {
+    "category" : "locations",
+    "normalized" : "Toronto"
+  },
+  "Datalog Generation" : {
+    "category" : "fields",
+    "normalized" : "Datalog Generation"
+  },
+  "ai innovation specialist" : {
+    "category" : "roles",
+    "normalized" : "AI Innovation Specialist"
+  },
+  "mangitas" : {
+    "category" : "fields",
+    "normalized" : "Mangitas"
+  },
+  "ontolex-lemon" : {
+    "category" : "fields",
+    "normalized" : "OntoLex-Lemon"
+  },
+  "langchain" : {
+    "category" : "fields",
+    "normalized" : "LangChain"
+  },
+  "lattice" : {
+    "category" : "fields",
+    "normalized" : "Lattice"
+  },
+  "apache mime4j" : {
+    "category" : "fields",
+    "normalized" : "Apache Mime4J"
+  },
+  "epam systems" : {
+    "category" : "companies",
+    "normalized" : "EPAM Systems"
+  },
+  "hnsw" : {
+    "category" : "fields",
+    "normalized" : "HNSW"
+  },
+  "senior lead engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Lead Engineer"
+  },
+  "Nazarbayev University" : {
+    "category" : "companies",
+    "normalized" : "Nazarbayev University"
+  },
+  "ai native full stack developer" : {
+    "category" : "roles",
+    "normalized" : "AI Native Full Stack Developer"
+  },
+  "Relik" : {
+    "category" : "fields",
+    "normalized" : "Relik"
+  },
+  "langgraph" : {
+    "category" : "fields",
+    "normalized" : "LangGraph"
+  },
+  "Senior Full Stack Developer" : {
+    "category" : "roles",
+    "normalized" : "Senior Full Stack Developer"
+  },
+  "OWL" : {
+    "category" : "fields",
+    "normalized" : "OWL"
+  },
+  "asts" : {
+    "category" : "fields",
+    "normalized" : "ASTs"
+  },
+  "DeepSeek-R1-Distill-Qwen" : {
+    "category" : "fields",
+    "normalized" : "DeepSeek-R1-Distill-Qwen"
+  },
+  "Edmonton" : {
+    "category" : "locations",
+    "normalized" : "Edmonton"
+  },
+  "Adapter Fusion" : {
+    "category" : "fields",
+    "normalized" : "Adapter Fusion"
+  },
+  "LangGraph" : {
+    "category" : "fields",
+    "normalized" : "LangGraph"
+  },
+  "Agentic Translation" : {
+    "category" : "fields",
+    "normalized" : "Agentic Translation"
+  },
+  "Qwen2.5" : {
+    "category" : "fields",
+    "normalized" : "Qwen2.5"
+  },
+  "Senior Full Stack Engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Full Stack Engineer"
+  },
+  "LFM2-1.2B" : {
+    "category" : "fields",
+    "normalized" : "LFM2-1.2B"
+  },
+  "AI Developer" : {
+    "category" : "roles",
+    "normalized" : "AI Developer"
+  },
+  "Artificial Intelligence Engineer" : {
+    "category" : "roles",
+    "normalized" : "Artificial Intelligence Engineer"
+  },
+  "apple inc" : {
+    "category" : "companies",
+    "normalized" : "Apple Inc"
+  },
+  "frontend software engineer" : {
+    "category" : "roles",
+    "normalized" : "Frontend Software Engineer"
+  },
+  "llm-as-judge" : {
+    "category" : "fields",
+    "normalized" : "LLM-as-judge"
+  },
+  "lfm2-tool" : {
+    "category" : "fields",
+    "normalized" : "LFM2-Tool"
+  },
+  "senior backend software developer" : {
+    "category" : "roles",
+    "normalized" : "Senior Backend Software Developer"
+  },
+  "translation agents" : {
+    "category" : "fields",
+    "normalized" : "Translation Agents"
+  },
+  "React" : {
+    "category" : "fields",
+    "normalized" : "React"
+  },
+  "Knowledge Graphs" : {
+    "category" : "fields",
+    "normalized" : "Knowledge Graphs"
+  },
+  "elios talent" : {
+    "category" : "companies",
+    "normalized" : "Elios Talent"
+  },
+  "ai automation engineer" : {
+    "category" : "roles",
+    "normalized" : "AI Automation Engineer"
+  },
+  "LLM" : {
+    "category" : "fields",
+    "normalized" : "LLM"
+  },
+  "Datalog DB" : {
+    "category" : "fields",
+    "normalized" : "Datalog DB"
+  },
+  "remote canada" : {
+    "category" : "locations",
+    "normalized" : "Remote Canada"
+  },
+  "Qwen3" : {
+    "category" : "fields",
+    "normalized" : "Qwen3"
+  },
+  "ASTs" : {
+    "category" : "fields",
+    "normalized" : "ASTs"
+  },
+  "GEPA" : {
+    "category" : "fields",
+    "normalized" : "GEPA"
+  },
+  "moe" : {
+    "category" : "fields",
+    "normalized" : "MoE"
+  },
+  "ATS Software" : {
+    "category" : "fields",
+    "normalized" : "ATS Software"
+  },
+  "ring-defaults" : {
+    "category" : "fields",
+    "normalized" : "Ring-Defaults"
+  },
+  "github ai consultant" : {
+    "category" : "roles",
+    "normalized" : "GitHub AI Consultant"
+  },
+  "ml" : {
+    "category" : "fields",
+    "normalized" : "ML"
+  },
+  "language models" : {
+    "category" : "fields",
+    "normalized" : "Language Models"
+  },
+  "REPL" : {
+    "category" : "fields",
+    "normalized" : "REPL"
+  },
+  "openapi" : {
+    "category" : "fields",
+    "normalized" : "OpenAPI"
+  },
+  "LlamaIndex" : {
+    "category" : "fields",
+    "normalized" : "LlamaIndex"
+  },
+  "Sentence-Transformers" : {
+    "category" : "fields",
+    "normalized" : "Sentence-Transformers"
+  },
+  "Quantum World Technologies Inc" : {
+    "category" : "companies",
+    "normalized" : "Quantum World Technologies Inc"
+  },
+  "Centraprise" : {
+    "category" : "companies",
+    "normalized" : "Centraprise"
+  },
+  "lnns" : {
+    "category" : "fields",
+    "normalized" : "LNNs"
+  },
+  "Qwen3.5" : {
+    "category" : "fields",
+    "normalized" : "Qwen3.5"
+  },
+  "Adaptive Agent Runtime Environment" : {
+    "category" : "fields",
+    "normalized" : "Adaptive Agent Runtime Environment"
+  },
+  "AI Automation Engineer" : {
+    "category" : "roles",
+    "normalized" : "AI Automation Engineer"
+  },
+  "retrieval-augmented generation" : {
+    "category" : "fields",
+    "normalized" : "Retrieval-Augmented Generation"
+  },
+  "senior full-stack engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Full-Stack Engineer"
+  },
+  "Ampstek" : {
+    "category" : "companies",
+    "normalized" : "Ampstek"
+  },
+  "Mississauga" : {
+    "category" : "locations",
+    "normalized" : "Mississauga"
+  },
+  "DataRobot" : {
+    "category" : "companies",
+    "normalized" : "DataRobot"
+  },
+  "Generative AI" : {
+    "category" : "fields",
+    "normalized" : "Generative AI"
+  },
+  "qwen" : {
+    "category" : "fields",
+    "normalized" : "Qwen"
+  },
+  "senior ai engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior AI Engineer"
+  },
+  "Swagger-UI" : {
+    "category" : "fields",
+    "normalized" : "Swagger-UI"
+  },
+  "llm wiki" : {
+    "category" : "fields",
+    "normalized" : "LLM Wiki"
+  },
+  "part-time contract" : {
+    "category" : "job_types",
+    "normalized" : "Part-Time Contract"
+  },
+  "senior fullstack software engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Fullstack Software Engineer"
+  },
+  "senior full stack ai developer" : {
+    "category" : "roles",
+    "normalized" : "Senior Full Stack AI Developer"
+  },
+  "Elios Talent" : {
+    "category" : "companies",
+    "normalized" : "Elios Talent"
+  },
+  "fluree" : {
+    "category" : "companies",
+    "normalized" : "Fluree"
+  },
+  "Back End Developer" : {
+    "category" : "roles",
+    "normalized" : "Back End Developer"
+  },
+  "LFM2-Tool" : {
+    "category" : "fields",
+    "normalized" : "LFM2-Tool"
+  },
+  "deepseek v3.2" : {
+    "category" : "fields",
+    "normalized" : "DeepSeek V3.2"
+  },
+  "sr. ai integration engineer" : {
+    "category" : "roles",
+    "normalized" : "Sr. AI Integration Engineer"
+  },
+  "KGs" : {
+    "category" : "fields",
+    "normalized" : "KGs"
+  },
+  "AAPL" : {
+    "category" : "companies",
+    "normalized" : "AAPL"
+  },
+  "Datalevin" : {
+    "category" : "fields",
+    "normalized" : "Datalevin"
+  },
+  "supervised fine-tuning" : {
+    "category" : "fields",
+    "normalized" : "Supervised Fine-Tuning"
+  },
+  "fastapi" : {
+    "category" : "fields",
+    "normalized" : "FastAPI"
+  },
+  "Meilisearch" : {
+    "category" : "companies",
+    "normalized" : "Meilisearch"
+  },
+  "DSPy GEPA" : {
+    "category" : "fields",
+    "normalized" : "DSPy GEPA"
+  },
+  "evenup" : {
+    "category" : "companies",
+    "normalized" : "EvenUp"
+  },
+  "Partners" : {
+    "category" : "companies",
+    "normalized" : "Partners"
+  },
+  "Power Staffing Solutions" : {
+    "category" : "companies",
+    "normalized" : "Power Staffing Solutions"
+  },
+  "Artificial Intelligence Consultant" : {
+    "category" : "roles",
+    "normalized" : "Artificial Intelligence Consultant"
+  },
+  "odaia" : {
+    "category" : "companies",
+    "normalized" : "ODAIA"
+  },
+  "edmonton" : {
+    "category" : "locations",
+    "normalized" : "Edmonton"
+  },
+  "Reinforcement Learning" : {
+    "category" : "fields",
+    "normalized" : "Reinforcement Learning"
+  },
+  "issai" : {
+    "category" : "companies",
+    "normalized" : "ISSAI"
+  },
+  "rebel" : {
+    "category" : "fields",
+    "normalized" : "REBEL"
+  },
+  "Knowledge Graph" : {
+    "category" : "fields",
+    "normalized" : "Knowledge Graph"
+  },
+  "Senior Front-End Engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Front-End Engineer"
+  },
+  "Senior MTS Software Engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior MTS Software Engineer"
+  },
+  "Machine Learning Engineer" : {
+    "category" : "roles",
+    "normalized" : "Machine Learning Engineer"
+  },
+  "Chain-of-Thought" : {
+    "category" : "fields",
+    "normalized" : "Chain-of-Thought"
+  },
+  "Apple" : {
+    "category" : "companies",
+    "normalized" : "Apple"
+  },
+  "Clojure" : {
+    "category" : "fields",
+    "normalized" : "Clojure"
+  },
+  "Language Models" : {
+    "category" : "fields",
+    "normalized" : "Language Models"
+  },
+  "autodesk" : {
+    "category" : "companies",
+    "normalized" : "Autodesk"
+  },
+  "exa" : {
+    "category" : "companies",
+    "normalized" : "Exa"
+  },
+  "Socure" : {
+    "category" : "companies",
+    "normalized" : "Socure"
+  },
+  "Datalog-related" : {
+    "category" : "fields",
+    "normalized" : "Datalog-related"
+  },
+  "agentic ai engineer" : {
+    "category" : "roles",
+    "normalized" : "Agentic AI Engineer"
+  },
+  "AI Architect" : {
+    "category" : "roles",
+    "normalized" : "AI Architect"
+  },
+  "Bidi" : {
+    "category" : "fields",
+    "normalized" : "Bidi"
+  },
+  "memgraph" : {
+    "category" : "companies",
+    "normalized" : "Memgraph"
+  },
+  "Full Stack Engineer" : {
+    "category" : "roles",
+    "normalized" : "Full Stack Engineer"
+  },
+  "ClojureScript" : {
+    "category" : "fields",
+    "normalized" : "ClojureScript"
+  },
+  "Messagepoint" : {
+    "category" : "companies",
+    "normalized" : "Messagepoint"
+  },
+  "Senior Software Development Engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Software Development Engineer"
+  },
+  "pointclickcare" : {
+    "category" : "companies",
+    "normalized" : "PointClickCare"
+  },
+  "Senior Full-Stack Software Engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Full-Stack Software Engineer"
+  },
+  "ODAIA" : {
+    "category" : "companies",
+    "normalized" : "ODAIA"
+  },
+  "python repl" : {
+    "category" : "fields",
+    "normalized" : "Python REPL"
+  },
+  "Datalog" : {
+    "category" : "fields",
+    "normalized" : "Datalog"
+  },
+  "LNNs" : {
+    "category" : "fields",
+    "normalized" : "LNNs"
+  },
+  "datalevin" : {
+    "category" : "fields",
+    "normalized" : "Datalevin"
+  },
+  "Remote Consultant-Flexible" : {
+    "category" : "locations",
+    "normalized" : "Remote Consultant-Flexible"
+  },
+  "Senior AI Software Engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior AI Software Engineer"
+  },
+  "repl" : {
+    "category" : "fields",
+    "normalized" : "REPL"
+  },
+  "cheil usa" : {
+    "category" : "companies",
+    "normalized" : "Cheil USA"
+  },
+  "EDN-friendly" : {
+    "category" : "fields",
+    "normalized" : "EDN-friendly"
+  },
+  "llm-based" : {
+    "category" : "fields",
+    "normalized" : "LLM-based"
+  },
+  "prompt engineer" : {
+    "category" : "roles",
+    "normalized" : "Prompt Engineer"
+  },
+  "AI Engineer" : {
+    "category" : "roles",
+    "normalized" : "AI Engineer"
+  },
+  "pedestal" : {
+    "category" : "fields",
+    "normalized" : "Pedestal"
+  },
+  "Hallucination" : {
+    "category" : "fields",
+    "normalized" : "Hallucination"
+  },
+  "iopa solutions" : {
+    "category" : "companies",
+    "normalized" : "Iopa Solutions"
+  },
+  "Senior Lead Engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Lead Engineer"
+  },
+  "Asami" : {
+    "category" : "fields",
+    "normalized" : "Asami"
+  },
+  "Datalog KG" : {
+    "category" : "fields",
+    "normalized" : "Datalog KG"
+  },
+  "Boolean Trees" : {
+    "category" : "fields",
+    "normalized" : "Boolean Trees"
+  },
+  "claude code" : {
+    "category" : "fields",
+    "normalized" : "Claude Code"
+  },
+  "conceptnet" : {
+    "category" : "fields",
+    "normalized" : "ConceptNet"
+  },
+  "senior ai developer" : {
+    "category" : "roles",
+    "normalized" : "Senior AI Developer"
+  },
+  "Senior Full Stack AI Developer" : {
+    "category" : "roles",
+    "normalized" : "Senior Full Stack AI Developer"
+  },
+  "Cayley Graphs" : {
+    "category" : "fields",
+    "normalized" : "Cayley Graphs"
+  },
+  "Workland" : {
+    "category" : "companies",
+    "normalized" : "Workland"
+  },
+  "babashka" : {
+    "category" : "fields",
+    "normalized" : "Babashka"
+  },
+  "Conversational AI" : {
+    "category" : "fields",
+    "normalized" : "Conversational AI"
+  },
+  "ColBERT-style" : {
+    "category" : "fields",
+    "normalized" : "ColBERT-style"
+  },
+  "Cypher" : {
+    "category" : "fields",
+    "normalized" : "Cypher"
+  },
+  "ml data scientist" : {
+    "category" : "roles",
+    "normalized" : "ML Data Scientist"
+  },
+  "A3-soyle" : {
+    "category" : "fields",
+    "normalized" : "A3-soyle"
+  },
+  "honeysql" : {
+    "category" : "fields",
+    "normalized" : "HoneySQL"
+  },
+  "hiccup" : {
+    "category" : "fields",
+    "normalized" : "Hiccup"
+  },
+  "remote consultant-flexible" : {
+    "category" : "locations",
+    "normalized" : "Remote Consultant-Flexible"
+  },
+  "low-resource languages" : {
+    "category" : "fields",
+    "normalized" : "Low-Resource Languages"
+  },
+  "datalog" : {
+    "category" : "fields",
+    "normalized" : "Datalog"
+  },
+  "relik" : {
+    "category" : "fields",
+    "normalized" : "Relik"
+  },
+  "Backend AI Prompt Engineer" : {
+    "category" : "roles",
+    "normalized" : "Backend AI Prompt Engineer"
+  },
+  "gepa" : {
+    "category" : "fields",
+    "normalized" : "GEPA"
+  },
+  "ML Consultant" : {
+    "category" : "roles",
+    "normalized" : "ML Consultant"
+  },
+  "ai utility" : {
+    "category" : "fields",
+    "normalized" : "AI Utility"
+  },
+  "datarobot" : {
+    "category" : "companies",
+    "normalized" : "DataRobot"
+  },
+  "Product Engineer" : {
+    "category" : "roles",
+    "normalized" : "Product Engineer"
+  },
+  "TransAgents" : {
+    "category" : "fields",
+    "normalized" : "TransAgents"
+  },
+  "celebal technologies" : {
+    "category" : "companies",
+    "normalized" : "Celebal Technologies"
+  },
+  "gemma2" : {
+    "category" : "fields",
+    "normalized" : "Gemma2"
+  },
+  "front end" : {
+    "category" : "roles",
+    "normalized" : "Front End"
+  },
+  "Apache Mime4J" : {
+    "category" : "fields",
+    "normalized" : "Apache Mime4J"
+  },
+  "Hanalytica GmbH" : {
+    "category" : "companies",
+    "normalized" : "Hanalytica GmbH"
+  },
+  "alberta" : {
+    "category" : "locations",
+    "normalized" : "Alberta"
+  },
+  "agent-as-a-graph" : {
+    "category" : "fields",
+    "normalized" : "Agent-as-a-Graph"
+  },
+  "aleph" : {
+    "category" : "fields",
+    "normalized" : "Aleph"
+  },
+  "asami" : {
+    "category" : "fields",
+    "normalized" : "Asami"
+  },
+  "contract" : {
+    "category" : "job_types",
+    "normalized" : "Contract"
+  },
+  "Waterloo AI" : {
+    "category" : "fields",
+    "normalized" : "Waterloo AI"
+  },
+  "Amyantek" : {
+    "category" : "companies",
+    "normalized" : "Amyantek"
+  },
+  "Frontend Engineer" : {
+    "category" : "roles",
+    "normalized" : "Frontend Engineer"
+  },
+  "Apache Tika" : {
+    "category" : "fields",
+    "normalized" : "Apache Tika"
+  },
+  "Boolean Tree" : {
+    "category" : "fields",
+    "normalized" : "Boolean Tree"
+  },
+  "GraphRAG" : {
+    "category" : "fields",
+    "normalized" : "GraphRAG"
+  },
+  "Liquid Neural Networks" : {
+    "category" : "fields",
+    "normalized" : "Liquid Neural Networks"
+  },
+  "perceptive space" : {
+    "category" : "companies",
+    "normalized" : "Perceptive Space"
+  },
+  "FTS Search" : {
+    "category" : "fields",
+    "normalized" : "FTS Search"
+  },
+  "BLEU" : {
+    "category" : "fields",
+    "normalized" : "BLEU"
+  },
+  "angular" : {
+    "category" : "fields",
+    "normalized" : "Angular"
+  },
+  "qwen3.6-35b-a3b" : {
+    "category" : "fields",
+    "normalized" : "Qwen3.6-35B-A3B"
+  },
+  "Clojure-native" : {
+    "category" : "fields",
+    "normalized" : "Clojure-native"
+  },
+  "MangiSoz" : {
+    "category" : "fields",
+    "normalized" : "MangiSoz"
+  },
+  "api" : {
+    "category" : "fields",
+    "normalized" : "API"
+  },
+  "sr. full stack developer" : {
+    "category" : "roles",
+    "normalized" : "Sr. Full Stack Developer"
+  },
+  "JSON-RPC" : {
+    "category" : "fields",
+    "normalized" : "JSON-RPC"
+  },
+  "RDBMS" : {
+    "category" : "fields",
+    "normalized" : "RDBMS"
+  },
+  "socure" : {
+    "category" : "companies",
+    "normalized" : "Socure"
+  },
+  "Celebal Technologies" : {
+    "category" : "companies",
+    "normalized" : "Celebal Technologies"
+  },
+  "Alberta" : {
+    "category" : "locations",
+    "normalized" : "Alberta"
+  },
+  "xtdb" : {
+    "category" : "fields",
+    "normalized" : "XTDB"
+  },
+  "Liquid AI" : {
+    "category" : "companies",
+    "normalized" : "Liquid AI"
+  },
+  "Prompt Engineer" : {
+    "category" : "roles",
+    "normalized" : "Prompt Engineer"
+  },
+  "messagepoint" : {
+    "category" : "companies",
+    "normalized" : "Messagepoint"
+  },
+  "HTML" : {
+    "category" : "fields",
+    "normalized" : "HTML"
+  },
+  "biocode ai" : {
+    "category" : "companies",
+    "normalized" : "Biocode Ai"
+  },
+  "liquid neural networks" : {
+    "category" : "fields",
+    "normalized" : "Liquid Neural Networks"
+  },
+  "model context protocol" : {
+    "category" : "fields",
+    "normalized" : "Model Context Protocol"
+  },
+  "senior ai software developer" : {
+    "category" : "roles",
+    "normalized" : "Senior AI Software Developer"
+  },
+  "senior ai-first developer" : {
+    "category" : "roles",
+    "normalized" : "Senior AI-First Developer"
+  },
+  "senior software development engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Software Development Engineer"
+  },
+  "MoE" : {
+    "category" : "fields",
+    "normalized" : "MoE"
+  },
+  "cq search group ltd" : {
+    "category" : "fields",
+    "normalized" : "CQ Search Group Ltd"
+  },
+  "DSPy" : {
+    "category" : "fields",
+    "normalized" : "DSPy"
+  },
+  "front-end" : {
+    "category" : "roles",
+    "normalized" : "Front-end"
+  },
+  "ModernBERT" : {
+    "category" : "fields",
+    "normalized" : "ModernBERT"
+  },
+  "mcp" : {
+    "category" : "fields",
+    "normalized" : "MCP"
+  },
+  "deepseek-r1-distill-qwen" : {
+    "category" : "fields",
+    "normalized" : "DeepSeek-R1-Distill-Qwen"
+  },
+  "SQL" : {
+    "category" : "fields",
+    "normalized" : "SQL"
+  },
+  "LiquidAI" : {
+    "category" : "companies",
+    "normalized" : "LiquidAI"
+  },
+  "quebec" : {
+    "category" : "locations",
+    "normalized" : "Quebec"
+  },
+  "shadow-cljs" : {
+    "category" : "fields",
+    "normalized" : "Shadow CLJS"
+  },
+  "deepseek-r1" : {
+    "category" : "fields",
+    "normalized" : "DeepSeek-R1"
+  },
+  "llama-3.1-kazllm-1.0-8b" : {
+    "category" : "fields",
+    "normalized" : "LLama-3.1-KazLLM-1.0-8B"
+  },
+  "ai solution engineer" : {
+    "category" : "roles",
+    "normalized" : "Ai Solution Engineer"
+  },
+  "Apache" : {
+    "category" : "fields",
+    "normalized" : "Apache"
+  },
+  "graph data scientist" : {
+    "category" : "roles",
+    "normalized" : "Graph Data Scientist"
+  },
+  "Front End" : {
+    "category" : "roles",
+    "normalized" : "Front End"
+  },
+  "Anti-Reward Hacking Schema" : {
+    "category" : "fields",
+    "normalized" : "Anti-Reward Hacking Schema"
+  },
+  "full-time" : {
+    "category" : "job_types",
+    "normalized" : "Full-time"
+  },
+  "rest api" : {
+    "category" : "fields",
+    "normalized" : "REST API"
+  },
+  "ML Engineer II" : {
+    "category" : "roles",
+    "normalized" : "ML Engineer II"
+  },
+  "amyantek" : {
+    "category" : "companies",
+    "normalized" : "Amyantek"
+  },
+  "Frontend Software Engineer" : {
+    "category" : "roles",
+    "normalized" : "Frontend Software Engineer"
+  },
+  "ctes" : {
+    "category" : "fields",
+    "normalized" : "CTEs"
+  },
+  "hanalytica gmbh" : {
+    "category" : "companies",
+    "normalized" : "Hanalytica GmbH"
+  },
+  "Front-end" : {
+    "category" : "roles",
+    "normalized" : "Front-end"
+  },
+  "ai-first developer" : {
+    "category" : "roles",
+    "normalized" : "AI-First Developer"
+  },
+  "Wish" : {
+    "category" : "companies",
+    "normalized" : "Wish"
+  },
+  "RDF" : {
+    "category" : "fields",
+    "normalized" : "RDF"
+  },
+  "Machine Translation" : {
+    "category" : "fields",
+    "normalized" : "Machine Translation"
+  },
+  "Component" : {
+    "category" : "fields",
+    "normalized" : "Component"
+  },
+  "Malli" : {
+    "category" : "fields",
+    "normalized" : "Malli"
+  },
+  "datomic" : {
+    "category" : "fields",
+    "normalized" : "Datomic"
+  },
+  "Machine Learning Researcher" : {
+    "category" : "roles",
+    "normalized" : "Machine Learning Researcher"
+  },
+  "HTTP" : {
+    "category" : "fields",
+    "normalized" : "HTTP"
+  },
+  "yada" : {
+    "category" : "fields",
+    "normalized" : "Yada"
+  },
+  "hugging face java" : {
+    "category" : "fields",
+    "normalized" : "Hugging Face Java"
+  },
+  "mangisoz" : {
+    "category" : "fields",
+    "normalized" : "Mangisoz"
+  },
+  "fts" : {
+    "category" : "fields",
+    "normalized" : "FTS"
+  },
+  "llm judge veto" : {
+    "category" : "fields",
+    "normalized" : "LLM Judge Veto"
+  },
+  "GitHub" : {
+    "category" : "fields",
+    "normalized" : "GitHub"
+  },
+  "LFMs" : {
+    "category" : "fields",
+    "normalized" : "LFMs"
+  },
+  "RAG-style" : {
+    "category" : "fields",
+    "normalized" : "RAG-style"
+  },
+  "Full Stack Software Engineer" : {
+    "category" : "roles",
+    "normalized" : "Full Stack Software Engineer"
+  },
+  "euna solutions" : {
+    "category" : "companies",
+    "normalized" : "Euna Solutions"
+  },
+  "entity-attribute-value" : {
+    "category" : "fields",
+    "normalized" : "Entity-Attribute-Value"
+  },
+  "PTLMs" : {
+    "category" : "fields",
+    "normalized" : "PTLMs"
+  },
+  "llama-3.2-3b" : {
+    "category" : "fields",
+    "normalized" : "Llama-3.2-3B"
+  },
+  "knowledge graphs" : {
+    "category" : "fields",
+    "normalized" : "Knowledge Graphs"
+  },
+  "chain-of-thought" : {
+    "category" : "fields",
+    "normalized" : "Chain-of-Thought"
+  },
+  "OraQ AI" : {
+    "category" : "companies",
+    "normalized" : "OraQ AI"
+  },
+  "saris ai" : {
+    "category" : "fields",
+    "normalized" : "Saris AI"
+  },
+  "british columbia" : {
+    "category" : "locations",
+    "normalized" : "British Columbia"
+  },
+  "reinforcement learning" : {
+    "category" : "fields",
+    "normalized" : "Reinforcement Learning"
+  },
+  "Sunnyvale" : {
+    "category" : "locations",
+    "normalized" : "Sunnyvale"
+  },
+  "clojure ecosystem" : {
+    "category" : "fields",
+    "normalized" : "Clojure Ecosystem"
+  },
+  "datascript" : {
+    "category" : "fields",
+    "normalized" : "Datascript"
+  },
+  "minilm-l6-v2" : {
+    "category" : "fields",
+    "normalized" : "MiniLM-L6-v2"
+  },
+  "Bright Data" : {
+    "category" : "companies",
+    "normalized" : "Bright Data"
+  },
+  "OpenAPI" : {
+    "category" : "fields",
+    "normalized" : "OpenAPI"
+  },
+  "Boolean Constraint Tree" : {
+    "category" : "fields",
+    "normalized" : "Boolean Constraint Tree"
+  },
+  "clojure datalog" : {
+    "category" : "fields",
+    "normalized" : "Clojure Datalog"
+  },
+  "LFM2-1.2B-Extract" : {
+    "category" : "fields",
+    "normalized" : "LFM2-1.2B-Extract"
+  },
+  "full stack engineer" : {
+    "category" : "roles",
+    "normalized" : "Full Stack Engineer"
+  },
+  "nuclear promise x" : {
+    "category" : "companies",
+    "normalized" : "Nuclear Promise X"
+  },
+  "command-r" : {
+    "category" : "fields",
+    "normalized" : "Command-R"
+  },
+  "llama-3.1-kazllm-1.0-70b" : {
+    "category" : "fields",
+    "normalized" : "LLama-3.1-KazLLM-1.0-70B"
+  },
+  "Clio" : {
+    "category" : "companies",
+    "normalized" : "Clio"
+  },
+  "juxt" : {
+    "category" : "companies",
+    "normalized" : "Juxt"
+  },
+  "LangChain" : {
+    "category" : "fields",
+    "normalized" : "LangChain"
+  },
+  "malli" : {
+    "category" : "fields",
+    "normalized" : "Malli"
+  },
+  "javascript" : {
+    "category" : "fields",
+    "normalized" : "JavaScript"
+  },
+  "software engineer" : {
+    "category" : "roles",
+    "normalized" : "Software Engineer"
+  },
+  "Senior Software Developer" : {
+    "category" : "roles",
+    "normalized" : "Senior Software Developer"
+  },
+  "REBEL" : {
+    "category" : "fields",
+    "normalized" : "REBEL"
+  },
+  "Keystone Recruitment" : {
+    "category" : "companies",
+    "normalized" : "Keystone Recruitment"
+  },
+  "Senior Machine Learning Engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Machine Learning Engineer"
+  },
+  "Staff Full-Stack Engineer" : {
+    "category" : "roles",
+    "normalized" : "Staff Full-Stack Engineer"
+  },
+  "RAG" : {
+    "category" : "fields",
+    "normalized" : "RAG"
+  },
+  "novoed" : {
+    "category" : "companies",
+    "normalized" : "NovoEd"
+  },
+  "bleu" : {
+    "category" : "fields",
+    "normalized" : "BLEU"
+  },
+  "websockets" : {
+    "category" : "fields",
+    "normalized" : "WebSockets"
+  },
+  "atomic" : {
+    "category" : "fields",
+    "normalized" : "ATOMIC"
+  },
+  "featherless ai" : {
+    "category" : "companies",
+    "normalized" : "Featherless AI"
+  },
+  "mississauga" : {
+    "category" : "locations",
+    "normalized" : "Mississauga"
+  },
+  "WebRTC" : {
+    "category" : "fields",
+    "normalized" : "WebRTC"
+  },
+  "Neuro-Symbolic AI" : {
+    "category" : "fields",
+    "normalized" : "Neuro-Symbolic AI"
+  },
+  "LLM Wiki" : {
+    "category" : "fields",
+    "normalized" : "LLM Wiki"
+  },
+  "Babashka" : {
+    "category" : "fields",
+    "normalized" : "Babashka"
+  },
+  "Procurify" : {
+    "category" : "companies",
+    "normalized" : "Procurify"
+  },
+  "AI Platform" : {
+    "category" : "fields",
+    "normalized" : "AI Platform"
+  },
+  "power staffing solutions" : {
+    "category" : "companies",
+    "normalized" : "Power Staffing Solutions"
+  },
+  "shadow cljs" : {
+    "category" : "fields",
+    "normalized" : "Shadow CLJS"
+  },
+  "nllb" : {
+    "category" : "fields",
+    "normalized" : "NLLB"
+  },
+  "neural machine translation" : {
+    "category" : "fields",
+    "normalized" : "Neural Machine Translation"
+  },
+  "BART" : {
+    "category" : "fields",
+    "normalized" : "BART"
+  },
+  "Part-Time Contract" : {
+    "category" : "job_types",
+    "normalized" : "Part-Time Contract"
+  },
+  "Snowflake Sudoku" : {
+    "category" : "fields",
+    "normalized" : "Snowflake Sudoku"
+  },
+  "compojure" : {
+    "category" : "fields",
+    "normalized" : "Compojure"
+  },
+  "mount" : {
+    "category" : "fields",
+    "normalized" : "Mount"
+  },
+  "Java" : {
+    "category" : "fields",
+    "normalized" : "Java"
+  },
+  "LLMs" : {
+    "category" : "fields",
+    "normalized" : "LLMs"
+  },
+  "html" : {
+    "category" : "fields",
+    "normalized" : "HTML"
+  },
+  "ML Data Engineer" : {
+    "category" : "roles",
+    "normalized" : "ML Data Engineer"
+  },
+  "senior staff ai engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Staff AI Engineer"
+  },
+  "agent data protocol" : {
+    "category" : "fields",
+    "normalized" : "Agent Data Protocol"
+  },
+  "DeepSeek-R1" : {
+    "category" : "fields",
+    "normalized" : "DeepSeek-R1"
+  },
+  "Qwen" : {
+    "category" : "fields",
+    "normalized" : "Qwen"
+  },
+  "Nubank" : {
+    "category" : "companies",
+    "normalized" : "Nubank"
+  },
+  "Memgraph" : {
+    "category" : "companies",
+    "normalized" : "Memgraph"
+  },
+  "Nuclear Promise X" : {
+    "category" : "companies",
+    "normalized" : "Nuclear Promise X"
+  },
+  "citi" : {
+    "category" : "companies",
+    "normalized" : "Citi"
+  },
+  "generative ai" : {
+    "category" : "fields",
+    "normalized" : "Generative AI"
+  },
+  "senior ai software engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior AI Software Engineer"
+  },
+  "entity resolution" : {
+    "category" : "fields",
+    "normalized" : "Entity Resolution"
+  },
+  "sotaku" : {
+    "category" : "companies",
+    "normalized" : "Sotaku"
+  },
+  "prpe" : {
+    "category" : "fields",
+    "normalized" : "PRPE"
+  },
+  "FTS" : {
+    "category" : "fields",
+    "normalized" : "FTS"
+  },
+  "Agentic RAG" : {
+    "category" : "fields",
+    "normalized" : "Agentic RAG"
+  },
+  "Senior Backend Software Developer" : {
+    "category" : "roles",
+    "normalized" : "Senior Backend Software Developer"
+  },
+  "qwen3" : {
+    "category" : "fields",
+    "normalized" : "Qwen3"
+  },
+  "crux" : {
+    "category" : "fields",
+    "normalized" : "Crux"
+  },
+  "dbpedia" : {
+    "category" : "fields",
+    "normalized" : "DBpedia"
+  },
+  "Machine Learning Scientist" : {
+    "category" : "roles",
+    "normalized" : "Machine Learning Scientist"
+  },
+  "Entity Resolution" : {
+    "category" : "fields",
+    "normalized" : "Entity Resolution"
+  },
+  "global registry" : {
+    "category" : "fields",
+    "normalized" : "Global Registry"
+  },
+  "AI Integration Engineer" : {
+    "category" : "roles",
+    "normalized" : "AI Integration Engineer"
+  },
+  "snowflake sudoku" : {
+    "category" : "fields",
+    "normalized" : "Snowflake Sudoku"
+  },
+  "Senior Full-Stack Developer" : {
+    "category" : "roles",
+    "normalized" : "Senior Full-Stack Developer"
+  },
+  "LFM2" : {
+    "category" : "fields",
+    "normalized" : "LFM2"
+  },
+  "lfm2" : {
+    "category" : "fields",
+    "normalized" : "LFM2"
+  },
+  "metosin" : {
+    "category" : "companies",
+    "normalized" : "Metosin"
+  },
+  "sql" : {
+    "category" : "fields",
+    "normalized" : "SQL"
+  },
+  "qwen3.5-9b" : {
+    "category" : "fields",
+    "normalized" : "Qwen3.5-9B"
+  },
+  "knowledge graph engineer" : {
+    "category" : "roles",
+    "normalized" : "Knowledge Graph Engineer"
+  },
+  "chunking" : {
+    "category" : "fields",
+    "normalized" : "Chunking"
+  },
+  "agentic workflows" : {
+    "category" : "fields",
+    "normalized" : "Agentic Workflows"
+  },
+  "ats" : {
+    "category" : "fields",
+    "normalized" : "ATS"
+  },
+  "AI Utility" : {
+    "category" : "fields",
+    "normalized" : "AI Utility"
+  },
+  "product engineer" : {
+    "category" : "roles",
+    "normalized" : "Product Engineer"
+  },
+  "DRT-o1" : {
+    "category" : "fields",
+    "normalized" : "DRT-o1"
+  },
+  "Multilingual Knowledge Graphs" : {
+    "category" : "fields",
+    "normalized" : "Multilingual Knowledge Graphs"
+  },
+  "cypher" : {
+    "category" : "fields",
+    "normalized" : "Cypher"
+  },
+  "Llama-3.1" : {
+    "category" : "fields",
+    "normalized" : "Llama-3.1"
+  },
+  "AI Native Full Stack Developer" : {
+    "category" : "roles",
+    "normalized" : "AI Native Full Stack Developer"
+  },
+  "Perceptive Space" : {
+    "category" : "companies",
+    "normalized" : "Perceptive Space"
+  },
+  "PTLM" : {
+    "category" : "fields",
+    "normalized" : "PTLM"
+  },
+  "Bitstrapped" : {
+    "category" : "companies",
+    "normalized" : "Bitstrapped"
+  },
+  "ldt" : {
+    "category" : "fields",
+    "normalized" : "LDT"
+  },
+  "react" : {
+    "category" : "fields",
+    "normalized" : "React"
+  },
+  "ai-first" : {
+    "category" : "fields",
+    "normalized" : "AI-First"
+  },
+  "samsung electronics" : {
+    "category" : "companies",
+    "normalized" : "Samsung Electronics"
+  },
+  "dotnet developer" : {
+    "category" : "roles",
+    "normalized" : "Dotnet Developer"
+  },
+  "manulife" : {
+    "category" : "companies",
+    "normalized" : "Manulife"
+  },
+  "EvenUp" : {
+    "category" : "companies",
+    "normalized" : "EvenUp"
+  },
+  "edn" : {
+    "category" : "fields",
+    "normalized" : "EDN"
+  },
+  "Metosin" : {
+    "category" : "companies",
+    "normalized" : "Metosin"
+  },
+  "Mangitas 01" : {
+    "category" : "fields",
+    "normalized" : "Mangitas 01"
+  },
+  "muvera" : {
+    "category" : "companies",
+    "normalized" : "Muvera"
+  },
+  "Ring-Jetty" : {
+    "category" : "fields",
+    "normalized" : "Ring-Jetty"
+  },
+  "Swagger" : {
+    "category" : "fields",
+    "normalized" : "Swagger"
+  },
+  "sft" : {
+    "category" : "fields",
+    "normalized" : "SFT"
+  },
+  "bidi" : {
+    "category" : "fields",
+    "normalized" : "Bidi"
+  },
+  "Neon One" : {
+    "category" : "companies",
+    "normalized" : "Neon One"
+  },
+  "LoRA" : {
+    "category" : "fields",
+    "normalized" : "LoRA"
+  },
+  "AtomRAG" : {
+    "category" : "fields",
+    "normalized" : "AtomRAG"
+  },
+  "machine learning scientist" : {
+    "category" : "roles",
+    "normalized" : "Machine Learning Scientist"
+  },
+  "FGF Brands" : {
+    "category" : "companies",
+    "normalized" : "FGF Brands"
+  },
+  "ConceptNet" : {
+    "category" : "fields",
+    "normalized" : "ConceptNet"
+  },
+  "HugSQL" : {
+    "category" : "fields",
+    "normalized" : "HugSQL"
+  },
+  "arigraph" : {
+    "category" : "fields",
+    "normalized" : "AriGraph"
+  },
+  "LangChain4j" : {
+    "category" : "fields",
+    "normalized" : "LangChain4j"
+  },
+  "EDN" : {
+    "category" : "fields",
+    "normalized" : "EDN"
+  },
+  "SFT" : {
+    "category" : "fields",
+    "normalized" : "SFT"
+  },
+  "Cheil Canada" : {
+    "category" : "companies",
+    "normalized" : "Cheil Canada"
+  },
+  "Framework AI" : {
+    "category" : "companies",
+    "normalized" : "Framework AI"
+  },
+  "OntoLex-Lemon" : {
+    "category" : "fields",
+    "normalized" : "OntoLex-Lemon"
+  },
+  "transformers" : {
+    "category" : "fields",
+    "normalized" : "Transformers"
+  },
+  "back end developer" : {
+    "category" : "roles",
+    "normalized" : "Back End Developer"
+  },
+  "pitch" : {
+    "category" : "companies",
+    "normalized" : "Pitch"
+  },
+  "Yada" : {
+    "category" : "fields",
+    "normalized" : "Yada"
+  },
+  "ring-core" : {
+    "category" : "fields",
+    "normalized" : "Ring-Core"
+  },
+  "large language models" : {
+    "category" : "fields",
+    "normalized" : "Large Language Models"
+  },
+  "ai researcher" : {
+    "category" : "roles",
+    "normalized" : "AI Researcher"
+  },
+  "agent-o-rama" : {
+    "category" : "fields",
+    "normalized" : "Agent-o-rama"
+  },
+  "ai sales engineer" : {
+    "category" : "roles",
+    "normalized" : "AI Sales Engineer"
+  },
+  "ring-oauth2" : {
+    "category" : "fields",
+    "normalized" : "Ring-OAuth2"
+  },
+  "Python Developer" : {
+    "category" : "roles",
+    "normalized" : "Python Developer"
+  },
+  "Hays" : {
+    "category" : "companies",
+    "normalized" : "Hays"
+  },
+  "A Bitcoin" : {
+    "category" : "fields",
+    "normalized" : "Bitcoin"
+  },
+  "llm api" : {
+    "category" : "fields",
+    "normalized" : "LLM API"
+  },
+  "watson" : {
+    "category" : "fields",
+    "normalized" : "Watson"
+  },
+  "LDT" : {
+    "category" : "fields",
+    "normalized" : "LDT"
+  },
+  "lfm" : {
+    "category" : "fields",
+    "normalized" : "LFM"
+  },
+  "sat" : {
+    "category" : "fields",
+    "normalized" : "SAT"
+  },
+  "json-rpc" : {
+    "category" : "fields",
+    "normalized" : "JSON-RPC"
+  },
+  "LLM API" : {
+    "category" : "fields",
+    "normalized" : "LLM API"
+  },
+  "Senior Staff AI Engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Staff AI Engineer"
+  },
+  "lfm2-1.2b" : {
+    "category" : "fields",
+    "normalized" : "LFM2-1.2B"
+  },
+  "kgs" : {
+    "category" : "fields",
+    "normalized" : "KGs"
+  },
+  "clojurescript" : {
+    "category" : "fields",
+    "normalized" : "ClojureScript"
+  },
+  "Sr. Full Stack Developer" : {
+    "category" : "roles",
+    "normalized" : "Sr. Full Stack Developer"
+  },
+  "luminus" : {
+    "category" : "fields",
+    "normalized" : "Luminus"
+  },
+  "Transit" : {
+    "category" : "fields",
+    "normalized" : "Transit"
+  },
+  "Clojure Ecosystem" : {
+    "category" : "fields",
+    "normalized" : "Clojure Ecosystem"
+  },
+  "HoneySQL" : {
+    "category" : "fields",
+    "normalized" : "HoneySQL"
+  },
+  "Chunking" : {
+    "category" : "fields",
+    "normalized" : "Chunking"
+  },
+  "translation" : {
+    "category" : "fields",
+    "normalized" : "Translation"
+  },
+  "Datomic" : {
+    "category" : "fields",
+    "normalized" : "Datomic"
+  },
+  "few&far" : {
+    "category" : "companies",
+    "normalized" : "Few&Far"
+  },
+  "sunnyvale" : {
+    "category" : "locations",
+    "normalized" : "Sunnyvale"
+  },
+  "LLama-3.1-KazLLM-1.0-70B" : {
+    "category" : "fields",
+    "normalized" : "LLama-3.1-KazLLM-1.0-70B"
+  },
+  "Gemma2" : {
+    "category" : "fields",
+    "normalized" : "Gemma2"
+  },
+  "gen ai engineer" : {
+    "category" : "roles",
+    "normalized" : "Gen AI Engineer"
+  },
+  "a3-soyle" : {
+    "category" : "fields",
+    "normalized" : "A3-soyle"
+  },
+  "next.jdbc" : {
+    "category" : "fields",
+    "normalized" : "next.jdbc"
+  },
+  "Translation Agents" : {
+    "category" : "fields",
+    "normalized" : "Translation Agents"
+  },
+  "senior backend engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Backend Engineer"
+  },
+  "Euna Solutions" : {
+    "category" : "companies",
+    "normalized" : "Euna Solutions"
+  },
+  "Http-Kit" : {
+    "category" : "fields",
+    "normalized" : "Http-Kit"
+  },
+  "Qwen3.6-35B-A3B" : {
+    "category" : "fields",
+    "normalized" : "Qwen3.6-35B-A3B"
+  },
+  "MCP" : {
+    "category" : "fields",
+    "normalized" : "MCP"
+  },
+  "Senior Applied AI Full-Stack Engineer" : {
+    "category" : "roles",
+    "normalized" : "Senior Applied AI Full-Stack Engineer"
+  },
+  "DataScript" : {
+    "category" : "fields",
+    "normalized" : "DataScript"
+  },
+  "drt-o1" : {
+    "category" : "fields",
+    "normalized" : "DRT-o1"
+  },
+  "boolean trees" : {
+    "category" : "fields",
+    "normalized" : "Boolean Trees"
+  },
+  "Agentic Workflows" : {
+    "category" : "fields",
+    "normalized" : "Agentic Workflows"
+  },
+  "swagger" : {
+    "category" : "fields",
+    "normalized" : "Swagger"
+  },
+  "Global Registry" : {
+    "category" : "fields",
+    "normalized" : "Global Registry"
+  },
+  "snowflake" : {
+    "category" : "companies",
+    "normalized" : "Snowflake"
+  },
+  "strativ group" : {
+    "category" : "companies",
+    "normalized" : "Strativ Group"
+  },
+  "senior full stack developer" : {
+    "category" : "roles",
+    "normalized" : "Senior Full Stack Developer"
+  },
+  "datalog-like" : {
+    "category" : "fields",
+    "normalized" : "Datalog-like"
+  },
+  "Snowflake" : {
+    "category" : "companies",
+    "normalized" : "Snowflake"
+  },
+  "llama" : {
+    "category" : "fields",
+    "normalized" : "Llama"
+  },
+  "Ring-OAuth2" : {
+    "category" : "fields",
+    "normalized" : "Ring-OAuth2"
+  },
+  "British Columbia" : {
+    "category" : "locations",
+    "normalized" : "British Columbia"
+  },
+  "nazarbayev university" : {
+    "category" : "companies",
+    "normalized" : "Nazarbayev University"
+  },
+  "MiniLM-L6-v2" : {
+    "category" : "fields",
+    "normalized" : "MiniLM-L6-v2"
+  },
+  "onnx" : {
+    "category" : "fields",
+    "normalized" : "ONNX"
+  },
+  "dspy" : {
+    "category" : "fields",
+    "normalized" : "DSPy"
+  },
+  "Blue Signal Search" : {
+    "category" : "companies",
+    "normalized" : "Blue Signal Search"
+  },
+  "Knowledge Graph Engineer" : {
+    "category" : "roles",
+    "normalized" : "Knowledge Graph Engineer"
+  },
+  "neo4j" : {
+    "category" : "fields",
+    "normalized" : "Neo4j"
+  },
+  "datalog kg" : {
+    "category" : "fields",
+    "normalized" : "Datalog KG"
+  },
+  "distillation" : {
+    "category" : "fields",
+    "normalized" : "Distillation"
+  },
+  "Ring-Defaults" : {
+    "category" : "fields",
+    "normalized" : "Ring-Defaults"
+  },
+  "Prometheus" : {
+    "category" : "fields",
+    "normalized" : "Prometheus"
+  },
+  "agent context compilation" : {
+    "category" : "fields",
+    "normalized" : "Agent Context Compilation"
+  },
+  "Graph Data Scientist" : {
+    "category" : "roles",
+    "normalized" : "Graph Data Scientist"
+  },
+  "CoT" : {
+    "category" : "fields",
+    "normalized" : "CoT"
+  }
+}
