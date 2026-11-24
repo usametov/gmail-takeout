@@ -143,9 +143,10 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit...
 
 [Antigravity](https://antigravity.google/) is Google's internal AI agent
 platform. It provides **skills** — composable capabilities that agents can use
-to interact with Google services. The `gws` (Google Workspace) skill is
-particularly useful for enriching the email database with live data from
-Gmail.
+to interact with Google services. The `gws` ([googleworkspace/cli](https://github.com/googleworkspace/cli))
+skill is particularly useful for enriching the email database with live data
+from Gmail. See [Setup](setup.md#gws-google-workspace-cli) for installation and
+authentication.
 
 ### What gws Provides
 

@@ -16,7 +16,8 @@ Includes scripts for:
 ## Setup
 
 See [doc/setup.md](doc/setup.md) for prerequisites, source-checkout CLI
-invocation, `~/.secrets.edn` (DeepSeek key/base/model), and Gmail `gws` auth.
+invocation, `~/.secrets.edn` (DeepSeek key/base/model), and `gws` installation
+and Gmail auth.
 The short version: only `scripts/ontology_classifier.clj` reads
 `~/.secrets.edn`, and it only needs `:deepseek-api-key` for live runs.
 
