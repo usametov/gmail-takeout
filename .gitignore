@@ -38,3 +38,4 @@ ontology/ontology_audit.jsonl
 ontology/*.bak
 ontology/*.report.json
 ontology/*.tmp
+*.log

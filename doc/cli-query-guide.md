@@ -4,34 +4,116 @@ Query your email database from the command line using `./takeout query`.
 
 ## Table of Contents
 
-1. [Basic Usage](#basic-usage)
-2. [Filtering](#filtering)
-3. [Pagination](#pagination)
-4. [Output Formats](#output-formats)
-5. [Threads CLI](#threads-cli)
-6. [Addresses Command](#addresses-command)
-7. [Frequencies Command](#frequencies-command)
-8. [Propagate Command](#propagate-command)
-9. [Inspect Thread Command](#inspect-thread-command)
-10. [Linked Labels Command](#linked-labels-command)
-11. [MBOX Info Command](#mbox-info-command)
-11. [Split Command](#split-command)
-12. [Update Message IDs](#update-message-ids)
-13. [Update Bodies](#update-bodies)
-14. [Gmail ID Mapping Script](#gmail-id-mapping-script)
-15. [Fetch Bodies Script](#fetch-bodies-script)
-16. [Pipeline Script](#pipeline-script)
-17. [Extract URLs](#extract-urls)
-18. [Update Links](#update-links)
-19. [Fetch Content Script](#fetch-content-script)
-20. [Upsert Content](#upsert-content)
-21. [Report Script](#report-script)
-22. [Statistics](#statistics)
-18. [Labels Command](#labels-command)
-19. [CLI vs REPL](#cli-vs-repl)
-20. [All Options Reference](#all-options-reference)
+1. [Google Takeout ZIP Archives](#google-takeout-zip-archives)
+2. [Basic Usage](#basic-usage)
+3. [Labels](#labels)
+4. [Pagination](#pagination)
+5. [Output Formats](#output-formats)
+6. [Threads CLI](#threads-cli)
+7. [Addresses Command](#addresses-command)
+8. [Frequencies Command](#frequencies-command)
+9. [Propagate Command](#propagate-command)
+10. [Inspect Thread Command](#inspect-thread-command)
+11. [Linked Labels Command](#linked-labels-command)
+12. [MBOX Info Command](#mbox-info-command)
+13. [Split Command](#split-command)
+14. [Update Message IDs](#update-message-ids)
+15. [Update Bodies](#update-bodies)
+16. [Gmail ID Mapping Script](#gmail-id-mapping-script)
+17. [Fetch Bodies Script](#fetch-bodies-script)
+18. [Pipeline Script](#pipeline-script)
+19. [Extract URLs](#extract-urls)
+20. [Update Links](#update-links)
+21. [Fetch Content Script](#fetch-content-script)
+22. [Upsert Content](#upsert-content)
+23. [Report Script](#report-script)
+24. [Statistics](#statistics)
+25. [CLI vs REPL](#cli-vs-repl)
+26. [All Options Reference](#all-options-reference)
 
 ---
+
+## Google Takeout ZIP Archives
+
+Google Takeout splits a mail export into multiple ZIP files. The parts are
+disjoint and contain `Takeout/Mail/*.mbox`; extract them into one tree, check
+sizes, then ingest.
+
+For this export (`/home/alansamet/Downloads/google-takeout`):
+
+```bash
+TAKEOUT_ZIPS=/home/alansamet/Downloads/google-takeout
+EXTRACT_DIR="$TAKEOUT_ZIPS/extracted"
+
+mkdir -p "$EXTRACT_DIR"
+for z in "$TAKEOUT_ZIPS"/*.zip; do
+  echo "== $z"
+  unzip -tq "$z" || exit 1
+  unzip -n "$z" -d "$EXTRACT_DIR"
+done
+
+# 3 ZIPs -> 20 unique .mbox files, ~2.48 GiB extracted.
+du -sh "$EXTRACT_DIR/Takeout/Mail"
+```
+
+`unzip -tq` verifies the archive and `-n` never overwrites an existing file.
+The parts here have no duplicate names. Do not use `-o` unless you intentionally
+want to replace files.
+
+### Size check
+
+`ingest` runs a preflight and prints:
+
+```text
+Size check: 20 file(s), 2.5 GB total; largest ai_gpt.mbox (603.2 MB)
+```
+
+It warns when an individual file is larger than 1 GB; MboxIterator's practical
+limit is about 2 GB. It does **not** block ingestion and it does **not** split
+automatically. In this export the largest file is about 603 MiB, so no split is
+needed.
+
+For per-file message counts and sizes before ingesting:
+
+```bash
+./takeout mbox-info "$EXTRACT_DIR"/Takeout/Mail/*.mbox
+```
+
+If a future export contains a file above ~2 GB, split it first:
+
+```bash
+./takeout split /path/to/large.mbox -s 500
+./takeout -d emails.db ingest /path/to/large.part-*.mbox
+```
+
+### Ingest the extracted mail
+
+```bash
+cd ~/code/gmail-takeout
+./takeout -d emails.db ingest "$EXTRACT_DIR/Takeout/Mail"
+```
+
+Passing the directory ingests every `.mbox` directly inside it
+(non-recursive). An explicit file list also works:
+
+```bash
+./takeout -d emails.db ingest "$EXTRACT_DIR"/Takeout/Mail/*.mbox
+```
+
+Then verify:
+
+```bash
+./takeout -d emails.db stats
+tail -n 40 emails.db-ingest.log
+```
+
+All 20 files go into one database; duplicates are handled by `:email/id`
+(Message-ID). The `ingest` output includes the size preflight, per-file counts,
+and a size/error summary in `emails.db-ingest.log`.
+
+The size check covers individual MBOX files, not the ZIPs, and it does not
+reserve or verify free disk space. This export needs ~2.5 GiB extracted plus
+whatever the Datalevin database grows to; check `df -h` first if space is tight.
 
 ## Basic Usage
 

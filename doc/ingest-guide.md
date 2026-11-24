@@ -80,6 +80,10 @@ Takeout/
     └── Label1.mbox
 ```
 
+> If the export arrived as multiple ZIP parts, see
+> [Google Takeout ZIP Archives](cli-query-guide.md#google-takeout-zip-archives)
+> for the unzip, size-check and ingest sequence.
+
 ---
 
 ## Quick Start

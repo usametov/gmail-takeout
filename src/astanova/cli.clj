@@ -79,30 +79,42 @@
 
 ;; ─── Command handlers ──────────────────────────────────────────
 
+(defn- human-size [bytes]
+  (cond
+    (>= bytes (* 1024 1024 1024)) (format "%.1f GB" (/ bytes 1024.0 1024.0 1024.0))
+    (>= bytes (* 1024 1024))      (format "%.1f MB" (/ bytes 1024.0 1024.0))
+    :else                         (format "%d KB" (quot bytes 1024))))
+
 (defn- ingest-cmd [{:keys [opts args]}]
   (let [conn   (db/create-conn (:db opts))
         source (:source opts)
         bsize  (:batch opts)
-        paths  (mapcat (fn [p]
-                         (let [f (java.io.File. p)]
-                           (if (.isDirectory f)
-                             (filter #(str/ends-with? (.getName %) ".mbox")
-                                     (.listFiles f))
-                             [f])))
-                       args)]
+        paths  (vec (mapcat (fn [p]
+                              (let [f (java.io.File. p)]
+                                (if (.isDirectory f)
+                                  (filter #(str/ends-with? (.getName %) ".mbox")
+                                          (.listFiles f))
+                                  [f])))
+                            args))]
     (try
       (when (empty? paths)
         (println "No .mbox files found.")
         (System/exit 1))
-      ;; Check for large files (> 1 GB) that may exceed MboxIterator limits
+      (let [total   (reduce + 0 (map #(.length %) paths))
+            largest (apply max-key #(.length %) paths)]
+        (println (format "Size check: %d file(s), %s total; largest %s (%s)"
+                         (count paths) (human-size total)
+                         (.getName largest) (human-size (.length largest)))))
+      ;; Warn for files above a conservative 1 GB threshold; MboxIterator's
+      ;; practical limit is about 2 GB.
       (let [max-size (* 1024 1024 1024)
             large-files (filter #(> (.length %) max-size) paths)]
         (when (seq large-files)
-          (println "Warning: Some files are larger than 1 GB and may not be ingestible directly:")
+          (println "Warning: Some files are larger than 1 GB; MboxIterator's practical limit is ~2 GB.")
           (doseq [f large-files]
-            (println (format "  %s (%.1f GB)" (.getName f) (/ (.length f) 1024.0 1024.0 1024.0))))
+            (println (format "  %s (%s)" (.getName f) (human-size (.length f)))))
           (println "Consider splitting them first:")
-          (println "  takeout split <file> -s 1024")
+          (println "  ./takeout split <file> -s 1024")
           (println)))
       (println (format "Ingesting %d file(s) (source: %s, batch: %d)..."
                        (count paths) source bsize))
