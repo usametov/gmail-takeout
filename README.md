@@ -65,6 +65,7 @@ See `doc/cli-query-guide.md` for full documentation.
 | `scripts/update-label-pipeline.clj` | Run all 4 steps (map IDs → update → fetch bodies → update) for a label |
 | `scripts/top-repos.clj` | Fetch top GitHub repos by topic, sorted by stars |
 | `scripts/report.clj` | Generate Markdown report from query output |
+| `scripts/ontology_classifier.clj` | Classify proper-noun candidates into the 5-category ontology via DeepSeek; enforces cache consistency |
 | `scripts/ingest-sent-emailsdb.clj` | Ingest all Sent-001 MBOX part files |
 
 ### Gmail ID mapping
@@ -117,6 +118,25 @@ bb scripts/update-label-pipeline.clj "video/youtube" --no-dry-run
 bb scripts/top-repos.clj clojure
 bb scripts/top-repos.clj machine-learning 20 -o ml-repos.md
 ```
+
+### Ontology classification (DeepSeek)
+
+Classify new proper-noun candidates into the five-category ontology, enforce
+canonical spellings and one category per normalized term, and update
+`ontology_cache.json` atomically. Only uncached terms reach DeepSeek; local
+matchers never call an LLM.
+
+```bash
+bb scripts/ontology_classifier.clj --check     # validate cache/candidates
+bb scripts/ontology_classifier.clj --dry-run   # show diff, no API/writes
+
+export DEEPSEEK_API_KEY='...'
+bb scripts/ontology_classifier.clj --base-dir ~/code/antigravity-gmail-project
+```
+
+See [doc/ontology-classifier.md](doc/ontology-classifier.md) for the full
+contract: config keys, noise/allow-list rules, cache consistency, audit log,
+reports, and local-model evaluation.
 
 ## Database Schema
 

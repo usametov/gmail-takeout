@@ -12,6 +12,7 @@ Import and query your Google Takeout email archive using Datalevin.
 - [Query Guide](query-guide.md) — Complete reference for querying emails, threads, and analytics
 - [CLI Query Guide](cli-query-guide.md) — All CLI commands and options
 - [Label Management](label-management.md) — Label propagation and diagnostics
+- [Ontology Classifier](ontology-classifier.md) — DeepSeek ontology classification, cache enforcement, and audit
 - [Design Notes](design-notes.md) — Architecture decisions and schema design
 
 ## Quick Start
