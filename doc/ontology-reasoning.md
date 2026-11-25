@@ -208,6 +208,7 @@ Add entity rules:
 
 [(channel-program ?c ?p) [?c :channel/program ?p]]
 [(episode-program ?e ?p) [?p :program/episode ?e]]
+[(entity-evidence ?e ?ev) [?ev :evidence/entity ?e]]
 [(job-field-closure ?j ?f) [?j :job/field ?f]]
 [(job-field-closure ?j ?f) (job-field-closure ?j ?base)
                          (broader ?base ?f)]
@@ -221,6 +222,10 @@ Entity validation is class-aware:
 - episode must link to `tv-program`
 - entity classes are disjoint
 - entity ids and episode video ids are unique
+
+Evidence stores only `:evidence/entity`; entity evidence is derived with the
+`entity-evidence` rule. Storing both directions creates a Datalevin transaction
+cycle.
 
 See [Entity Generation](entity-generation.md) for the full data model, ID,
 provenance, and dedup rules.

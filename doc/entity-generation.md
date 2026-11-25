@@ -1,6 +1,6 @@
 # Entity Generation: Jobs, TV, and Evidence
 
-Status: **E1 + E3 implemented; E2/E4+ design**, companion to
+Status: **E1, E2a, E2b, E3 implemented; E2c/E4+ design**, companion to
 [Antigravity Port Intent](antigravity-port-intent.md),
 [Ontology Reasoning](ontology-reasoning.md), and
 [GWS Enrichment](gws-enrichment.md).
@@ -58,7 +58,7 @@ to term individuals.
 | `:entity/created-at` | instant | first seen |
 | `:entity/updated-at` | instant | last upsert |
 | `:entity/confidence` | double | optional extraction confidence |
-| `:entity/evidence` | ref many | evidence records |
+| evidence | derived | query `:evidence/entity` in reverse; no stored back-ref |
 
 ### Job posting
 
@@ -128,7 +128,7 @@ Keep extraction provenance out of the entity's identity:
 | Attribute | Type | Notes |
 |---|---|---|
 | `:evidence/id` | string unique | hash(entity, email, url, parser) |
-| `:evidence/entity` | ref | entity being supported |
+| `:evidence/entity` | ref | entity being supported (the only stored direction) |
 | `:evidence/email-id` | string | Message-ID |
 | `:evidence/email` | ref | optional if email exists in DB |
 | `:evidence/url` | string | source URL |
@@ -373,7 +373,11 @@ and evidence. Attributes are namespaced (`:email/*`, `:term/*`, `:class/*`,
 `:entity/*`, `:job/*`, `:tv/*`, `:evidence/*`), and refs can join across them.
 
 This avoids a second database and lets `:job/source-email` / `:program/source-email`
-join directly to `:email/id`. Existing databases gain additive schema attributes;
+join directly to `:email/id`.
+
+Evidence stores only `:evidence/entity`; entity evidence is queried in reverse.
+Storing both directions creates a Datalevin transaction cycle, so the
+`:entity/evidence` attribute is intentionally not used. Existing databases gain additive schema attributes;
 no destructive migration is required.
 
 ## Dedup and idempotency
@@ -400,6 +404,22 @@ no destructive migration is required.
 - programs featuring a term/video
 - entity counts/trends by month and source
 
+## Implemented commands
+
+```bash
+# Import an Antigravity email export
+./takeout import-emails --from linkedin_emails.json
+
+# Generate and store job entities
+bb scripts/generate-jobs.clj --from linkedin_emails.json \
+  --out data/entities/jobs.edn
+./takeout upsert-entities --from data/entities/jobs.edn
+```
+
+`import-emails` preserves existing non-empty bodies unless `--force`; labels
+and links are unioned. `upsert-entities` seeds classes, stores entities and
+evidence, is idempotent on rerun, and supports `--dry-run`.
+
 ## Phases
 
 ### E1 — Entity model and schema — **done**
@@ -409,13 +429,17 @@ no destructive migration is required.
   dedup keys, and category-aware validation.
 - JVM tests cover IDs, class constraints, and schema round-trips.
 
-### E2a — Antigravity email import
+### E2a — Antigravity email import — **done**
 - `src/astanova/import/emails.clj` adapter + `takeout import-emails`.
-- Canonical Gmail IDs, body/labels/links, idempotent by Message-ID.
+- Canonical Gmail IDs, HTML/text separation, labels/links, idempotent by
+  Message-ID; preserves existing bodies unless `--force`.
 
-### E2b — `upsert-entities`
-- `src/astanova/entity/store.clj`; seed classes; upsert entities/evidence;
-  merge URLs/locations/evidence; validation; `--dry-run`, `finally` cleanup.
+### E2b — `upsert-entities` — **done**
+- `src/astanova/entity/store.clj`; seeds classes; upserts entities/evidence;
+  merges URLs/locations; validates; supports `--dry-run` and closes the
+  connection in `finally`.
+- Evidence is stored only on `:evidence/entity`; reverse queries avoid a
+  Datalevin transaction cycle.
 
 ### E2c — Term resolution/provisional terms
 - Resolve structured fields against the cache; create provisional terms for

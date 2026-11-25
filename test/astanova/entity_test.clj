@@ -96,16 +96,12 @@
                                 :evidence/email-id "<e@test>"
                                 :evidence/url "https://example.com/job"
                                 :evidence/parser :linkedin-email}])
-            (d/transact! conn [{:db/id job-eid
-                                :entity/evidence (d/q '[:find ?e . :in $ ?id
-                                                        :where [?e :evidence/id ?id]]
-                                                      (d/db conn) "evidence:test")}])
             (let [job (d/pull (d/db conn)
-                              '[:entity/title
-                                {:entity/class [:class/id]}
-                                {:entity/evidence [:evidence/id]}]
-                              job-eid)]
+                              '[:entity/title {:entity/class [:class/id]}]
+                              job-eid)
+                  evidence (d/q '[:find ?ev :in $ ?e :where [?ev :evidence/entity ?e]]
+                                (d/db conn) job-eid)]
               (is (= "Test Job" (:entity/title job)))
               (is (= :job-posting (:class/id (:entity/class job))))
-              (is (= 1 (count (:entity/evidence job)))))))
+              (is (= 1 (count evidence))))))
         (finally (db/close-conn conn))))))

@@ -16,7 +16,11 @@
   [(related ?b ?a) [?a :term/related ?b]]
 
   [(label-ancestor ?l ?p) [?l :label/parent ?p]]
-  [(label-ancestor ?l ?p) [?l :label/parent ?x] (label-ancestor ?x ?p)]]
+  [(label-ancestor ?l ?p) [?l :label/parent ?x] (label-ancestor ?x ?p)]
+
+  ;; Evidence points at its entity; the entity side is derived to avoid a
+  ;; bidirectional ref cycle in Datalevin transactions.
+  [(entity-evidence ?e ?ev) [?ev :evidence/entity ?e]]]
  :validation
  {:terms-without-category
   [:find ?t :where [?t :term/id _] (not [?t :term/category _])]

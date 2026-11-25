@@ -3,10 +3,12 @@
    Uses babashka/cli for option parsing and command dispatch."
   (:require [astanova.db :as db]
             [astanova.gmail-id :as gid]
+            [astanova.import.emails :as import-emails]
             [astanova.ingest :as ingest]
             [astanova.label :as label]
             [astanova.parse :as parse]
             [astanova.content-processor :as cp]
+            [astanova.entity.store :as entity-store]
             [astanova.mbox-splitter :as mbox]
             [cheshire.core :as json]
             [clojure.edn :as edn]
@@ -887,6 +889,45 @@
       (finally
         (db/close-conn conn)))))
 
+(def import-emails-spec
+  {:from    {:alias :f :desc "Antigravity JSON/EDN email export (required)" :required true}
+   :source  {:desc "Email source label" :default "antigravity-json"}
+   :force   {:desc "Replace existing non-empty bodies"}
+   :dry-run {:desc "Preview without transacting"}})
+
+(defn- import-emails-cmd [{:keys [opts]}]
+  (when (:help opts)
+    (println "Usage: takeout import-emails --from <json-or-edn> [--source LABEL] [--force] [--dry-run]")
+    (println)
+    (println "  -f, --from PATH  Antigravity JSON/EDN email export (required)")
+    (println "  --source LABEL   Email source label (default: antigravity-json)")
+    (println "  --force          Replace existing non-empty bodies")
+    (println "  --dry-run        Preview without transacting")
+    (System/exit 0))
+  (let [path   (:from opts)
+        source (or (:source opts) "antigravity-json")
+        text   (slurp path)
+        data   (if (str/ends-with? (str/lower-case path) ".edn")
+                 (edn/read-string text)
+                 (json/parse-string text true))
+        {:keys [emails total skipped]} (import-emails/normalize-emails data source)
+        conn   (db/create-conn (:db opts))]
+    (try
+      (println (format "Importing %d email(s) from %s (%d skipped: no Message-ID)"
+                       (count emails) path skipped))
+      (let [stats (ingest/upsert-emails! conn emails
+                                         (import-emails/email-source-name path)
+                                         source
+                                         :force (:force opts)
+                                         :dry-run (:dry-run opts))]
+        (println (format "Done: %d imported (%d new, %d existing), %d batch(es)%s"
+                         (:email-count stats) (:inserted stats) (:updated stats)
+                         (:tx-count stats)
+                         (or (when (:dry-run stats) " [DRY-RUN]") "")))
+        (println (format "Input records: %d, skipped: %d" total skipped)))
+      (finally
+        (db/close-conn conn)))))
+
 (def update-bodies-spec
   {:from {:alias :f :desc "EDN file from fetch-bodies.clj (required)" :required true}
    :dry-run {:desc "Preview updates without transacting"}})
@@ -1094,6 +1135,56 @@
       (finally
         (db/close-conn conn)))))
 
+(def upsert-entities-spec
+  {:from       {:alias :f :desc "Entity EDN/JSON from a generator (required)" :required true}
+   :dry-run    {:desc "Validate and count without transacting"}
+   :batch-size {:coerce :long :desc "Entities per transaction (default: 100)"}
+   :schema     {:desc "Ontology schema EDN (default: ontology/schema.edn)"}})
+
+(defn- upsert-entities-cmd [{:keys [opts]}]
+  (when (:help opts)
+    (println "Usage: takeout upsert-entities --from <edn-or-json> [--dry-run]")
+    (println)
+    (println "  -f, --from PATH  Entity file (required)")
+    (println "  --dry-run        Validate and count without transacting")
+    (println "  --batch-size N   Entities per transaction (default: 100)")
+    (println "  --schema PATH    Ontology schema (default: ontology/schema.edn)")
+    (System/exit 0))
+  (let [path (str (:from opts))
+        text (slurp path)
+        data (if (str/ends-with? (str/lower-case path) ".edn")
+               (edn/read-string text)
+               (json/parse-string text true))
+        entities (cond
+                   (and (map? data) (vector? (:entities data))) (:entities data)
+                   (vector? data) data
+                   (sequential? data) (vec data)
+                   :else (throw (ex-info "Entity file must contain an :entities vector or a vector"
+                                         {:path path})))
+        conn (db/create-conn (:db opts))
+        kwargs (cond-> []
+                 (:dry-run opts) (conj :dry-run true)
+                 (:batch-size opts) (conj :batch-size (:batch-size opts))
+                 (:schema opts) (conj :schema-path (:schema opts)))]
+    (try
+      (let [stats (apply entity-store/upsert-entities! conn entities kwargs)]
+        (println (format "Entities: %d (%d new, %d existing), evidence: %d%s"
+                         (:entities stats) (:inserted stats) (:updated stats)
+                         (:evidence stats)
+                         (if (:dry-run stats) " [DRY-RUN]" "")))
+        (when (seq (:warnings stats))
+          (binding [*out* *err*]
+            (println "Warnings:")
+            (pprint/pprint (:warnings stats)))))
+      (catch clojure.lang.ExceptionInfo e
+        (binding [*out* *err*]
+          (println "ERROR:" (.getMessage e))
+          (when-let [data (ex-data e)]
+            (pprint/pprint data)))
+        (throw e))
+      (finally
+        (db/close-conn conn)))))
+
 (def content-query-spec
   {:label {:alias :l :desc "Filter by email label"}
    :host  {:alias :h :desc "Filter by content host (arxiv.org, github.com, etc.)"}
@@ -1168,6 +1259,8 @@
                                           (println "  update-message-ids          Add :email/gmail-id from gws mapping EDN")
                                           (println "  update-bodies               Update :email/body-truncated from fetch-bodies EDN")
                                           (println "  update-links                Update :email/links from extract-urls EDN")
+                                          (println "  import-emails               Import Antigravity JSON/EDN email exports")
+                                          (println "  upsert-entities             Store generated jobs/TV entities and evidence")
                                           (println "  upsert-content              Store fetched content as :content entities")
                                           (println "  content                     Query content entities joined with emails")
                                           (println "  extract-urls                Extract URLs from email bodies by label")
@@ -1187,9 +1280,11 @@
    {:cmds ["propagate"] :fn propagate-cmd :spec propagate-spec :doc "Propagate a label to all emails in threads containing it"}
    {:cmds ["inspect-thread"] :fn inspect-thread-cmd :spec inspect-thread-spec :doc "Inspect label distribution within a thread"}
    {:cmds ["linked-labels"] :fn linked-labels-cmd :spec linked-labels-spec :doc "Find labels that co-occur with a given label"}
+   {:cmds ["import-emails"] :fn import-emails-cmd :spec import-emails-spec :doc "Import Antigravity JSON/EDN email exports"}
    {:cmds ["update-message-ids"] :fn update-msg-ids-cmd :spec update-msg-ids-spec :doc "Add :email/gmail-id and update :email/thread-id from gws mapping EDN"}
    {:cmds ["update-bodies"] :fn update-bodies-cmd :spec update-bodies-spec :doc "Update :email/body-truncated from fetch-bodies EDN"}
    {:cmds ["update-links"] :fn update-links-cmd :spec update-links-spec :doc "Update :email/links from extract-urls EDN"}
+   {:cmds ["upsert-entities"] :fn upsert-entities-cmd :spec upsert-entities-spec :doc "Store generated jobs/TV entities and evidence"}
    {:cmds ["upsert-content"] :fn upsert-content-cmd :spec upsert-content-spec :doc "Store fetched content as :content entities"}
    {:cmds ["content"] :fn content-query-cmd :spec content-query-spec :doc "Query content entities joined with source emails"}
    {:cmds ["extract-urls"] :fn extract-urls-cmd :spec extract-urls-spec :doc "Extract URLs from email bodies by label"}])

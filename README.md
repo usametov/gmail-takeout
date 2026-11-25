@@ -153,6 +153,8 @@ Job entity generation:
 ```bash
 bb scripts/generate-jobs.clj --from /path/to/linkedin_emails.json \
   --out data/entities/jobs.edn
+./takeout import-emails --from /path/to/linkedin_emails.json
+./takeout upsert-entities --from data/entities/jobs.edn
 ```
 
 See [doc/ontology-classifier.md](doc/ontology-classifier.md) for the full

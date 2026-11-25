@@ -26,7 +26,9 @@
       (is (contains? cmds "export"))
       (is (contains? cmds "threads"))
       (is (contains? cmds "split"))
-      (is (contains? cmds "labels")))))
+      (is (contains? cmds "labels"))
+      (is (contains? cmds "import-emails"))
+      (is (contains? cmds "upsert-entities")))))
 
 ;; ─── parse-date ─────────────────────────────────────────────────
 

@@ -39,6 +39,8 @@
       (assoc :email/cc (:cc email-map))
       (:thread-id email-map)
       (assoc :email/thread-id (:thread-id email-map))
+      (seq (:links email-map))
+      (assoc :email/links (:links email-map))
       (seq (:attachments email-map))
       (assoc :email/attachments (:attachments email-map)))))
 
@@ -70,6 +72,63 @@
         (swap! total + n)))
     {:tx-count    @tx-count
      :email-count @total}))
+
+(defn- union-values [a b]
+  (let [as-seq (fn [v] (if (and (coll? v) (not (map? v))) (seq v) (when v [v])))
+        a (as-seq a)
+        b (as-seq b)]
+    (when (or (seq a) (seq b))
+      (vec (distinct (concat a b))))))
+
+(defn upsert-emails!
+  "Upsert normalized email maps by :email/id.
+
+   Unlike MBOX re-ingest, this preserves an existing non-empty body unless
+   `:force` is true, and unions labels/links.  Used by Antigravity JSON import.
+   Returns stats with :email-count, :inserted, :updated, :tx-count and
+   :dry-run."
+  [conn emails mbox-file source & {:keys [batch-size force dry-run]
+                                   :or   {batch-size default-batch-size}}]
+  (let [db       (d/db conn)
+        entities (->> emails
+                      (filter :message-id)
+                      (map (fn [email]
+                             (let [entity (email-map->entity email mbox-file source)
+                                   id     (:email/id entity)
+                                   old    (when id (d/entity db [:email/id id]))
+                                   old-body (:email/body-truncated old)
+                                   new-body (:email/body-truncated entity)
+                                   preserve-body? (and old (not force)
+                                                       (not (str/blank? (str old-body))))
+                                   merged-labels (union-values (:email/labels old)
+                                                               (:email/labels entity))
+                                   merged-links  (union-values (:email/links old)
+                                                               (:email/links entity))]
+                               (cond-> entity
+                                 (or preserve-body? (str/blank? (str new-body)))
+                                 (dissoc :email/body-truncated :email/body-length :email/html)
+                                 merged-labels (assoc :email/labels merged-labels)
+                                 merged-links (assoc :email/links merged-links)))))
+                      vec)
+        batches  (partition-batches entities batch-size)
+        existing-ids (set (keep (fn [e]
+                                  (when (d/entity db [:email/id (:email/id e)])
+                                    (:email/id e)))
+                                entities))
+        inserted (atom 0)
+        updated  (atom 0)
+        tx-count (atom 0)]
+    (doseq [batch batches]
+      (when-not dry-run
+        (d/transact! conn batch))
+      (swap! tx-count inc)
+      (swap! inserted + (count (remove #(contains? existing-ids (:email/id %)) batch)))
+      (swap! updated + (count (filter #(contains? existing-ids (:email/id %)) batch))))
+    {:email-count (count entities)
+     :inserted @inserted
+     :updated @updated
+     :tx-count @tx-count
+     :dry-run (boolean dry-run)}))
 
 (defn ingest-mbox!
   "Parse an MBOX file and ingest all emails into Datalevin.

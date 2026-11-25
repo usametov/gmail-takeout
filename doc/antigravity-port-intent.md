@@ -1,6 +1,6 @@
 # Antigravity Port & Ontology Enforcement — Intent
 
-Status: **Phase 0.5 and Phase 1 implemented**; later phases in progress.
+Status: **Phase 0.5/1 and entity E1/E2a/E2b/E3 implemented**; later phases in progress.
 Companion: [Backlog Triage](backlog-triage.md).
 
 ## Why

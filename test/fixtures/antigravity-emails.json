@@ -1,0 +1,28 @@
+[
+  {
+    "gmailId": "19f37d9602d2c400",
+    "messageId": "<antigravity-1@test>",
+    "threadId": "19f37d88241fb475",
+    "from": "Sender <sender@example.com>",
+    "to": "user@example.com",
+    "subject": "Plain import",
+    "internalDate": "1789579332000",
+    "internalDateIso": "2026-09-16T13:22:12",
+    "labels": ["INBOX", "ai/agents"],
+    "body_truncated": "Plain body with https://example.com/a",
+    "body_extract": {"links": ["https://example.com/a"]}
+  },
+  {
+    "gmailId": "1a0ab3d8ca0825d9",
+    "messageId": "<antigravity-2@test>",
+    "threadId": "1a0ab3d8ca0825d9",
+    "from": "HTML Sender <html@example.com>",
+    "to": "user@example.com",
+    "subject": "HTML import",
+    "internalDate": "1789579333000",
+    "internalDateIso": "2026-09-16T13:22:13",
+    "labels": ["CATEGORY_UPDATES"],
+    "body_truncated": "<!doctype html><html><body><p>Hello <b>HTML</b></p></body></html>",
+    "body_extract": {"links": []}
+  }
+]

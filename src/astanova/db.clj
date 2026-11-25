@@ -2,6 +2,7 @@
   "Database schema and connection management for email ingestion."
   (:require [astanova.ontology.graph :as ontology]
             [clojure.set :as set]
+            [clojure.string]
             [datalevin.core :as d]))
 
 (defn build-email-schema
@@ -107,8 +108,6 @@
                          :db/cardinality :db.cardinality/one}
    :entity/confidence   {:db/valueType   :db.type/double
                          :db/cardinality :db.cardinality/one}
-   :entity/evidence     {:db/valueType   :db.type/ref
-                         :db/cardinality :db.cardinality/many}
 
    :job/title           {:db/valueType   :db.type/string
                          :db/cardinality :db.cardinality/one}
