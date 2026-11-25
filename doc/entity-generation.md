@@ -288,6 +288,84 @@ New `takeout entities upsert` command:
 - validates ontology categories and disjointness
 - closes the connection in `finally`
 
+## Where the upsert belongs
+
+There are two different inputs and two different upsert layers.
+
+### 1. Antigravity JSON = enriched email exports
+
+`linkedin_emails.json`, `fitness.json`, `datalog-agents.json`, etc. are arrays
+of **email records**, not job/TV entity arrays. Saving them means importing or
+upserting emails by `:email/id` (Message-ID), exactly like MBOX ingestion.
+
+Placement:
+
+- `src/astanova/import/emails.clj` — adapt Antigravity JSON keys to the
+  internal email map; canonicalize Gmail/thread IDs; parse dates; normalize
+  body/labels/links.
+- `src/astanova/ingest.clj` — expose a generic `upsert-emails!` from the
+  existing transform/batch path. `email-map->entity` already uses
+  `:email/id` unique identity, so `d/transact!` is an upsert.
+- CLI: `takeout import-emails --from ...` (or `takeout upsert-emails`) with
+  `--dry-run` and optional `--force` for body replacement.
+
+Do not put this in `db.clj`; that namespace stays schema/connection only.
+
+### 2. Generated entity EDN = entities/evidence
+
+Our Babashka generators produce job/TV entity maps. These are stored by a
+separate store namespace:
+
+- `src/astanova/entity/store.clj` — `upsert-entities!`:
+  - seed/ensure entity classes
+  - resolve term refs or create provisional terms
+  - upsert by `:entity/id`
+  - upsert evidence by `:evidence/id`
+  - merge URLs/locations/evidence on rerun
+  - validate ontology constraints
+  - batch transactions
+- CLI: `takeout upsert-entities --from data/entities/jobs.edn` with
+  `--dry-run` and a final connection close.
+
+`src/astanova/entity.clj` remains pure (IDs/validation); `astanova.entity.store`
+owns Datalevin access. This mirrors the existing split between
+`ingest.clj` (email transformation/transactions) and `db.clj` (schema/conn).
+
+### Existing upsert pattern to reuse
+
+`ingest/email-map->entity` builds a transaction map with a tempid plus the
+unique `:email/id`; Datalevin upserts on that identity. `upsert-content` uses
+the same pattern with `:content/id`.
+
+Entity storage follows it with:
+
+- `:entity/id` unique identity
+- `:evidence/id` unique identity
+- explicit refs for classes, terms, email evidence, programs/episodes
+
+Do not create a second generic “write any map” function; keep domain-specific
+transformers (email, content, entity) with shared batching.
+
+## Importing Antigravity JSON
+
+The adapter should:
+
+- accept JSON arrays and `takeout query` maps with `:results`
+- use `messageId`/`email/id` as the unique key; skip missing IDs
+- canonicalize Gmail `gmailId`/`threadId` from API hex to decimal
+- map `internalDate`/`internalDateIso` to `:email/date`
+- map `from`, `to`, `subject`, `labels`, `snippet`
+- map `body_truncated` to `:email/body-truncated`; if it is HTML, store it as
+  `:email/html` and derive plain text where possible
+- map `body_extract.links` to `:email/links`
+- set `:email/source "antigravity-json"` (or the source file name)
+- never overwrite a richer existing Takeout body unless `--force`
+- be idempotent on re-import
+
+`body_extract` itself is derived, not canonical. It should not be stored as
+email fields. If we later want term mentions/evidence, that is an entity/mention
+layer concern.
+
 ## Ontology store decision
 
 Use **one Datalevin database** for email facts, ontology terms/classes, entities,
@@ -331,9 +409,17 @@ no destructive migration is required.
   dedup keys, and category-aware validation.
 - JVM tests cover IDs, class constraints, and schema round-trips.
 
-### E2 — `entities upsert`
-- Implement batched upsert with term resolution/provisional terms.
-- `--dry-run`, `finally` cleanup, validation report.
+### E2a — Antigravity email import
+- `src/astanova/import/emails.clj` adapter + `takeout import-emails`.
+- Canonical Gmail IDs, body/labels/links, idempotent by Message-ID.
+
+### E2b — `upsert-entities`
+- `src/astanova/entity/store.clj`; seed classes; upsert entities/evidence;
+  merge URLs/locations/evidence; validation; `--dry-run`, `finally` cleanup.
+
+### E2c — Term resolution/provisional terms
+- Resolve structured fields against the cache; create provisional terms for
+  misses; exclude them from the approved cache.
 
 ### E3 — LinkedIn job parser + script — **done**
 - `astanova.entity.linkedin` parses cards, canonicalizes URLs, and deduplicates

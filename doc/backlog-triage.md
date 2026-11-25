@@ -96,7 +96,9 @@ Design: [Entity Generation](entity-generation.md).
 | ID | Item | Notes | Effort | Decision |
 |----|------|-------|--------|----------|
 | E1 | Entity/evidence classes and schema; deterministic entity IDs; class/category validation. | Merge into the main Datalevin schema per the proposal. | M | **done** |
-| E2 | `takeout entities upsert`: resolve terms, create provisional terms, add evidence, validate, dry-run, finally cleanup. | Stores generator output in the DB. | M | **next** |
+| E2a | Antigravity JSON email import/upsert: `astanova.import.emails` + `takeout import-emails`. | Saves the existing JSON exports as emails; idempotent by Message-ID, canonical Gmail IDs. | M | **next** |
+| E2b | `takeout upsert-entities`: `astanova.entity.store`, seed classes, upsert entities/evidence, merge on rerun, dry-run, finally cleanup. | Stores generator output in the DB. | M | **next** |
+| E2c | Term resolution + provisional terms during entity upsert. | Links jobs/TV to ontology without polluting the approved cache. | M | **next** |
 | E3 | LinkedIn job parser + `scripts/generate-jobs.clj`; golden tests from `linkedin_emails.json`. | Parses multiple job cards per email; dedup + evidence. | M | **done** |
 | E4 | TV channel/program/episode generator + `scripts/generate-tv.clj`; channel rules from `fitness.json`. | Uses YouTube metadata/cache. | M | **next** |
 | E5 | Entity queries + TV-guide Markdown from entities. | Replaces rendering from raw JSON. | S–M | **later** |
@@ -144,7 +146,7 @@ Design: [Entity Generation](entity-generation.md).
 4. **Phase 4 (P1):** O11 YouTube, O12 Markdown.
 5. **Phase 5 (P2):** O13 label taxonomy, O14 TV guide, O15/O16 live Gmail and
    LinkedIn, O17 evaluation; G3/G4/G5 as gws work begins.
-6. **Entity track:** E1/E3 done; E2 upsert next, then E4 TV entities and E5
+6. **Entity track:** E1/E3 done; E2a–E2c next, then E4 TV entities and E5
    rendering.
 7. **Backlog cleanup:** T15/T24 docs; T16/T17 decisions; T26/T27 later.
 
