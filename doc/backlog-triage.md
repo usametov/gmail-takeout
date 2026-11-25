@@ -69,6 +69,29 @@ See [GWS Enrichment](gws-enrichment.md).
 | G4 | Label refresh semantics: union by default, `--replace-labels`, label provenance. | Live labels are mutable; MBOX labels are snapshots. | S | **next** |
 | G5 | Live raw ingest adapter (`messages.get format=raw` → MIME parser → upsert by Message-ID). | Needed for Gmail-only sources; local mode must still work without it. | M | **later** |
 
+## Task extraction implementation
+
+The first low-hanging slice is implemented:
+
+- task manifest loader/validator
+- assertion identity/model
+- atomic task output writer
+- arXiv task manifest + validating scaffold
+- tests for all four
+
+Plan: [Implementation Plan](implementation-plan.md).
+
+| ID | Item | Notes | Effort | Decision |
+|----|------|-------|--------|----------|
+| T1 | Manifest/assertion/output foundation | `src/astanova/tasks/*`, arXiv `task.edn`, scaffold | M | **done** |
+| T2 | Assertion persistence + import | `:assertion/*`, `:assertion-revision/*`; subject must exist | M | **next** |
+| T3 | Corrections/review/revisions | `:correction/*`, proposals, review file, retire correction | M | **next** |
+| T4 | Offline arXiv extractor/filter | fixture-driven; include agentic KG/ontology; Cypher/Datalog rank | M | **next** |
+| T5 | Atomic task run + end-to-end offline loop | emails/assertions/entities/run | M | **next** |
+| T6 | Live gws fetch | after offline path | M | **later** |
+| T7 | Safe query DSL/observation/audit | depends on assertions/entities | L | **later** |
+| T8 | Embeddings/local models | after Datalevin vector + model runtime | L | **later** |
+
 ## P0 — ontology graph and enforcement
 
 | ID | Item | Why it blocks | Effort | Decision |

@@ -28,6 +28,7 @@
 /classes
 /target
 *.db
+*.db.*-backup
 .clj-kondo
 .DS_Store
 test/resources/

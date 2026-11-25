@@ -158,7 +158,7 @@ Completed Steps:
 {:paths ["src" "resources"]
  :mvn/repos {"clojars" {:url "https://repo.clojars.org"}}  ;; Datalevin is on Clojars, not Maven Central
  :deps {org.clojure/clojure {:mvn/version "1.12.5"}
-        datalevin/datalevin {:mvn/version "0.9.20"}  ;; artifact is datalevin/datalevin, not com.github.juji-io/datalevin
+        datalevin/datalevin {:mvn/version "1.2.11"}  ;; artifact is datalevin/datalevin, not com.github.juji-io/datalevin
         org.apache.james/apache-mime4j-core {:mvn/version "0.8.11"}
         org.apache.james/apache-mime4j-mbox-iterator {:mvn/version "0.8.11"}  ;; MboxIterator is a SEPARATE artifact from mime4j-core
         com.sun.mail/jakarta.mail {:mvn/version "2.0.1"}
@@ -175,7 +175,8 @@ Completed Steps:
   :email/cc (many), :email/date, :email/body-truncated, :email/body-length,
   :email/html, :email/labels (many), :email/links (many), :email/attachments (many)
 
-  Note: :email/embedding removed — embeddings handled by external ColBERT service.
+  Note: :email/embedding is not in the current schema; future embeddings can use
+  Datalevin 1.2.11's :db.type/vec index.
 
   Key: :email/id uses Message-ID header with :db.unique/identity for dedup.
   Missing Message-ID: a deterministic fallback ID is generated from content hash
@@ -259,13 +260,15 @@ Completed Steps:
     - Output formats: table (default), edn, json
     - Backed by db/get-all-labels Datalevin query
 
-  :email/embedding removed from schema - embeddings handled by external
-  ColBERT service via libpython-clj (out of scope for this codebase).
+  :email/embedding is not in the current schema. The embedding model can be
+  local/external; vectors can be stored with Datalevin 1.2.11's :db.type/vec.
 
-=== Datalevin Native Library Issue ===
-  Datalevin uses JavaCPP to load native shared libraries (libdtlv.dylib on macOS).
-  Version used: datalevin 0.9.20 (bundles dtlvnative-macosx-x86_64 via javacpp).
-  Note: 0.10.x only ships ARM64 native libs, so 0.9.20 is the latest x86_64-compatible version.
+=== Datalevin Version and Native Library ===
+  Datalevin uses native libraries via JavaCPP.
+  Version used: datalevin 1.2.11, including Linux x86_64 and arm64
+  native artifacts. The 0.9.20 era's x86_64 limitation is historical; the
+  current release also provides vector indexing/search on supported Linux
+  platforms.
 
   The native library may fail to load on older macOS versions (e.g., High Sierra)
   due to rpath linking issues. Workaround involves fixing dylib install names
@@ -596,10 +599,10 @@ via dense vector embeddings. The design separates this cleanly into an external 
 
 (defn semantic-search [conn query top-k]
   (let [qvec (embed-text query)]
-    (d/search-vec (d/db conn) :email/embedding qvec {:top-k top-k})))
+    (d/search-vec (d/db conn) :email/embedding qvec {:top top-k})))
 ```
 
-- **Schema extension:** Add `:email/embedding` to the schema with `{:db/valueType :db.type/vecf32
+- **Schema extension:** Add `:email/embedding` to the schema with `{:db/valueType :db.type/vec
   :db/cardinality :db.cardinality/one}` once the service is ready.
 - **Search hybrid approach:** Combine dense vector search with label/subject/date filters
   for precise retrieval (e.g., "find emails in the Inbox label semantically similar to X").

@@ -16,6 +16,8 @@ All notable changes to `astanova/takeout` are recorded here.
 - Entity/evidence upsert (`takeout upsert-entities`) with class seeding,
   idempotent entity/evidence storage, and dry-run.
 - Entity/LinkedIn fixtures and tests.
+- Task-extraction foundation: manifest loader/validator, stable assertion IDs,
+  atomic task output writer, arXiv task manifest/scaffold, and tests.
 - Canonical Gmail ID helpers (`astanova.gmail-id`) and RDF-style message/thread
   IRIs; API hex IDs convert to the decimal Takeout form at the boundary.
 - Ontology graph schema (`ontology/schema.edn`) and Datalog rules
@@ -75,6 +77,9 @@ All notable changes to `astanova/takeout` are recorded here.
 
 ### Changed
 
+- Upgraded Datalevin from `0.9.20` to `1.2.11`, including the dump/load
+  migration of the existing `nov24.db` (backup retained as
+  `nov24.db.0.9.20-backup`).
 - Removed unused Tika and Portal dependencies.
 - Pipeline scripts accept `TAKEOUT_DIR`, `TAKEOUT_DB`, `TAKEOUT_MAIL_DIR`,
   `TAKEOUT_BIN`, `TAKEOUT_ROOT`, and `TAKEOUT_SCRIPTS` instead of relying only

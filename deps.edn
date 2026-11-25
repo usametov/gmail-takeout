@@ -1,16 +1,10 @@
 {:paths ["src" "resources"]
  :mvn/repos {"clojars" {:url "https://repo.clojars.org"}}
  :deps {org.clojure/clojure {:mvn/version "1.12.5"}
-        datalevin/datalevin {:mvn/version "0.9.20"}
+        datalevin/datalevin {:mvn/version "1.2.11"}
         org.apache.james/apache-mime4j-core {:mvn/version "0.8.11"}
         org.apache.james/apache-mime4j-mbox-iterator {:mvn/version "0.8.11"}
         com.sun.mail/jakarta.mail {:mvn/version "2.0.1"}
-        ;; Datalevin's POM manages transit-clj 1.0.333; pin the version already
-        ;; used by the previous classpath (and cached) instead of fetching it.
-        com.cognitect/transit-clj {:mvn/version "1.1.357"}
-        ;; Pin the cached commons-io version exposed by the removed Tika/portal
-        ;; dependency tree so classpath resolution stays offline-friendly.
-        commons-io/commons-io {:mvn/version "2.15.1"}
         org.babashka/cli {:mvn/version "0.8.67"}
         cheshire/cheshire {:mvn/version "5.13.0"}
         com.taoensso/timbre {:mvn/version "6.7.1"}

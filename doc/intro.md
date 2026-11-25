@@ -18,6 +18,10 @@ Import and query your Google Takeout email archive using Datalevin.
 - [Ontology Reasoning](ontology-reasoning.md) — RDFS + OWL 2 RL subset, Datalevin rules, closed-world validation
 - [GWS Enrichment](gws-enrichment.md) — Canonical Gmail IDs, body/label enrichment, live sources
 - [Entity Generation](entity-generation.md) — Jobs, TV channels/programs/episodes, evidence, upsert
+- [gws Task Extraction Intent](gws-task-extraction-intent.md) — Replayable task-specific gws fetch/extract/filter/output
+- [gws Task Extraction Design](gws-task-extraction-design.md) — Manifest, assertions, corrections, safe query DSL, observation envelope
+- [Assertion Workflow](assertion-workflow.md) — Candidate/approval/correction lifecycle, effective values, re-extraction diffs
+- [Implementation Plan](implementation-plan.md) — Low-hanging slices and dependency-ordered task rollout
 - [Backlog Triage](backlog-triage.md) — Remaining bugs and the port roadmap
 - [Design Notes](design-notes.md) — Architecture decisions and schema design
 

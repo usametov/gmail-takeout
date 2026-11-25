@@ -24,7 +24,7 @@
 (deftest test-create-conn
   (testing "Creating a connection opens the database"
     (let [conn (sut/create-conn test-db-path)]
-      (is (instance? clojure.lang.Atom conn) "Should be an Atom (connection wrapper)")
+      (is (some? conn) "Should return a connection")
       (is (some? (d/db conn)) "Should be able to get a DB from the connection")
       (d/close conn))))
 

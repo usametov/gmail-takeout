@@ -320,8 +320,8 @@ from `References`, then `Thread-Topic` as a last resort.
 (db/get-thread-emails db "thread-id-here")
 
 ;; Manual query (customize pull pattern)
-;; Note: Datalevin 0.9.x doesn't support :order-by in queries.
-;; Sort results in Clojure instead:
+;; This project sorts in Clojure for portability across Datalevin releases.
+;; Datalevin 1.2.x also supports :order-by for many query shapes.
 (->> (d/q '[:find [(pull ?e [:email/subject :email/from :email/date :email/body-truncated]) ...]
             :in $ ?thread
             :where [?e :email/thread-id ?thread]

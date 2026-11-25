@@ -1,0 +1,93 @@
+{:task/id "arxiv-agentic-kg"
+ :task/version 1
+ :task/label "arXiv agentic KG/ontology papers"
+
+ :fetch
+ {:account "me"
+  :query "from:no-reply@arxiv.org"
+  :since "2026-01-01"
+  :until "2026-11-25"
+  :max-results 500
+  :page-size 100
+  :format :raw
+  :delay-ms 250}
+
+ :extract
+ {:extractor/id "arxiv-paper-v1"
+  :extractor/version 1
+  :fields
+  [{:field/id :paper/title
+    :field/type :string
+    :field/required true
+    :field/backend :heuristic
+    :field/method :html-meta
+    :field/sensitive false}
+   {:field/id :paper/abstract
+    :field/type :string
+    :field/required true
+    :field/backend :heuristic
+    :field/method :html-section
+    :field/sensitive false}
+   {:field/id :paper/url
+    :field/type :string
+    :field/required true
+    :field/backend :heuristic
+    :field/method :link
+    :field/multi true
+    :field/sensitive false}
+   {:field/id :paper/authors
+    :field/type :string
+    :field/multi true
+    :field/backend :heuristic
+    :field/method :html-meta
+    :field/sensitive false}
+   {:field/id :paper/categories
+    :field/type :string
+    :field/multi true
+    :field/backend :heuristic
+    :field/method :html-meta
+    :field/sensitive false}]}
+
+ :filter
+ {:mode :include
+  :rules
+  [{:rule/id :agentic
+    :field [:paper/title :paper/abstract]
+    :op :matches-any
+    :terms ["agentic" "LLM agent" "multi-agent" "autonomous agent"
+            "agent workflow" "agentic RAG"]
+    :weight 3}
+   {:rule/id :kg-ontology
+    :field [:paper/title :paper/abstract]
+    :op :matches-any
+    :terms ["knowledge graph" "knowledge-graph" "ontology"
+            "ontologies" "semantic graph"]
+    :weight 3}
+   {:rule/id :declarative-query
+    :field [:paper/title :paper/abstract]
+    :op :matches-any
+    :terms ["Cypher" "Datalog" "SPARQL" "graph query" "rule engine"]
+    :weight 1}]
+  :include-if {:all [:agentic :kg-ontology]}
+  :min-score 6
+  :review-band 1}
+
+ :output
+ {:dir "data/tasks/arxiv-agentic-kg"
+  :emails "emails.json"
+  :assertions "assertions.edn"
+  :entities "entities.edn"
+  :run "run.edn"}
+
+ :import
+ {:emails true
+  :assertions false
+  :entities false}
+
+ :llm
+ {:enabled false}
+
+ :sensitivity
+ {:default :redact
+  :fields {:paper/abstract :visible
+           :paper/title :visible}}}

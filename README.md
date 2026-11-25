@@ -164,7 +164,11 @@ RDFS/OWL 2 RL reasoning design, and the remaining backlog are in
 [doc/legacy-pipeline-port-intent.md](doc/legacy-pipeline-port-intent.md),
 [doc/ontology-reasoning.md](doc/ontology-reasoning.md),
 [doc/gws-enrichment.md](doc/gws-enrichment.md),
-[doc/entity-generation.md](doc/entity-generation.md), and
+[doc/entity-generation.md](doc/entity-generation.md),
+[doc/gws-task-extraction-intent.md](doc/gws-task-extraction-intent.md),
+[doc/gws-task-extraction-design.md](doc/gws-task-extraction-design.md),
+[doc/assertion-workflow.md](doc/assertion-workflow.md),
+[doc/implementation-plan.md](doc/implementation-plan.md), and
 [doc/backlog-triage.md](doc/backlog-triage.md).
 
 ## Database Schema

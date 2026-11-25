@@ -4,7 +4,7 @@
   [(subclass ?c ?p) [?c :class/parent ?x] (subclass ?x ?p)]
 
   [(term-type ?t ?c) [?t :term/category ?c]]
-  [(term-type ?t ?anc) [?t :term/category ?c] (subclass ?c ?anc)]
+  [(term-type ?t ?c) [?t :term/category ?base] (subclass ?base ?c)]
 
   ;; same-as equality is computed in Clojure (graph/same-as-closure) because
   ;; symmetric edges form cycles that make a Datalevin recursive rule loop.
@@ -13,7 +13,7 @@
   [(broader ?a ?c) [?a :term/broader ?x] (broader ?x ?c)]
   [(narrower ?c ?a) (broader ?a ?c)]
   [(related ?a ?b) [?a :term/related ?b]]
-  [(related ?b ?a) [?a :term/related ?b]]
+  [(related ?a ?b) [?b :term/related ?a]]
 
   [(label-ancestor ?l ?p) [?l :label/parent ?p]]
   [(label-ancestor ?l ?p) [?l :label/parent ?x] (label-ancestor ?x ?p)]

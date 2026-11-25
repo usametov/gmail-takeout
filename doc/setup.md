@@ -35,6 +35,42 @@ clojure -M -m astanova.takeout -d emails.db stats
 The test suite and `clojure -T:build ci` are expected to pass from a fresh
 checkout; the fixtures live under `test/fixtures/`.
 
+## Datalevin upgrade
+
+The project uses **Datalevin 1.2.11**. Databases created before `0.9.27` cannot
+use Datalevin's automatic migration; they need a manual dump/load.
+
+The migration used for `nov24.db`:
+
+```bash
+# Old and new standalone JARs from the Datalevin GitHub releases
+OLD=datalevin-0.9.20-standalone.jar
+NEW=datalevin-1.2.11-standalone.jar
+
+# 1. Read-only dump with the old runtime
+java -jar "$OLD" -d nov24.db -g -f nov24.dump dump
+
+# 2. Load into a new directory with the new runtime
+java -jar "$NEW" -d nov24-upgraded.db -g -f nov24.dump load
+
+# 3. Keep the old directory as a backup, then promote
+mv nov24.db nov24.db.0.9.20-backup
+mv nov24-upgraded.db nov24.db
+
+# 4. Verify
+./takeout -d nov24.db stats
+```
+
+The current backup is `nov24.db.0.9.20-backup`. The `dtlv` native binaries may
+require CPU features not present on older machines; the standalone JARs are the
+portable fallback.
+
+Datalevin 1.2.11 provides `:db.type/vec` and vector search (`search-vec`,
+`vec-neighbors`). A vector attribute needs `:vector-opts {:dimensions ...}` and
+the appropriate metric/quantization options. See the
+[Datalevin vector docs](https://github.com/datalevin/datalevin/blob/master/doc/vector.md)
+and [Task Extraction Design](gws-task-extraction-design.md#18-embeddings-and-semantic-search).
+
 ## `gws` (Google Workspace CLI)
 
 `gws` is the Gmail API bridge used by the enrichment pipeline. It is **not**

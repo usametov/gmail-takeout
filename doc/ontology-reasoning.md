@@ -105,7 +105,7 @@ Example typed-graph rules (EDN vectors, passed to Datalevin as `%`):
  [(subclass ?c ?p) [?c :class/parent ?x] (subclass ?x ?p)]
 
  [(term-type ?t ?c) [?t :term/category ?c]]
- [(term-type ?t ?anc) [?t :term/category ?c] (subclass ?c ?anc)]
+ [(term-type ?t ?c) [?t :term/category ?base] (subclass ?base ?c)]
 
  ;; same-as closure is computed in Clojure (graph/same-as-closure)
  [(broader ?a ?c) [?a :term/broader ?c]]
@@ -241,6 +241,14 @@ provenance, and dedup rules.
     organizational superclass)
 - Local matching reads the cache only.
 - `--check` validates graph, cache, and graph↔cache agreement.
+
+## Derived search indexes
+
+Embeddings and semantic search are **not ontology inference** and do not
+produce assertions or entailments. They are derived indexes used for recall and
+candidate generation in the safe query layer. They carry model/version/source
+hash provenance and are marked stale when the source or model changes. See
+[Task Extraction Design](gws-task-extraction-design.md#18-embeddings-and-semantic-search).
 
 ## What is explicitly out of scope
 
