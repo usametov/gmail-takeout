@@ -5,31 +5,32 @@ Query your email database from the command line using `./takeout query`.
 ## Table of Contents
 
 1. [Google Takeout ZIP Archives](#google-takeout-zip-archives)
-2. [Basic Usage](#basic-usage)
-3. [Labels](#labels)
-4. [Pagination](#pagination)
-5. [Output Formats](#output-formats)
-6. [Threads CLI](#threads-cli)
-7. [Addresses Command](#addresses-command)
-8. [Frequencies Command](#frequencies-command)
-9. [Propagate Command](#propagate-command)
-10. [Inspect Thread Command](#inspect-thread-command)
-11. [Linked Labels Command](#linked-labels-command)
-12. [MBOX Info Command](#mbox-info-command)
-13. [Split Command](#split-command)
-14. [Update Message IDs](#update-message-ids)
-15. [Update Bodies](#update-bodies)
-16. [Gmail ID Mapping Script](#gmail-id-mapping-script)
-17. [Fetch Bodies Script](#fetch-bodies-script)
-18. [Pipeline Script](#pipeline-script)
-19. [Extract URLs](#extract-urls)
-20. [Update Links](#update-links)
-21. [Fetch Content Script](#fetch-content-script)
-22. [Upsert Content](#upsert-content)
-23. [Report Script](#report-script)
-24. [Statistics](#statistics)
-25. [CLI vs REPL](#cli-vs-repl)
-26. [All Options Reference](#all-options-reference)
+2. [Importing Legacy JSON Exports](#importing-legacy-json-exports)
+3. [Basic Usage](#basic-usage)
+4. [Labels](#labels)
+5. [Pagination](#pagination)
+6. [Output Formats](#output-formats)
+7. [Threads CLI](#threads-cli)
+8. [Addresses Command](#addresses-command)
+9. [Frequencies Command](#frequencies-command)
+10. [Propagate Command](#propagate-command)
+11. [Inspect Thread Command](#inspect-thread-command)
+12. [Linked Labels Command](#linked-labels-command)
+13. [MBOX Info Command](#mbox-info-command)
+14. [Split Command](#split-command)
+15. [Update Message IDs](#update-message-ids)
+16. [Update Bodies](#update-bodies)
+17. [Gmail ID Mapping Script](#gmail-id-mapping-script)
+18. [Fetch Bodies Script](#fetch-bodies-script)
+19. [Pipeline Script](#pipeline-script)
+20. [Extract URLs](#extract-urls)
+21. [Update Links](#update-links)
+22. [Fetch Content Script](#fetch-content-script)
+23. [Upsert Content](#upsert-content)
+24. [Report Script](#report-script)
+25. [Statistics](#statistics)
+26. [CLI vs REPL](#cli-vs-repl)
+27. [All Options Reference](#all-options-reference)
 
 ---
 
@@ -114,6 +115,67 @@ and a size/error summary in `emails.db-ingest.log`.
 The size check covers individual MBOX files, not the ZIPs, and it does not
 reserve or verify free disk space. This export needs ~2.5 GiB extracted plus
 whatever the Datalevin database grows to; check `df -h` first if space is tight.
+
+## Importing Legacy JSON Exports
+
+`import-emails` imports an array of legacy email-export records into an
+existing database. It is idempotent by Message-ID, preserves a non-empty
+existing body unless `--force` is given, and unions labels/links.
+
+Set the export directory and database once:
+
+```bash
+export LEGACY_EXPORT_DIR=/path/to/legacy-gmail-project
+DB=nov24.db   # or emails.db
+```
+
+Dry-run one file first:
+
+```bash
+./takeout -d "$DB" import-emails \
+  --from "$LEGACY_EXPORT_DIR/clojure-web-development.json" --dry-run
+```
+
+Import all email-array exports:
+
+```bash
+for f in \
+  builtin_emails.json \
+  clojure-web-development.json \
+  datalog-agents.json \
+  fitness.json \
+  google_notifications_emails.json \
+  knowledge-graphs-agents.json \
+  linkedin_emails.json \
+  machine-learning-translation-agents.json; do
+  echo "== $f"
+  ./takeout -d "$DB" import-emails --from "$LEGACY_EXPORT_DIR/$f" || exit 1
+done
+
+./takeout -d "$DB" stats
+```
+
+Do not import the symlinked duplicates (`clojure-web.json`,
+`knowledge-graph-agents.json`, `translation-agents.json`), the empty
+`emails.json`, or the non-email JSON files (`config.json`,
+`email_schema.json`, `ontology_cache.json`, `raw_candidates.json`,
+`youtube_cache.json`).
+
+`fitness.json`, `linkedin_emails.json`, and the other exports contain email
+records, not pre-built entities. Job/TV entity generation and upsert are
+separate steps.
+
+To replace an existing body deliberately, add `--force`; otherwise the import
+only fills missing data.
+
+| Option | Description |
+|--------|-------------|
+| `-f` / `--from` | Legacy email-export JSON/EDN file (required) |
+| `--source` | Email source label (default: `legacy-json`) |
+| `--force` | Replace existing non-empty bodies |
+| `--dry-run` | Preview without transacting |
+
+---
 
 ## Basic Usage
 
