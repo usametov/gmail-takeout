@@ -2,6 +2,7 @@
   "Command-line interface: argument parsing, dispatch, formatting.
    Uses babashka/cli for option parsing and command dispatch."
   (:require [astanova.db :as db]
+            [astanova.gmail-id :as gid]
             [astanova.ingest :as ingest]
             [astanova.label :as label]
             [astanova.parse :as parse]
@@ -734,63 +735,155 @@
   {:from {:alias :f :desc "EDN file from map_gmail_ids.bb (required)" :required true}
    :dry-run {:desc "Preview updates without transacting"}})
 
+(defn- short-id [x]
+  (let [s (str x)]
+    (subs s 0 (min 50 (count s)))))
+
+(defn- mapping-canonical-id
+  "Resolve one mapping ID.
+
+   New map_gmail_ids output marks `:encoding :canonical`.  Legacy output was
+   Gmail API hex, so an unmarked value is treated as API hex.  An explicit
+   `:gmail-id-api` / `:thread-id-api` field always wins."
+  [entry field]
+  (let [api-field       (keyword (str (name field) "-api"))
+        canonical-field (keyword (str (name field) "-canonical"))
+        encoding        (keyword (or (:encoding entry) (:id-encoding entry)))
+        value           (get entry field)]
+    (cond
+      (some? (get entry canonical-field))
+      (gid/canonicalize (get entry canonical-field) :canonical)
+
+      (some? (get entry api-field))
+      (gid/canonicalize (get entry api-field) :gws-api)
+
+      (= encoding :canonical)
+      (gid/canonicalize value :canonical)
+
+      (= encoding :gws-api)
+      (gid/canonicalize value :gws-api)
+
+      :else
+      (gid/canonicalize value :gws-api))))
+
+(defn- existing-canonical-id
+  "Return {:canonical ... :migrate? ... :invalid? ...} for an existing ID."
+  [value]
+  (cond
+    (str/blank? (str value))
+    {:canonical nil}
+
+    (gid/canonical? value)
+    {:canonical (str/trim (str value))}
+
+    (gid/api-hex? value)
+    {:canonical (gid/api-hex->canonical value) :migrate? true}
+
+    :else
+    {:canonical nil :invalid? true}))
+
 (defn- update-msg-ids-cmd [{:keys [opts]}]
   (when (:help opts)
     (println "Usage: takeout update-message-ids --from <edn-file> [--dry-run]")
     (println)
     (println "  -f, --from PATH  EDN file from map_gmail_ids.clj (required)")
     (println "  --dry-run        Preview updates without transacting")
-    (println "  --force          Update even if already set")
+    (println "  --force          Accepted for compatibility; identity conflicts are never forced")
     (System/exit 0))
-  (let [mapping (edn/read-string (slurp (:from opts)))
-        force?  (:force opts)
+  (let [mapping (or (edn/read-string (slurp (:from opts))) {})
         conn    (db/create-conn (:db opts))
         db      (d/db conn)]
     (try
-      (let [entries mapping
-            total   (count entries)
-            updated (atom 0)
-            missing (atom 0)
-            skipped-gws (atom 0)
-            skipped-already (atom 0)]
+      (let [entries          mapping
+            total            (count entries)
+            updated          (atom 0)
+            missing          (atom 0)
+            skipped-gws      (atom 0)
+            skipped-already  (atom 0)
+            conflicts        (atom 0)
+            invalid          (atom 0)]
         (println (format "Processing %d entries from %s..." total (:from opts)))
-        (doseq [[msg-id {:keys [gmail-id thread-id error]}] entries]
-          (cond
-            (not gmail-id)
-            (do
-              (swap! skipped-gws inc)
-              (println (format "  SKIP: %s (error: %s)"
-                               (subs (or (str msg-id) "?") 0 (min 50 (count (str msg-id))))
-                               (or error "no gmail-id"))))
+        (doseq [[msg-id {:keys [gmail-id thread-id error] :as entry}] entries]
+          (let [new-gid      (when-not (str/blank? (str gmail-id))
+                               (mapping-canonical-id entry :gmail-id))
+                new-tid      (when-not (str/blank? (str thread-id))
+                               (mapping-canonical-id entry :thread-id))
+                synthetic?   (or (gid/synthetic? gmail-id)
+                                 (gid/synthetic? thread-id))
+                invalid-id?  (or (and (not (str/blank? (str gmail-id))) (nil? new-gid))
+                                 (and (not (str/blank? (str thread-id))) (nil? new-tid)))]
+            (cond
+              (not gmail-id)
+              (do
+                (swap! skipped-gws inc)
+                (println (format "  SKIP: %s (error: %s)"
+                                 (short-id msg-id)
+                                 (or error "no gmail-id"))))
 
-            :else
-            (let [entity (d/entity db [:email/id msg-id])]
-              (if entity
-                (if (and (:email/gmail-id entity) (not force?))
+              (or synthetic? invalid-id?)
+              (do
+                (swap! invalid inc)
+                (println (format "  SKIP (invalid/synthetic ID): %s gmail-id=%s thread=%s"
+                                 (short-id msg-id) (pr-str gmail-id) (pr-str thread-id))))
+
+              :else
+              (let [entity (d/entity db [:email/id msg-id])]
+                (if-not entity
                   (do
-                    (swap! skipped-already inc)
-                    (println (format "  SKIP (already set): %s"
-                                    (subs msg-id 0 (min 50 (count msg-id))))))
-                  (let [eid (:db/id entity)
-                        txn (if (:dry-run opts)
-                              []
-                              [(cond-> {:db/id          eid
-                                        :email/gmail-id gmail-id}
-                                 (not (str/blank? (str thread-id)))
-                                 (assoc :email/thread-id thread-id))])]
-                    (when (seq txn)
-                      (d/transact! conn txn))
-                    (swap! updated inc)
-                    (when (:dry-run opts)
-                      (println (format "  %-50s gmail-id=%s thread=%s"
-                                      (subs msg-id 0 (min 50 (count msg-id)))
-                                      gmail-id thread-id)))))
-                (do
-                  (swap! missing inc)
-                  (println (format "  NOT FOUND: %s"
-                                  (subs msg-id 0 (min 60 (count msg-id))))))))))
-        (println (format "\nDone: %d updated, %d skipped (errors), %d already set, %d not found, %d total"
-                         @updated @skipped-gws @skipped-already @missing total)))
+                    (swap! missing inc)
+                    (println (format "  NOT FOUND: %s" (short-id msg-id))))
+                  (let [old-gid (existing-canonical-id (:email/gmail-id entity))
+                        old-tid (existing-canonical-id (:email/thread-id entity))
+                        gid-conflict? (and new-gid
+                                           (:canonical old-gid)
+                                           (not= new-gid (:canonical old-gid)))
+                        tid-conflict? (and new-tid
+                                           (:canonical old-tid)
+                                           (not= new-tid (:canonical old-tid)))
+                        gid-update? (and new-gid
+                                         (not gid-conflict?)
+                                         (or (not= new-gid (:canonical old-gid))
+                                             (and (:canonical old-gid)
+                                                  (not= (:email/gmail-id entity)
+                                                        (:canonical old-gid)))))
+                        tid-update? (and new-tid
+                                         (not tid-conflict?)
+                                         (or (not= new-tid (:canonical old-tid))
+                                             (and (:canonical old-tid)
+                                                  (not= (:email/thread-id entity)
+                                                        (:canonical old-tid)))))]
+                    (cond
+                      (or gid-conflict? tid-conflict?)
+                      (do
+                        (swap! conflicts inc)
+                        (println (format "  CONFLICT: %s existing gmail-id=%s thread=%s, mapping gmail-id=%s thread=%s"
+                                         (short-id msg-id)
+                                         (pr-str (:email/gmail-id entity))
+                                         (pr-str (:email/thread-id entity))
+                                         (pr-str new-gid) (pr-str new-tid))))
+
+                      (not (or gid-update? tid-update?))
+                      (do
+                        (swap! skipped-already inc)
+                        (println (format "  SKIP (already canonical): %s" (short-id msg-id))))
+
+                      :else
+                      (let [eid (:db/id entity)
+                            txn (cond-> {:db/id eid}
+                                  gid-update? (assoc :email/gmail-id new-gid)
+                                  tid-update? (assoc :email/thread-id new-tid))]
+                        (when-not (:dry-run opts)
+                          (d/transact! conn [txn]))
+                        (swap! updated inc)
+                        (when (:dry-run opts)
+                          (println (format "  %-50s gmail-id=%s thread=%s"
+                                           (short-id msg-id)
+                                           (or (:canonical (if gid-update? {:canonical new-gid} old-gid)) "")
+                                           (or (:canonical (if tid-update? {:canonical new-tid} old-tid)) ""))))
+                        (when (or (:migrate? old-gid) (:migrate? old-tid))
+                          (println (format "  MIGRATED: %s hex -> decimal" (short-id msg-id))))))))))))
+        (println (format "\nDone: %d updated, %d skipped (invalid), %d skipped (errors), %d conflicts, %d already canonical, %d not found, %d total"
+                         @updated @invalid @skipped-gws @conflicts @skipped-already @missing total)))
       (finally
         (db/close-conn conn)))))
 

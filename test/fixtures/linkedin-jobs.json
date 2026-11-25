@@ -1,0 +1,28 @@
+[
+  {
+    "gmailId": "1a0ab3d8ca0825d9",
+    "messageId": "<li-1@test>",
+    "threadId": "1a0ab3d8ca0825d9",
+    "from": "LinkedIn Job Alerts <jobs-noreply@linkedin.com>",
+    "to": "user@example.com",
+    "subject": "AI Enablement Specialist at Apex Systems",
+    "snippet": "Jobs that match your profile",
+    "internalDate": "1789579332000",
+    "internalDateIso": "2026-09-16T13:22:12",
+    "labels": ["CATEGORY_UPDATES", "INBOX"],
+    "body_truncated": "Jobs that match your profile\r\n\r\nBased on your title and location. Update:\r\nhttps://www.linkedin.com/comm/in/me/edit/topcard/?lipi=abc\r\n\r\nAI Enablement Specialist\r\nApex Systems\r\nToronto\r\nView job: https://www.linkedin.com/comm/jobs/view/4466536865/?trackingId=abc\r\n\r\n---------------------------------------------------------\r\n\r\nAI Engineer\r\nInsight\r\nToronto\r\nApply with resume & profile\r\nView job: https://www.linkedin.com/comm/jobs/view/4467426762/?trackingId=def\r\n"
+  },
+  {
+    "gmailId": "1a0ab3d8ca0825da",
+    "messageId": "<li-2@test>",
+    "threadId": "1a0ab3d8ca0825da",
+    "from": "LinkedIn Job Alerts <jobs-noreply@linkedin.com>",
+    "to": "user@example.com",
+    "subject": "AI Engineer at Insight",
+    "snippet": "Jobs that match your profile",
+    "internalDate": "1789579332000",
+    "internalDateIso": "2026-09-16T13:22:12",
+    "labels": ["CATEGORY_UPDATES", "INBOX"],
+    "body_truncated": "Jobs that match your profile\r\n\r\nBased on your title and location. Update:\r\nhttps://www.linkedin.com/comm/in/me/edit/topcard/?lipi=xyz\r\n\r\nAI Engineer\r\nInsight\r\nToronto\r\nView job: https://www.linkedin.com/comm/jobs/view/4467426762/?trackingId=ghi\r\n\r\n---------------------------------------------------------\r\n\r\nSenior AI Engineer\r\nAcme\r\nRemote\r\nView job: https://www.linkedin.com/comm/jobs/view/4470000000/?trackingId=jkl\r\n"
+  }
+]

@@ -1,7 +1,8 @@
 # Ontology Reasoning: RDFS + OWL 2 RL subset
 
-Status: **design**, companion to [Antigravity Port Intent](antigravity-port-intent.md).
-This document defines the reasoning formalism we will implement in Datalevin.
+Status: **graph/schema/rules implemented (Phase 1); reasoning extensions in
+progress**, companion to [Antigravity Port Intent](antigravity-port-intent.md).
+This document defines the reasoning formalism implemented in Datalevin.
 
 ## Position
 
@@ -82,7 +83,7 @@ We implement the subset that matches the domain model:
 
 | Rule | Purpose |
 |---|---|
-| `sameAs` symmetry + transitivity + type/label propagation | canonical term equivalence |
+| `sameAs` symmetry + transitivity + type/label propagation | **computed in Clojure**, not a recursive Datalog rule, because symmetric edges are cyclic |
 | `inverseOf` | `broader` ↔ `narrower` |
 | `SymmetricProperty` | `related` both directions |
 | `TransitiveProperty` | `broader`, `related-to` where appropriate |
@@ -104,15 +105,13 @@ Example typed-graph rules (EDN vectors, passed to Datalevin as `%`):
  [(subclass ?c ?p) [?c :class/parent ?x] (subclass ?x ?p)]
 
  [(term-type ?t ?c) [?t :term/category ?c]]
- [(term-type ?t ?anc) (term-type ?t ?c) (subclass ?c ?anc)]
+ [(term-type ?t ?anc) [?t :term/category ?c] (subclass ?c ?anc)]
 
- [(same ?a ?b) [?a :term/same-as ?b]]
- [(same ?b ?a) (same ?a ?b)]
- [(same ?a ?c) (same ?a ?b) (same ?b ?c)]
-
+ ;; same-as closure is computed in Clojure (graph/same-as-closure)
  [(broader ?a ?c) [?a :term/broader ?c]]
  [(broader ?a ?c) [?a :term/broader ?x] (broader ?x ?c)]
  [(narrower ?c ?a) (broader ?a ?c)]
+ [(related ?a ?b) [?a :term/related ?b]]
  [(related ?b ?a) [?a :term/related ?b]]
 
  [(label-ancestor ?l ?p) [?l :label/parent ?p]]
@@ -120,8 +119,10 @@ Example typed-graph rules (EDN vectors, passed to Datalevin as `%`):
 ```
 
 Datalevin supports recursive Datalog rules with semi-naive evaluation. We
-verified the subclass/ancestor recursion; `sameAs` closure needs explicit tests
-for cycles and should be bounded to the ontology-sized term set.
+verified the subclass/ancestor recursion. `sameAs` closure is deliberately not
+a recursive Datalog rule: symmetric same-as edges form cycles that make
+Datalevin's recursive evaluation loop. It is computed in Clojure over the
+symmetric edge set (`graph/same-as-closure`) and validated there.
 
 ## Closed-world enforcement
 
@@ -177,6 +178,53 @@ adapter boundary. This keeps MBOX and API facts on the same resource. See
 Ontology terms do not depend on Gmail IDs; the graph references emails only if
 term-mention facts are added later.
 
+## Entity individuals (ABox)
+
+The ontology graph also stores entity individuals generated from emails:
+
+| Class | Entity | Links |
+|---|---|---|
+| `:job-posting` | job listing | company/role/location/job-type/field terms, evidence |
+| `:tv-channel` | curated channel | topic term, programs |
+| `:tv-program` | one fitness broadcast | channel, fields, episodes, evidence |
+| `:tv-episode` | YouTube video | programs, evidence |
+
+Entity classes live in a separate `:entity-classes` hierarchy in
+`ontology/schema.edn`; they are not term categories. A job can link to a
+`companies` term without turning the job into a company.
+
+Add entity rules:
+
+```clojure
+[(entity-class ?e ?c) [?e :entity/class ?c]]
+[(entity-class ?e ?anc) (entity-class ?e ?c) (subclass-entity ?c ?anc)]
+
+[(entity-term ?e ?t) [?e :job/company ?t]]
+[(entity-term ?e ?t) [?e :job/role ?t]]
+[(entity-term ?e ?t) [?e :job/location ?t]]
+[(entity-term ?e ?t) [?e :job/job-type ?t]]
+[(entity-term ?e ?t) [?e :job/field ?t]]
+[(entity-term ?e ?t) [?e :program/field ?t]]
+
+[(channel-program ?c ?p) [?c :channel/program ?p]]
+[(episode-program ?e ?p) [?p :program/episode ?e]]
+[(job-field-closure ?j ?f) [?j :job/field ?f]]
+[(job-field-closure ?j ?f) (job-field-closure ?j ?base)
+                         (broader ?base ?f)]
+```
+
+Entity validation is class-aware:
+
+- job company/role/location/job-type/field refs must match the corresponding
+  term category
+- program channel must be a `tv-channel`
+- episode must link to `tv-program`
+- entity classes are disjoint
+- entity ids and episode video ids are unique
+
+See [Entity Generation](entity-generation.md) for the full data model, ID,
+provenance, and dedup rules.
+
 ## Inference and cache export
 
 - The graph stores asserted facts.
@@ -214,8 +262,10 @@ term-mention facts are added later.
 8. Inverse-functional: two terms claiming one raw form fails.
 9. Label ancestry: `ai/agents` has ancestor `ai`.
 10. Cache/graph mismatch fails export.
-11. Cyclic `sameAs`/`broader` graphs terminate (bounded term set).
+11. Cyclic `sameAs` graphs terminate via the Clojure closure; broader/narrower
+    cycles still need a validation guard.
 12. Rules and validation run under the JVM test suite, not only bb.
+13. Entity class/category constraints hold for generated jobs and TV entities.
 
 ## Open questions
 

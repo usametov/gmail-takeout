@@ -296,11 +296,13 @@
                               :email/body-length 4}])
           (db/close-conn conn)
           (let [mapping (write-file! dir "map.edn"
-                                     (pr-str {"<ids@test>" {:gmail-id "gmail-1"}}))]
+                                     (pr-str {"<ids@test>"
+                                              {:gmail-id "1869976353534821376"
+                                               :encoding :canonical}}))]
             (with-out-str
               (#'cli/update-msg-ids-cmd {:opts {:db db-path :from (.getAbsolutePath mapping)}}))
             (let [e (entity db-path "<ids@test>")]
-              (is (= "gmail-1" (:email/gmail-id e)))
+              (is (= "1869976353534821376" (:email/gmail-id e)))
               (is (nil? (:email/thread-id e))))))))))
 
 (deftest test-update-bodies-preserves-full-length
@@ -578,3 +580,98 @@
             (is (= {"<urls@test>" ["https://example.com/a"]}
                    (edn/read-string (str out))))
             (is (str/includes? (str err) "emails with URLs"))))))))
+
+(deftest test-update-message-ids-normalizes-api-hex
+  (testing "API hex is converted to canonical decimal and cannot split a thread"
+    (with-temp-dir
+      (fn [dir]
+        (let [db-path (str dir "/ids-normalize.db")
+              conn    (db/create-conn db-path)]
+          (d/transact! conn [{:email/id "<hex@test>"
+                              :email/subject "Hex"
+                              :email/gmail-id "1869976353534821376"
+                              :email/thread-id "1869976293963969653"
+                              :email/body-truncated "body"
+                              :email/body-length 4}])
+          (db/close-conn conn)
+          (let [mapping (write-file!
+                         dir "hex-map.edn"
+                         (pr-str {"<hex@test>"
+                                  {:gmail-id "19f37d9602d2c400"
+                                   :thread-id "19f37d88241fb475"
+                                   :encoding :gws-api}}))]
+            (with-out-str
+              (#'cli/update-msg-ids-cmd
+               {:opts {:db db-path :from (.getAbsolutePath mapping)}}))
+            (let [e (entity db-path "<hex@test>")]
+              (is (= "1869976353534821376" (:email/gmail-id e)))
+              (is (= "1869976293963969653" (:email/thread-id e))))))))))
+
+(deftest test-update-message-ids-rejects-synthetic-and-conflicts
+  (testing "dry-run IDs are rejected and mismatched identities are not overwritten"
+    (with-temp-dir
+      (fn [dir]
+        (let [db-path (str dir "/ids-conflict.db")
+              conn    (db/create-conn db-path)]
+          (d/transact! conn [{:email/id "<conflict@test>"
+                              :email/subject "Conflict"
+                              :email/gmail-id "1869976353534821376"
+                              :email/thread-id "1869976293963969653"
+                              :email/body-truncated "body"
+                              :email/body-length 4}])
+          (db/close-conn conn)
+          (let [synthetic (write-file! dir "synthetic.edn"
+                                       (pr-str {"<conflict@test>"
+                                                {:gmail-id "gmail-1"
+                                                 :thread-id "thread-1"
+                                                 :encoding :canonical}}))
+                conflict  (write-file! dir "conflict.edn"
+                                       (pr-str {"<conflict@test>"
+                                                {:gmail-id "1869976353534821377"
+                                                 :encoding :canonical}}))]
+            (with-out-str
+              (#'cli/update-msg-ids-cmd
+               {:opts {:db db-path :from (.getAbsolutePath synthetic)}}))
+            (let [e (entity db-path "<conflict@test>")]
+              (is (= "1869976353534821376" (:email/gmail-id e))))
+            (with-out-str
+              (#'cli/update-msg-ids-cmd
+               {:opts {:db db-path :from (.getAbsolutePath conflict)}}))
+            (let [e (entity db-path "<conflict@test>")]
+              (is (= "1869976353534821376" (:email/gmail-id e)))
+              (is (= "1869976293963969653" (:email/thread-id e))))))))))
+
+(deftest test-update-message-ids-migrates-hex-and-protects-thread
+  (testing "old hex IDs migrate; a conflicting thread is not overwritten"
+    (with-temp-dir
+      (fn [dir]
+        (let [db-path (str dir "/ids-migrate.db")
+              conn    (db/create-conn db-path)]
+          (d/transact! conn [{:email/id "<migrate@test>"
+                              :email/subject "Migrate"
+                              :email/gmail-id "19f37d9602d2c400"
+                              :email/thread-id "19f37d88241fb475"
+                              :email/body-truncated "body"
+                              :email/body-length 4}])
+          (db/close-conn conn)
+          (let [same (write-file! dir "same.edn"
+                                  (pr-str {"<migrate@test>"
+                                           {:gmail-id "1869976353534821376"
+                                            :thread-id "1869976293963969653"
+                                            :encoding :canonical}}))]
+            (with-out-str
+              (#'cli/update-msg-ids-cmd
+               {:opts {:db db-path :from (.getAbsolutePath same)}}))
+            (let [e (entity db-path "<migrate@test>")]
+              (is (= "1869976353534821376" (:email/gmail-id e)))
+              (is (= "1869976293963969653" (:email/thread-id e)))))
+          (let [conflict (write-file! dir "thread-conflict.edn"
+                                      (pr-str {"<migrate@test>"
+                                               {:gmail-id "1869976353534821376"
+                                                :thread-id "1869976293963969654"
+                                                :encoding :canonical}}))]
+            (with-out-str
+              (#'cli/update-msg-ids-cmd
+               {:opts {:db db-path :from (.getAbsolutePath conflict)}}))
+            (let [e (entity db-path "<migrate@test>")]
+              (is (= "1869976293963969653" (:email/thread-id e))))))))))

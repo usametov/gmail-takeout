@@ -11,7 +11,13 @@
 ;;     | bb scripts/map_gmail_ids.clj -o /tmp/gmail-ids.edn --no-dry-run
 ;;
 ;; Output EDN format:
-;;   {"<Message-ID>" {:gmail-id "..." :thread-id "..."}, ...}
+;;   {"<Message-ID>" {:gmail-id "<decimal>" :thread-id "<decimal>"
+;;                    :gmail-id-api "<hex>" :thread-id-api "<hex>"
+;;                    :encoding :canonical}, ...}
+;;
+;; Gmail API returns hex IDs; Takeout/X-GM uses decimal.  The mapping stores
+;; canonical decimal IDs and keeps the API hex values for callers that need
+;; them.
 ;;
 ;; Options:
 ;;   -o, --out-file PATH   Output EDN file (default: gmail-ids.edn)
@@ -58,6 +64,14 @@
             (System/exit 1)))
       opts)))
 
+;; ─── ID conversion ─────────────────────────────────────────────
+
+(defn api-hex->canonical
+  "Gmail API message/thread IDs are hex; the DB stores decimal."
+  [s]
+  (when (and s (re-matches #"(?i)^[0-9a-f]{1,16}$" s))
+    (str (BigInteger. s 16))))
+
 ;; ─── GWS command ───────────────────────────────────────────────
 
 (defn lookup-gmail-id
@@ -80,8 +94,16 @@
       (try
         (let [parsed (json/parse-string out true)]
           (when-let [msg (first (:messages parsed))]
-            {:gmail-id  (:id msg)
-             :thread-id (:threadId msg)}))
+            (let [gmail-api  (:id msg)
+                  thread-api (:threadId msg)
+                  gmail-dec  (api-hex->canonical gmail-api)
+                  thread-dec (api-hex->canonical thread-api)]
+              (when (and gmail-dec thread-dec)
+                {:gmail-id      gmail-dec
+                 :thread-id     thread-dec
+                 :gmail-id-api  gmail-api
+                 :thread-id-api thread-api
+                 :encoding      :canonical}))))
         (catch Exception e
           (binding [*out* *err*]
             (println "gws parse error for" message-id ":" (.getMessage e)))

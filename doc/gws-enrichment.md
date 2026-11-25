@@ -1,7 +1,8 @@
 # GWS Enrichment in the Ontology Pipeline
 
-Status: **design**, companion to [Antigravity Port Intent](antigravity-port-intent.md)
-and [Ontology Reasoning](ontology-reasoning.md).
+Status: **G1/G2 implemented; G3+ design**, companion to
+[Antigravity Port Intent](antigravity-port-intent.md) and
+[Ontology Reasoning](ontology-reasoning.md).
 
 ## Role of gws
 

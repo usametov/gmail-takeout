@@ -30,6 +30,22 @@ Effort: XS (<30 min), S (0.5–2 h), M (0.5–2 days), L (>2 days).
 
 ## Already done
 
+Entity E1/E3 and Phase 0.5 / Phase 1 delivered:
+
+- **E1** entity/evidence schema, entity classes, deterministic IDs, validation.
+- **E3** LinkedIn card parser, dedup/URL canonicalization, generator script,
+  fixture and JVM tests.
+
+
+- **G1** canonical Gmail ID helpers and message/thread IRIs.
+- **G2** `update-message-ids` normalization, conflict checks, synthetic-ID
+  rejection, hex migration; `map_gmail_ids`/`fetch-bodies` boundary conversion.
+- **O1** graph schema + `ontology/schema.edn` and `ontology/rules.edn`.
+- **O2** shared rule namespace (`astanova.ontology.rules`); classifier now uses
+  it for categories, normalization, noise, config, aliases, cache validation.
+- **O3** JVM tests for Gmail IDs, shared rules, graph validation, Datalog
+  subclass/type closure, cache/graph comparison, and class cycles.
+
 PR 1–5 delivered: hermetic tests/fixtures, API/parser/splitter fixes, streaming
 ingest, nil/subject/stat/export fixes, CLI output contract, thread/query
 projection performance, script path env vars, dependency cleanup, docs/changelog,
@@ -45,8 +61,8 @@ See [GWS Enrichment](gws-enrichment.md).
 
 | ID | Item | Why | Effort | Decision |
 |----|------|-----|--------|----------|
-| G1 | Canonical Gmail ID helpers (`hex->decimal`, `decimal->hex`, validation, IRIs) and canonical storage rule. | Stops thread/ID fragmentation. | S | **now** |
-| G2 | Fix `update-message-ids`: normalize API hex, conflict checks, reject synthetic/dry-run IDs, migrate old hex IDs. | Prevents corrupting thread grouping. | S–M | **now** |
+| G1 | Canonical Gmail ID helpers (`hex->decimal`, `decimal->hex`, validation, IRIs) and canonical storage rule. | Stops thread/ID fragmentation. | S | **done** |
+| G2 | Fix `update-message-ids`: normalize API hex, conflict checks, reject synthetic/dry-run IDs, migrate old hex IDs. | Prevents corrupting thread grouping. | S–M | **done** |
 | G3 | Body enrichment provenance (`:email/body-source`, fetched-at), only fill blanks by default; `--force` explicit. | Avoid overwriting Takeout bodies silently. | S | **next** |
 | G4 | Label refresh semantics: union by default, `--replace-labels`, label provenance. | Live labels are mutable; MBOX labels are snapshots. | S | **next** |
 | G5 | Live raw ingest adapter (`messages.get format=raw` → MIME parser → upsert by Message-ID). | Needed for Gmail-only sources; local mode must still work without it. | M | **later** |
@@ -55,9 +71,9 @@ See [GWS Enrichment](gws-enrichment.md).
 
 | ID | Item | Why it blocks | Effort | Decision |
 |----|------|----------------|--------|----------|
-| O1 | Define graph schema + EDN rule files (`ontology/schema.edn`, `ontology/rules.edn`): classes, parents, disjointness, term/form/label entities, RDFS + selected OWL 2 RL rules, validation queries. See [Ontology Reasoning](ontology-reasoning.md). | The graph is the new source of truth; everything else depends on it. | M–L | **now** |
-| O2 | Extract shared ontology rules from `scripts/ontology_classifier.clj` into testable Clojure namespaces. | Candidate compiler, matcher, and classifier must not drift. | M | **now** |
-| O3 | Automated tests for rules + graph validation: subclass/type closure, sameAs closure, broader/narrower/related, disjointness, functional properties, categories, aliases, allow/stop/DF, dual-key cache, cache/graph agreement. | The classifier currently has manual verification only. | M | **now** |
+| O1 | Define graph schema + EDN rule files (`ontology/schema.edn`, `ontology/rules.edn`): classes, parents, disjointness, term/form/label entities, RDFS + selected OWL 2 RL rules, validation queries. See [Ontology Reasoning](ontology-reasoning.md). | The graph is the new source of truth; everything else depends on it. | M–L | **done** |
+| O2 | Extract shared ontology rules from `scripts/ontology_classifier.clj` into testable Clojure namespaces. | Candidate compiler, matcher, and classifier must not drift. | M | **done** |
+| O3 | Automated tests for rules + graph validation: subclass/type closure, sameAs closure, broader/narrower/related, disjointness, functional properties, categories, aliases, allow/stop/DF, dual-key cache, cache/graph agreement. | The classifier currently has manual verification only. | M | **done (first pass)** |
 | O4 | Port `compile_raw_candidates.py` to a DB-first compiler using shared rules and deterministic DF. | Without candidates, the classifier has nothing new to classify. | M | **next** |
 | O5 | Port local matcher (`extract_ontology_body`) + schema-valid structured export. | This is the actual enrichment output. | M | **next** |
 
@@ -73,6 +89,20 @@ See [GWS Enrichment](gws-enrichment.md).
 | O11 | YouTube ID extraction + oEmbed metadata cache. | TTL/concurrency policy. | S | **next** |
 | O12 | Markdown generator with sensitive-data masking and global stats. | Port `generate_markdown.py`. | S | **next** |
 
+## Entity layer (E)
+
+Design: [Entity Generation](entity-generation.md).
+
+| ID | Item | Notes | Effort | Decision |
+|----|------|-------|--------|----------|
+| E1 | Entity/evidence classes and schema; deterministic entity IDs; class/category validation. | Merge into the main Datalevin schema per the proposal. | M | **done** |
+| E2 | `takeout entities upsert`: resolve terms, create provisional terms, add evidence, validate, dry-run, finally cleanup. | Stores generator output in the DB. | M | **next** |
+| E3 | LinkedIn job parser + `scripts/generate-jobs.clj`; golden tests from `linkedin_emails.json`. | Parses multiple job cards per email; dedup + evidence. | M | **done** |
+| E4 | TV channel/program/episode generator + `scripts/generate-tv.clj`; channel rules from `fitness.json`. | Uses YouTube metadata/cache. | M | **next** |
+| E5 | Entity queries + TV-guide Markdown from entities. | Replaces rendering from raw JSON. | S–M | **later** |
+| E6 | Built In/Google jobs parsers; provisional-term promotion workflow. | Other sources and review. | M | **later** |
+| E7 | Entity/evidence idempotency and ontology-constraint tests. | Parser/id/validation tests done; upsert idempotency follows E2. | S–M | **partial** |
+
 ## P2 — later
 
 | ID | Item | Notes | Effort | Decision |
@@ -86,6 +116,7 @@ See [GWS Enrichment](gws-enrichment.md).
 | O19 | Turtle/RDF export (typed graph → `triple/3` view). | Optional interoperability, not needed for v1. | M | **later** |
 | O21 | Materialize closure (`:inferred/*`) after profiling. | Query-time rules first; materialize only if closure queries are hot. | M | **later** |
 | O22 | RDFS/OWL 2 RL conformance notes and rule coverage matrix. | Track which rules are implemented/tested; no full OWL DL claim. | S | **next** |
+| O23 | Validate broader/narrower cycles before closure/materialization. | Datalog recursion on a cyclic broader graph can loop, like sameAs did. | S | **next** |
 | O20 | Frequency + embedding hybrid for borderline DF. | Needs embeddings; optional. | L | **won't do for now** |
 
 ## Existing backlog carried forward
@@ -104,17 +135,18 @@ See [GWS Enrichment](gws-enrichment.md).
 
 ## Recommended sequence
 
-0. **Phase 0.5 (P0):** G1 canonical ID helpers, G2 update-message-ids
-   normalization/conflict tests. Can run alongside Phase 1, but must precede any
-   gws enrichment.
-1. **Phase 1 (P0):** O1 graph schema/rules, O2 shared rules, O3 tests.
+0. **Phase 0.5 (P0):** G1/G2 — done.
+1. **Phase 1 (P0):** O1/O2/O3 — graph/rules/shared tests done; extend as the
+   classifier relocates.
 2. **Phase 2 (P0/P1):** O4 candidate compiler; O5 local matcher; O9 schema; O6
    classifier relocation.
 3. **Phase 3 (P1):** O7 sources, O8 seed/migration, O10 end-to-end command.
 4. **Phase 4 (P1):** O11 YouTube, O12 Markdown.
 5. **Phase 5 (P2):** O13 label taxonomy, O14 TV guide, O15/O16 live Gmail and
    LinkedIn, O17 evaluation; G3/G4/G5 as gws work begins.
-6. **Backlog cleanup:** T15/T24 docs; T16/T17 decisions; T26/T27 later.
+6. **Entity track:** E1/E3 done; E2 upsert next, then E4 TV entities and E5
+   rendering.
+7. **Backlog cleanup:** T15/T24 docs; T16/T17 decisions; T26/T27 later.
 
 ## Decisions still open
 

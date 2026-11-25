@@ -1,0 +1,34 @@
+{:schema-version 1
+ :rules
+ [[(subclass ?c ?p) [?c :class/parent ?p]]
+  [(subclass ?c ?p) [?c :class/parent ?x] (subclass ?x ?p)]
+
+  [(term-type ?t ?c) [?t :term/category ?c]]
+  [(term-type ?t ?anc) [?t :term/category ?c] (subclass ?c ?anc)]
+
+  ;; same-as equality is computed in Clojure (graph/same-as-closure) because
+  ;; symmetric edges form cycles that make a Datalevin recursive rule loop.
+  [(broader ?a ?c) [?a :term/broader ?c]]
+  [(broader ?a ?c) [?a :term/broader ?c]]
+  [(broader ?a ?c) [?a :term/broader ?x] (broader ?x ?c)]
+  [(narrower ?c ?a) (broader ?a ?c)]
+  [(related ?a ?b) [?a :term/related ?b]]
+  [(related ?b ?a) [?a :term/related ?b]]
+
+  [(label-ancestor ?l ?p) [?l :label/parent ?p]]
+  [(label-ancestor ?l ?p) [?l :label/parent ?x] (label-ancestor ?x ?p)]]
+ :validation
+ {:terms-without-category
+  [:find ?t :where [?t :term/id _] (not [?t :term/category _])]
+
+  :terms-without-normalized
+  [:find ?t :where [?t :term/id _] (not [?t :term/normalized _])]
+
+  :forms-without-term
+  [:find ?f :where [?f :form/raw _] (not [?f :form/term _])]
+
+  :term-category-missing-class
+  [:find ?t ?c :where [?t :term/category ?c] (not [?c :class/id _])]
+
+  :label-parent-missing
+  [:find ?l ?p :where [?l :label/parent ?p] (not [?p :label/name _])]}}

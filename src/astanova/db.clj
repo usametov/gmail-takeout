@@ -1,7 +1,8 @@
 (ns astanova.db
   "Database schema and connection management for email ingestion."
-  (:require [datalevin.core :as d]
-            [clojure.set :as set]))
+  (:require [astanova.ontology.graph :as ontology]
+            [clojure.set :as set]
+            [datalevin.core :as d]))
 
 (defn build-email-schema
   "Schema for email entities in Datalevin.
@@ -85,10 +86,133 @@
                         :db/cardinality :db.cardinality/many
                         :db/doc         "Denormalized labels from the source email"}})
 
-(defn build-schema
-  "Combined schema for both email and content entities."
+(defn build-entity-schema
+  "Schema for generated entities (jobs, TV), evidence, and ontology terms."
   []
-  (merge (build-email-schema) (build-content-schema)))
+  {:entity/id           {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one
+                         :db/unique      :db.unique/identity
+                         :db/doc         "Deterministic entity id"}
+   :entity/class        {:db/valueType   :db.type/ref
+                         :db/cardinality :db.cardinality/one}
+   :entity/title        {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+   :entity/source       {:db/valueType   :db.type/keyword
+                         :db/cardinality :db.cardinality/one}
+   :entity/status       {:db/valueType   :db.type/keyword
+                         :db/cardinality :db.cardinality/one}
+   :entity/created-at   {:db/valueType   :db.type/instant
+                         :db/cardinality :db.cardinality/one}
+   :entity/updated-at   {:db/valueType   :db.type/instant
+                         :db/cardinality :db.cardinality/one}
+   :entity/confidence   {:db/valueType   :db.type/double
+                         :db/cardinality :db.cardinality/one}
+   :entity/evidence     {:db/valueType   :db.type/ref
+                         :db/cardinality :db.cardinality/many}
+
+   :job/title           {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+   :job/company-raw     {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+   :job/role-raw        {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+   :job/location-raw    {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/many}
+   :job/source-id       {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+   :job/url             {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/many}
+   :job/posted-at       {:db/valueType   :db.type/instant
+                         :db/cardinality :db.cardinality/one}
+   :job/company         {:db/valueType   :db.type/ref
+                         :db/cardinality :db.cardinality/one}
+   :job/role            {:db/valueType   :db.type/ref
+                         :db/cardinality :db.cardinality/one}
+   :job/location        {:db/valueType   :db.type/ref
+                         :db/cardinality :db.cardinality/many}
+   :job/field           {:db/valueType   :db.type/ref
+                         :db/cardinality :db.cardinality/many}
+   :job/job-type        {:db/valueType   :db.type/ref
+                         :db/cardinality :db.cardinality/many}
+   :job/salary-text     {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+   :job/description     {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+   :job/dedup-key       {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+
+   :channel/slug        {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+   :channel/code        {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+   :channel/name        {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+   :channel/tagline     {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+   :channel/topic       {:db/valueType   :db.type/ref
+                         :db/cardinality :db.cardinality/one}
+   :channel/program     {:db/valueType   :db.type/ref
+                         :db/cardinality :db.cardinality/many}
+
+   :program/channel     {:db/valueType   :db.type/ref
+                         :db/cardinality :db.cardinality/one}
+   :program/airtime     {:db/valueType   :db.type/instant
+                         :db/cardinality :db.cardinality/one}
+   :program/synopsis    {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+   :program/body        {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+   :program/source-email-id {:db/valueType :db.type/string
+                             :db/cardinality :db.cardinality/one}
+   :program/source-email {:db/valueType  :db.type/ref
+                          :db/cardinality :db.cardinality/one}
+   :program/episode     {:db/valueType   :db.type/ref
+                         :db/cardinality :db.cardinality/many}
+   :program/field       {:db/valueType   :db.type/ref
+                         :db/cardinality :db.cardinality/many}
+
+   :episode/video-id    {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+   :episode/title       {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+   :episode/author      {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+   :episode/author-url  {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+   :episode/watch-url   {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+   :episode/thumbnail-url {:db/valueType :db.type/string
+                           :db/cardinality :db.cardinality/one}
+   :episode/available   {:db/valueType   :db.type/boolean
+                         :db/cardinality :db.cardinality/one}
+   :episode/program     {:db/valueType   :db.type/ref
+                         :db/cardinality :db.cardinality/many}
+
+   :evidence/id         {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one
+                         :db/unique      :db.unique/identity}
+   :evidence/entity     {:db/valueType   :db.type/ref
+                         :db/cardinality :db.cardinality/one}
+   :evidence/email-id   {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+   :evidence/email      {:db/valueType   :db.type/ref
+                         :db/cardinality :db.cardinality/one}
+   :evidence/url        {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+   :evidence/parser     {:db/valueType   :db.type/keyword
+                         :db/cardinality :db.cardinality/one}
+   :evidence/snippet    {:db/valueType   :db.type/string
+                         :db/cardinality :db.cardinality/one}
+   :evidence/observed-at {:db/valueType  :db.type/instant
+                          :db/cardinality :db.cardinality/one}})
+
+(defn build-schema
+  "Combined schema for emails, content, entities, and the ontology graph."
+  []
+  (merge (build-email-schema)
+         (build-content-schema)
+         (build-entity-schema)
+         (ontology/graph-schema)))
 
 (defn get-email-attrs
   "Set of all email attribute keywords (for pulling entire entities)."

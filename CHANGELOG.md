@@ -6,6 +6,19 @@ All notable changes to `astanova/takeout` are recorded here.
 
 ### Added
 
+- Entity/evidence graph schema and entity classes for job postings, TV channels,
+  programs, and episodes.
+- `astanova.entity` deterministic IDs, job dedup keys, canonical LinkedIn URLs,
+  category-aware validation, and evidence IDs.
+- LinkedIn job-card parser and `scripts/generate-jobs.clj` generator.
+- Entity/LinkedIn fixtures and tests.
+- Canonical Gmail ID helpers (`astanova.gmail-id`) and RDF-style message/thread
+  IRIs; API hex IDs convert to the decimal Takeout form at the boundary.
+- Ontology graph schema (`ontology/schema.edn`) and Datalog rules
+  (`ontology/rules.edn`) for RDFS-style subclass/type inference, sameAs,
+  broader/narrower/related, and label ancestry.
+- Shared ontology rule namespace with golden tests for normalization, noise
+  precedence, canonical aliases, cache consistency, and graph validation.
 - `./takeout` source-checkout wrapper.
 - Checked-in parser/integration fixtures under `test/fixtures/`.
 - Regression coverage for Gmail IDs, thread IDs, UTF-8 MBOX splitting,
@@ -17,6 +30,13 @@ All notable changes to `astanova/takeout` are recorded here.
 
 ### Fixed
 
+- `update-message-ids` normalizes Gmail API hex IDs to canonical decimal,
+  rejects synthetic/dry-run IDs, migrates old hex IDs, and refuses identity
+  conflicts instead of splitting threads.
+- `map_gmail_ids` writes canonical decimal IDs (with API hex retained for
+  callers); `fetch-bodies` converts back to API hex for gws.
+- The ontology classifier now uses the shared rule namespace instead of owning
+  a second copy of category/noise/cache logic.
 - Thread IDs now prefer `X-GM-THRID`, then the first `References` Message-ID,
   then `Thread-Topic`.
 - Gmail IDs are only read from numeric `From_` envelopes; standard mbox

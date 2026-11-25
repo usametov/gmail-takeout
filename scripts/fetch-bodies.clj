@@ -11,7 +11,10 @@
 ;;     | bb scripts/fetch-bodies.clj -o bodies.edn --no-dry-run
 ;;
 ;; Output EDN format:
-;;   {"<gmail-id>" {:body "..." :subject "..." :from "..." :date "..."}, ...}
+;;   {"<message-id>" {:gmail-id "<canonical-decimal>" :body "..." ...}, ...}
+;;
+;; The database stores canonical decimal Gmail IDs; gws message IDs are hex,
+;; so this script converts back to hex only for the API call.
 ;;
 ;; Options:
 ;;   -o, --out-file PATH   Output EDN file (default: bodies.edn)
@@ -48,14 +51,24 @@
             (System/exit 1)))
       opts)))
 
+;; ─── ID conversion ─────────────────────────────────────────────
+
+(defn canonical->api-hex
+  "Convert the DB's decimal Gmail ID to the API's hex ID."
+  [s]
+  (if (and s (re-matches #"^[1-9][0-9]*$" s))
+    (.toString (BigInteger. s) 16)
+    s))
+
 ;; ─── GWS command ───────────────────────────────────────────────
 
 (defn fetch-body
   "Fetch a full email from Gmail API by internal ID.
    Returns {:body ... :subject ... :from ... :date ...} or nil on failure."
   [gmail-id]
-  (let [{:keys [out err exit]}
-        (try (p/sh "gws" "gmail" "+read" "--id" gmail-id
+  (let [api-id (canonical->api-hex gmail-id)
+        {:keys [out err exit]}
+        (try (p/sh "gws" "gmail" "+read" "--id" api-id
                    "--headers" "--format" "json")
              (catch Exception e
                (binding [*out* *err*]

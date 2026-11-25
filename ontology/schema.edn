@@ -1,0 +1,44 @@
+{:schema-version 1
+ :classes
+ {:organizations {:label "Organizations"}
+  :companies     {:label "Companies" :parents [:organizations]}
+  :roles         {:label "Roles"}
+  :fields        {:label "Fields"}
+  :job_types     {:label "Job Types"}
+  :locations     {:label "Locations"}}
+ :disjoint
+ [[:companies :roles]
+  [:companies :fields]
+  [:companies :job_types]
+  [:companies :locations]
+  [:roles :fields]
+  [:roles :job_types]
+  [:roles :locations]
+  [:fields :job_types]
+  [:fields :locations]
+  [:job_types :locations]]
+ :properties
+ {:term/category {:domain :term :range :class :cardinality :one}
+  :term/normalized {:domain :term :range :literal :cardinality :one}
+  :term/same-as {:domain :term :range :term}
+  :term/broader {:domain :term :range :term}
+  :term/narrower {:domain :term :range :term}
+  :term/related {:domain :term :range :term}
+  :form/term {:domain :form :range :term :cardinality :one}
+  :label/parent {:domain :label :range :label}
+  :label/category {:domain :label :range :class :cardinality :one}}
+ :entity-classes
+ {:entity       {:label "Entity"}
+  :posting      {:label "Posting" :parents [:entity]}
+  :job-posting  {:label "Job Posting" :parents [:posting]}
+  :media        {:label "Media Entity" :parents [:entity]}
+  :tv-channel   {:label "TV Channel" :parents [:media]}
+  :tv-program   {:label "TV Program" :parents [:media]}
+  :tv-episode   {:label "TV Episode" :parents [:media]}}
+ :entity-disjoint
+ [[:job-posting :tv-channel]
+  [:job-posting :tv-program]
+  [:job-posting :tv-episode]
+  [:tv-channel :tv-program]
+  [:tv-channel :tv-episode]
+  [:tv-program :tv-episode]]}

@@ -1,6 +1,6 @@
 # Antigravity Port & Ontology Enforcement — Intent
 
-Status: **intent / design**, no implementation in this change.
+Status: **Phase 0.5 and Phase 1 implemented**; later phases in progress.
 Companion: [Backlog Triage](backlog-triage.md).
 
 ## Why
@@ -40,9 +40,11 @@ with a stable ontology, and enforces the ontology rules centrally.
 | Formalism | RDFS core + selected OWL 2 RL rules; typed graph, closed-world integrity; OWL-Lite is not the target |
 | Gmail identity | Canonical decimal strings; API hex converted at the gws boundary |
 | gws role | Email enrichment only (IDs, bodies, labels, live sources); never ontology classification |
+| Entity layer | Jobs, TV channels/programs/episodes, and evidence are first-class graph individuals |
 
 Reasoning formalism and rule scope: [Ontology Reasoning](ontology-reasoning.md).
 gws integration and identity rules: [GWS Enrichment](gws-enrichment.md).
+Entity extraction and storage: [Entity Generation](entity-generation.md).
 
 ## Core architecture
 
@@ -266,6 +268,22 @@ The critical identity rule is in [GWS Enrichment](gws-enrichment.md):
 - Never overwrite an existing decimal thread with an API hex value.
 - Dry-run/synthetic IDs must never be applied.
 
+## Entity layer
+
+The antigravity generators produce enriched email JSON and a TV-guide
+Markdown, but not explicit entity records. We will add an ABox layer:
+
+- `:job-posting` entities from LinkedIn (and later Built In/Google jobs)
+- `:tv-channel`, `:tv-program`, `:tv-episode` entities from fitness emails and
+  YouTube metadata
+- `:evidence` records linking entities to source emails/URLs
+- term refs from jobs/programs/channels to the ontology
+
+Scripts remain simple Babashka generators that write EDN; a `takeout entities
+upsert` command resolves terms, creates provisional terms for misses, and
+stores entities/evidence in the same Datalevin database. See
+[Entity Generation](entity-generation.md).
+
 ## Port inventory
 
 | Antigravity | Target | Notes |
@@ -321,9 +339,10 @@ The critical identity rule is in [GWS Enrichment](gws-enrichment.md):
 - Markdown masking/stats/feed.
 - TV-guide formatter.
 
-### Phase 6 — Live Gmail / LinkedIn / evaluation
+### Phase 6 — Entities + live Gmail / LinkedIn / evaluation
 - Optional `gws` source adapter.
 - LinkedIn as source config.
+- Entity generation/upsert (E1–E6 in [Entity Generation](entity-generation.md)).
 - Gold-set/local-model evaluation harness.
 
 ## Acceptance criteria
