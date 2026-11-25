@@ -232,15 +232,11 @@ ontology/
 1. `--base-dir`
 2. `GMAILS_BASE_DIR`
 3. `<repo>/ontology` (or `./ontology` when the script path cannot be resolved)
-4. `~/code/antigravity-gmail-project`
-5. `~/code/gmails`
-6. current directory
+4. current directory
 
-The initial contents were copied from the antigravity project; the originals
-were left in place. Once you are satisfied with the new location, you can
-archive the antigravity copies. Future classifier runs default to
-`<repo>/ontology`, so old and new caches will diverge if you keep running the
-script against the old directory.
+The initial cache/config/candidates were copied from the legacy Gmail pipeline.
+Future classifier runs default to `<repo>/ontology`; archive the old data if
+you want a single source of truth.
 
 ## Pipeline script paths
 

@@ -890,8 +890,8 @@
         (db/close-conn conn)))))
 
 (def import-emails-spec
-  {:from    {:alias :f :desc "Antigravity JSON/EDN email export (required)" :required true}
-   :source  {:desc "Email source label" :default "antigravity-json"}
+  {:from    {:alias :f :desc "Legacy email export JSON/EDN (required)" :required true}
+   :source  {:desc "Email source label" :default "legacy-json"}
    :force   {:desc "Replace existing non-empty bodies"}
    :dry-run {:desc "Preview without transacting"}})
 
@@ -899,13 +899,13 @@
   (when (:help opts)
     (println "Usage: takeout import-emails --from <json-or-edn> [--source LABEL] [--force] [--dry-run]")
     (println)
-    (println "  -f, --from PATH  Antigravity JSON/EDN email export (required)")
-    (println "  --source LABEL   Email source label (default: antigravity-json)")
+    (println "  -f, --from PATH  Legacy email export JSON/EDN (required)")
+    (println "  --source LABEL   Email source label (default: legacy-json)")
     (println "  --force          Replace existing non-empty bodies")
     (println "  --dry-run        Preview without transacting")
     (System/exit 0))
   (let [path   (:from opts)
-        source (or (:source opts) "antigravity-json")
+        source (or (:source opts) "legacy-json")
         text   (slurp path)
         data   (if (str/ends-with? (str/lower-case path) ".edn")
                  (edn/read-string text)
@@ -1259,7 +1259,7 @@
                                           (println "  update-message-ids          Add :email/gmail-id from gws mapping EDN")
                                           (println "  update-bodies               Update :email/body-truncated from fetch-bodies EDN")
                                           (println "  update-links                Update :email/links from extract-urls EDN")
-                                          (println "  import-emails               Import Antigravity JSON/EDN email exports")
+                                          (println "  import-emails               Import legacy email exports (JSON/EDN)")
                                           (println "  upsert-entities             Store generated jobs/TV entities and evidence")
                                           (println "  upsert-content              Store fetched content as :content entities")
                                           (println "  content                     Query content entities joined with emails")
@@ -1280,7 +1280,7 @@
    {:cmds ["propagate"] :fn propagate-cmd :spec propagate-spec :doc "Propagate a label to all emails in threads containing it"}
    {:cmds ["inspect-thread"] :fn inspect-thread-cmd :spec inspect-thread-spec :doc "Inspect label distribution within a thread"}
    {:cmds ["linked-labels"] :fn linked-labels-cmd :spec linked-labels-spec :doc "Find labels that co-occur with a given label"}
-   {:cmds ["import-emails"] :fn import-emails-cmd :spec import-emails-spec :doc "Import Antigravity JSON/EDN email exports"}
+   {:cmds ["import-emails"] :fn import-emails-cmd :spec import-emails-spec :doc "Import legacy email exports (JSON/EDN)"}
    {:cmds ["update-message-ids"] :fn update-msg-ids-cmd :spec update-msg-ids-spec :doc "Add :email/gmail-id and update :email/thread-id from gws mapping EDN"}
    {:cmds ["update-bodies"] :fn update-bodies-cmd :spec update-bodies-spec :doc "Update :email/body-truncated from fetch-bodies EDN"}
    {:cmds ["update-links"] :fn update-links-cmd :spec update-links-spec :doc "Update :email/links from extract-urls EDN"}

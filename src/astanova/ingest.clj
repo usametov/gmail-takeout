@@ -84,7 +84,7 @@
   "Upsert normalized email maps by :email/id.
 
    Unlike MBOX re-ingest, this preserves an existing non-empty body unless
-   `:force` is true, and unions labels/links.  Used by Antigravity JSON import.
+   `:force` is true, and unions labels/links.  Used by legacy email-export import.
    Returns stats with :email-count, :inserted, :updated, :tx-count and
    :dry-run."
   [conn emails mbox-file source & {:keys [batch-size force dry-run]

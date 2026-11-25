@@ -11,7 +11,7 @@ All notable changes to `astanova/takeout` are recorded here.
 - `astanova.entity` deterministic IDs, job dedup keys, canonical LinkedIn URLs,
   category-aware validation, and evidence IDs.
 - LinkedIn job-card parser and `scripts/generate-jobs.clj` generator.
-- Antigravity JSON/EDN email import (`takeout import-emails`) with canonical
+- Legacy email export JSON/EDN import (`takeout import-emails`) with canonical
   Gmail IDs, HTML/text separation, label/link unions, and body preservation.
 - Entity/evidence upsert (`takeout upsert-entities`) with class seeding,
   idempotent entity/evidence storage, and dry-run.

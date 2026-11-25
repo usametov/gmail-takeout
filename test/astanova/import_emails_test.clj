@@ -12,11 +12,11 @@
   (str (Files/createTempDirectory "import-emails" (make-array FileAttribute 0))))
 
 (defn- fixture []
-  (json/parse-string (slurp "test/fixtures/antigravity-emails.json") true))
+  (json/parse-string (slurp "test/fixtures/legacy-emails.json") true))
 
-(deftest test-normalize-antigravity-email
+(deftest test-normalize-legacy-email
   (let [{:keys [emails total skipped]}
-        (import-emails/normalize-emails (fixture) "antigravity-json")
+        (import-emails/normalize-emails (fixture) "legacy-json")
         plain (first (filter #(= "Plain import" (:subject %)) emails))
         html  (first (filter #(= "HTML import" (:subject %)) emails))]
     (is (= 2 total))
@@ -37,16 +37,16 @@
 (deftest test-upsert-emails-idempotent
   (let [dir (temp-dir)
         conn (db/create-conn (str dir "/emails.db"))
-        {:keys [emails]} (import-emails/normalize-emails (fixture) "antigravity-json")]
+        {:keys [emails]} (import-emails/normalize-emails (fixture) "legacy-json")]
     (try
-      (let [first-stats (ingest/upsert-emails! conn emails "antigravity-emails.json"
-                                               "antigravity-json")
-            second-stats (ingest/upsert-emails! conn emails "antigravity-emails.json"
-                                                "antigravity-json")]
+      (let [first-stats (ingest/upsert-emails! conn emails "legacy-emails.json"
+                                               "legacy-json")
+            second-stats (ingest/upsert-emails! conn emails "legacy-emails.json"
+                                                "legacy-json")]
         (is (= 2 (:inserted first-stats)))
         (is (= 2 (:updated second-stats)))
         (is (= 2 (count (d/q '[:find ?e :where [?e :email/id _]] (d/db conn)))))
-        (let [e (d/entity (d/db conn) [:email/id "<antigravity-1@test>"])]
+        (let [e (d/entity (d/db conn) [:email/id "<legacy-1@test>"])]
           (is (= "1869976353534821376" (:email/gmail-id e)))
           (is (= "1869976293963969653" (:email/thread-id e)))
           (is (= #{"INBOX" "ai/agents"} (set (:email/labels e))))
@@ -82,7 +82,7 @@
 (deftest test-upsert-dry-run-does-not-write
   (let [dir (temp-dir)
         conn (db/create-conn (str dir "/dry.db"))
-        {:keys [emails]} (import-emails/normalize-emails (fixture) "antigravity-json")]
+        {:keys [emails]} (import-emails/normalize-emails (fixture) "legacy-json")]
     (try
       (let [stats (ingest/upsert-emails! conn emails "f" "test" :dry-run true)]
         (is (= 2 (:inserted stats)))

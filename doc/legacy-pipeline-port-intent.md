@@ -1,4 +1,4 @@
-# Antigravity Port & Ontology Enforcement — Intent
+# Legacy Gmail Pipeline Port & Ontology Enforcement — Intent
 
 Status: **Phase 0.5/1 and entity E1/E2a/E2b/E3 implemented**; later phases in progress.
 Companion: [Backlog Triage](backlog-triage.md).
@@ -11,7 +11,7 @@ Companion: [Backlog Triage](backlog-triage.md).
 - query/thread/content tooling
 - a DeepSeek ontology classifier and JSON cache (`ontology/`)
 
-`antigravity-gmail-project` has the rest of the pipeline:
+The legacy Gmail pipeline has the rest of the pipeline:
 
 - candidate compilation + document-frequency analysis
 - local ontology matching (`body_extract`)
@@ -63,7 +63,7 @@ Local mode must work with no `gws` and no network.
 
 Introduce a typed graph in Datalevin (RDF-like, not generic triples) as the
 canonical ontology. The existing JSON cache becomes a **materialized view** for
-fast local matching and Antigravity compatibility.
+fast local matching and legacy-pipeline compatibility.
 
 Graph entities:
 
@@ -231,7 +231,7 @@ Sampling policy:
 1. Build the pooled set of emails from the selected sources.
 2. Deduplicate by `:email/id`.
 3. Sort by `:email/date` descending, then `:email/id` ascending.
-4. Take `df_sample_size` (default **500**, configurable; Antigravity used 50).
+4. Take `df_sample_size` (default **500**, configurable; the legacy pipeline used 50).
 5. Count each candidate at most once per document.
 6. `DF >= df_threshold` ⇒ candidate becomes a DF stop unless allow-listed.
 
@@ -270,7 +270,7 @@ The critical identity rule is in [GWS Enrichment](gws-enrichment.md):
 
 ## Entity layer
 
-The antigravity generators produce enriched email JSON and a TV-guide
+The legacy generators produce enriched email JSON and a TV-guide
 Markdown, but not explicit entity records. We will add an ABox layer:
 
 - `:job-posting` entities from LinkedIn (and later Built In/Google jobs)
@@ -286,7 +286,7 @@ stores entities/evidence in the same Datalevin database. See
 
 ## Port inventory
 
-| Antigravity | Target | Notes |
+| Legacy pipeline | Target | Notes |
 |---|---|---|
 | `compile_raw_candidates.py` | candidate compiler | DB-first, shared rules, deterministic DF |
 | `fetch_emails.py` | local matcher + JSON exporter | DB source, no per-email model |

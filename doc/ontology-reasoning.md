@@ -1,7 +1,7 @@
 # Ontology Reasoning: RDFS + OWL 2 RL subset
 
 Status: **graph/schema/rules implemented (Phase 1); reasoning extensions in
-progress**, companion to [Antigravity Port Intent](antigravity-port-intent.md).
+progress**, companion to [Legacy Gmail Pipeline Port Intent](legacy-pipeline-port-intent.md).
 This document defines the reasoning formalism implemented in Datalevin.
 
 ## Position

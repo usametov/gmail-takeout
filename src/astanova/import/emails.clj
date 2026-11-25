@@ -1,5 +1,5 @@
 (ns astanova.import.emails
-  "Adapt Antigravity JSON/EDN email exports to the internal email map.
+  "Adapt legacy email exports (JSON/EDN) to the internal email map.
 
    These files are arrays of enriched email records, not entity arrays.  The
    adapter canonicalizes Gmail IDs, converts dates, and separates HTML from
@@ -78,7 +78,7 @@
       (vec (distinct (keep #(when-not (str/blank? (str %)) (str %)) links))))))
 
 (defn normalize-email
-  "Convert one Antigravity email record to the internal email map.
+  "Convert one legacy email-export record to the internal email map.
    Returns nil when the Message-ID is missing."
   [m source]
   (let [message-id (some-> (get* m :messageId :message-id :email/id "messageId" "message-id")
@@ -100,7 +100,7 @@
           (seq (:html body)) (assoc :html (:html body)))))))
 
 (defn normalize-emails
-  "Normalize a sequence of Antigravity email records.  Returns
+  "Normalize a sequence of legacy email-export records.  Returns
    {:emails [...] :total n :skipped n}."
   [data source]
   (let [items (cond

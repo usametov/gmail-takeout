@@ -132,21 +132,19 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit...
 3. **Include body text.**  The report includes the first 500 characters of
    each email body — enough for NotebookLM to understand context.  If emails
    have empty bodies (common with Takeout exports that only include headers),
-   use the [Antigravity pipeline](#antigravity-and-gws) to backfill full
-   bodies first.
+   use [`gws` body enrichment](#gws-and-live-gmail-enrichment) to backfill
+   full bodies first.
 4. **Regenerate as needed.**  NotebookLM sources are static; re-export and
    re-upload when you want fresh data.
 
 ---
 
-## Antigravity and gws
+## gws and live Gmail enrichment
 
-[Antigravity](https://antigravity.google/) is Google's internal AI agent
-platform. It provides **skills** — composable capabilities that agents can use
-to interact with Google services. The `gws` ([googleworkspace/cli](https://github.com/googleworkspace/cli))
-skill is particularly useful for enriching the email database with live data
-from Gmail. See [Setup](setup.md#gws-google-workspace-cli) for installation and
-authentication.
+`gws` ([googleworkspace/cli](https://github.com/googleworkspace/cli)) is a
+standalone Google Workspace CLI. It is useful for enriching the email database
+with live Gmail data independently of any coding agent. See
+[Setup](setup.md#gws-google-workspace-cli) for installation and authentication.
 
 ### What gws Provides
 
@@ -291,8 +289,8 @@ gws gmail users messages attachments get \
   --id <attachment-id> \
   > report.pdf
 
-# The gws skill can also be used with Antigravity agents to
-# automate: fetch attachment → save to Drive → share link
+# gws can be scripted to automate:
+# fetch attachment → save to Drive → share link
 ```
 
 Since Takeout ingestion captures attachment metadata (`:email/attachments`),

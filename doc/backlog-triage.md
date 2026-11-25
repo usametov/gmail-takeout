@@ -1,6 +1,6 @@
 # Backlog Triage
 
-Companion to [Antigravity Port & Ontology Enforcement — Intent](antigravity-port-intent.md).
+Companion to [Legacy Gmail Pipeline Port & Ontology Enforcement — Intent](legacy-pipeline-port-intent.md).
 
 Status date: 2026-11-24. Planning document; not a commitment that every item
 will be implemented.
@@ -33,7 +33,7 @@ Effort: XS (<30 min), S (0.5–2 h), M (0.5–2 days), L (>2 days).
 Entity E1/E3 and Phase 0.5 / Phase 1 delivered:
 
 - **E1** entity/evidence schema, entity classes, deterministic IDs, validation.
-- **E2a** Antigravity email import (`import-emails`), with body preservation.
+- **E2a** Legacy email export import (`import-emails`), with body preservation.
 - **E2b** entity/evidence upsert (`upsert-entities`), idempotent merge.
 - **E3** LinkedIn card parser, dedup/URL canonicalization, generator script,
   fixture and JVM tests.
@@ -84,7 +84,7 @@ See [GWS Enrichment](gws-enrichment.md).
 | ID | Item | Notes | Effort | Decision |
 |----|------|-------|--------|----------|
 | O6 | Classifier relocation: `src/` namespace + `takeout ontology classify`; bb wrapper; write graph then export cache. | Locked decision. | M | **next** |
-| O7 | Portable source model for local DB mode (labels/from/to/subject/text/since/limit); legacy Gmail `:query` only for live mode. | Replaces Antigravity query-only config. | S–M | **next** |
+| O7 | Portable source model for local DB mode (labels/from/to/subject/text/since/limit); legacy Gmail `:query` only for live mode. | Replaces legacy query-only config. | S–M | **next** |
 | O8 | Cache/graph seed + migration command; canonical alias seed. | Equivalent to `populate_ontology_cache.py`, with audit source `seed`/`manual`. | S | **next** |
 | O9 | Schema validation/resource for structured output. | Preserve keys; allow nulls. | S | **next** |
 | O10 | End-to-end `takeout` command path: compile → classify → match → report. | One documented path. | S | **next** |
@@ -98,7 +98,7 @@ Design: [Entity Generation](entity-generation.md).
 | ID | Item | Notes | Effort | Decision |
 |----|------|-------|--------|----------|
 | E1 | Entity/evidence classes and schema; deterministic entity IDs; class/category validation. | Merge into the main Datalevin schema per the proposal. | M | **done** |
-| E2a | Antigravity JSON email import/upsert: `astanova.import.emails` + `takeout import-emails`. | Saves the existing JSON exports as emails; idempotent by Message-ID, canonical Gmail IDs. | M | **done** |
+| E2a | Legacy email export import/upsert: `astanova.import.emails` + `takeout import-emails`. | Saves the existing JSON exports as emails; idempotent by Message-ID, canonical Gmail IDs. | M | **done** |
 | E2b | `takeout upsert-entities`: `astanova.entity.store`, seed classes, upsert entities/evidence, merge on rerun, dry-run, finally cleanup. | Stores generator output in the DB. | M | **done** |
 | E2c | Term resolution + provisional terms during entity upsert. | Links jobs/TV to ontology without polluting the approved cache. | M | **next** |
 | E3 | LinkedIn job parser + `scripts/generate-jobs.clj`; golden tests from `linkedin_emails.json`. | Parses multiple job cards per email; dedup + evidence. | M | **done** |

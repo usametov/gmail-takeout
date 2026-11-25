@@ -159,9 +159,9 @@ bb scripts/generate-jobs.clj --from /path/to/linkedin_emails.json \
 
 See [doc/ontology-classifier.md](doc/ontology-classifier.md) for the full
 contract: config keys, noise/allow-list rules, cache consistency, audit log,
-reports, and local-model evaluation. The planned Antigravity port, its
+reports, and local-model evaluation. The legacy Gmail pipeline port, its
 RDFS/OWL 2 RL reasoning design, and the remaining backlog are in
-[doc/antigravity-port-intent.md](doc/antigravity-port-intent.md),
+[doc/legacy-pipeline-port-intent.md](doc/legacy-pipeline-port-intent.md),
 [doc/ontology-reasoning.md](doc/ontology-reasoning.md),
 [doc/gws-enrichment.md](doc/gws-enrichment.md),
 [doc/entity-generation.md](doc/entity-generation.md), and

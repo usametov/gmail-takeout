@@ -1,11 +1,11 @@
 # Entity Generation: Jobs, TV, and Evidence
 
 Status: **E1, E2a, E2b, E3 implemented; E2c/E4+ design**, companion to
-[Antigravity Port Intent](antigravity-port-intent.md),
+[Legacy Gmail Pipeline Port Intent](legacy-pipeline-port-intent.md),
 [Ontology Reasoning](ontology-reasoning.md), and
 [GWS Enrichment](gws-enrichment.md).
 
-## What the existing generators actually produce
+## What the legacy generators actually produce
 
 `fetch_linkedin_emails.py` does **not** emit job entities. It emits an array of
 enriched email records (`linkedin_emails.json`); each LinkedIn email can contain
@@ -270,7 +270,7 @@ not classify terms.
   - labels first (`self_defense`, `flexibility`, `boxing`)
   - subject keywords next
   - fallback `CH4_GENERAL_FITNESS`
-- Program per email; episodes from `youtube_videos` (antigravity JSON) or
+- Program per email; episodes from `youtube_videos` (legacy JSON) or
   `youtube_video_ids` + oEmbed cache.
 - Output channels, programs, episodes, and evidence.
 
@@ -292,7 +292,7 @@ New `takeout entities upsert` command:
 
 There are two different inputs and two different upsert layers.
 
-### 1. Antigravity JSON = enriched email exports
+### 1. Legacy email exports = enriched email records
 
 `linkedin_emails.json`, `fitness.json`, `datalog-agents.json`, etc. are arrays
 of **email records**, not job/TV entity arrays. Saving them means importing or
@@ -300,7 +300,7 @@ upserting emails by `:email/id` (Message-ID), exactly like MBOX ingestion.
 
 Placement:
 
-- `src/astanova/import/emails.clj` — adapt Antigravity JSON keys to the
+- `src/astanova/import/emails.clj` — adapt legacy email-export keys to the
   internal email map; canonicalize Gmail/thread IDs; parse dates; normalize
   body/labels/links.
 - `src/astanova/ingest.clj` — expose a generic `upsert-emails!` from the
@@ -346,7 +346,7 @@ Entity storage follows it with:
 Do not create a second generic “write any map” function; keep domain-specific
 transformers (email, content, entity) with shared batching.
 
-## Importing Antigravity JSON
+## Importing legacy email exports
 
 The adapter should:
 
@@ -358,7 +358,7 @@ The adapter should:
 - map `body_truncated` to `:email/body-truncated`; if it is HTML, store it as
   `:email/html` and derive plain text where possible
 - map `body_extract.links` to `:email/links`
-- set `:email/source "antigravity-json"` (or the source file name)
+- set `:email/source "legacy-json"` (or the source file name)
 - never overwrite a richer existing Takeout body unless `--force`
 - be idempotent on re-import
 
@@ -407,7 +407,7 @@ no destructive migration is required.
 ## Implemented commands
 
 ```bash
-# Import an Antigravity email export
+# Import a legacy email export
 ./takeout import-emails --from linkedin_emails.json
 
 # Generate and store job entities
@@ -429,7 +429,7 @@ evidence, is idempotent on rerun, and supports `--dry-run`.
   dedup keys, and category-aware validation.
 - JVM tests cover IDs, class constraints, and schema round-trips.
 
-### E2a — Antigravity email import — **done**
+### E2a — Legacy email export import — **done**
 - `src/astanova/import/emails.clj` adapter + `takeout import-emails`.
 - Canonical Gmail IDs, HTML/text separation, labels/links, idempotent by
   Message-ID; preserves existing bodies unless `--force`.

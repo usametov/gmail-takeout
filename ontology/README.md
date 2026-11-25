@@ -1,7 +1,7 @@
 # Ontology data
 
 This directory is the default data root for `scripts/ontology_classifier.clj`.
-It was copied from the antigravity Gmail ontology project so the classifier,
+It was copied from the legacy Gmail ontology project so the classifier,
 config, cache and candidates live with `gmail-takeout`.
 
 | File | Purpose | Tracked? |

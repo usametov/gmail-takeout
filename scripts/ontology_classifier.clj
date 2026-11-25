@@ -1,9 +1,9 @@
 #!/usr/bin/env bb
 ;; Ontology classifier / duplicate collapser for the Gmail ontology pipeline.
 ;;
-;; Ported from the Python antigravity-gmail-project pipeline.  Unlike the
-;; upstream script, gmail-takeout uses DeepSeek (OpenAI-compatible chat
-;; completions), never Gemini.
+;; Ported from the legacy Python Gmail pipeline.  Unlike the upstream script,
+;; gmail-takeout uses DeepSeek (OpenAI-compatible chat completions), never
+;; Gemini.
 ;;
 ;; The classifier is deliberately boring and strict:
 ;;   1. read config + raw candidates + ontology cache
@@ -103,7 +103,7 @@
 ;; ---------------------------------------------------------------------------
 
 (def cli-spec
-  {:base-dir        {:alias :b :desc "Data root (default: $GMAILS_BASE_DIR, ./ontology, antigravity project, ~/code/gmails, cwd)"}
+  {:base-dir        {:alias :b :desc "Data root (default: $GMAILS_BASE_DIR, <repo>/ontology, ./ontology, cwd)"}
    :config          {:desc "config.json (default: <base>/config.json)"}
    :candidates      {:desc "raw candidates JSON/EDN (default: <base>/raw_candidates.json)"}
    :cache           {:desc "ontology cache JSON/EDN (default: <base>/ontology_cache.json)"}
@@ -178,9 +178,7 @@
         cwd      (System/getProperty "user.dir")
         candidates [(when-not (blank? env) env)
                     (script-ontology-dir)
-                    (str (fs/path cwd "ontology"))
-                    "~/code/antigravity-gmail-project"
-                    "~/code/gmails"]]
+                    (str (fs/path cwd "ontology"))]]
     (cond
       explicit
       (if (fs/exists? explicit)

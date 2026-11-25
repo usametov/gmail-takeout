@@ -1,7 +1,7 @@
 # Ontology Classifier & Duplicate Collapser
 
-Status: **new in `gmail-takeout`**, ported from the Python
-`antigravity-gmail-project` pipeline.
+Status: **new in `gmail-takeout`**, ported from the legacy Python Gmail
+pipeline.
 
 This document is the contract for `scripts/ontology_classifier.clj`. It
 replaces the earlier Gemini-oriented draft. `gmail-takeout` uses **DeepSeek**
@@ -230,7 +230,7 @@ bb scripts/ontology_classifier.clj --report /tmp/ontology-report.json
 
 | Option | Description |
 |--------|-------------|
-| `-b, --base-dir DIR` | Data root; default `$GMAILS_BASE_DIR`, `<repo>/ontology`, `~/code/antigravity-gmail-project`, `~/code/gmails`, then cwd |
+| `-b, --base-dir DIR` | Data root; default `$GMAILS_BASE_DIR`, `<repo>/ontology`, `./ontology`, then cwd |
 | `--config PATH` | `config.json` (or `.edn`) |
 | `--candidates PATH` | `raw_candidates.json` (or `.edn`) |
 | `--cache PATH` | `ontology_cache.json` (or `.edn`) |
@@ -311,7 +311,7 @@ Record the result (`--report`) before any production cut-over. No separate
 evaluation harness is bundled yet; `--check` is the regression gate for cache
 integrity, and a gold-set harness is the next step.
 
-## Compatibility with the Antigravity Pipeline
+## Compatibility with the legacy pipeline
 
 - `fetch_emails.py` and `fetch_linkedin_emails.py` read
   `ontology_cache.json` and look up candidates with `cache.get(term)` or
